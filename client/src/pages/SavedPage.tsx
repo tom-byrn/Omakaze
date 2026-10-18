@@ -4,13 +4,14 @@ import { EmptyState } from '../components/EmptyState';
 import { Footer } from '../components/Footer';
 import { HeartIcon } from '../components/Icons';
 import { ListingCard } from '../components/ListingCard';
+import { SavedSearchList } from '../components/SavedSearchList';
 import { useDocumentTitle, useToday } from '../hooks/misc';
 import { useAsync } from '../hooks/useAsync';
 
 export function SavedPage() {
   const today = useToday();
   const { data: favorites, error, setData } = useAsync((signal) => api.favorites(signal), []);
-  useDocumentTitle('Saved homes');
+  useDocumentTitle('Saved');
 
   const removeFromList = (id: number) =>
     setData((current) => current?.filter((listing) => listing.id !== id));
@@ -19,9 +20,16 @@ export function SavedPage() {
     <>
       <div className="container page">
         <header className="page-header">
-          <h1>Saved homes</h1>
-          <p>Homes you’ve saved on this device. Tap the heart on any listing to add or remove it.</p>
+          <h1>Saved</h1>
+          <p>Searches and homes you’ve saved on this device.</p>
         </header>
+
+        <section className="saved-section">
+          <h2>Saved searches</h2>
+          <SavedSearchList />
+        </section>
+
+        <h2 className="saved-section__title">Saved homes</h2>
 
         {error && <div className="notice notice--error">We couldn’t load your saved homes. {error.message}</div>}
 

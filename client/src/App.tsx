@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router';
 import { Header } from './components/Header';
+import { AffordabilityPage } from './pages/AffordabilityPage';
 import { ListingTypeProvider } from './hooks/useListingType';
 import { ListingPage } from './pages/ListingPage';
 import { MakeOfferPage } from './pages/MakeOfferPage';
@@ -19,6 +20,7 @@ export function App() {
             <Route path="/homes/:id" element={<ListingPage />} />
             <Route path="/homes/:id/offer" element={<MakeOfferPage />} />
             <Route path="/offers" element={<OffersPage />} />
+            <Route path="/affordability" element={<AffordabilityPage />} />
             <Route path="/saved" element={<SavedPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

@@ -10,6 +10,7 @@ import {
 import { useDebouncedCallback } from '../hooks/misc';
 import { SearchIcon } from './Icons';
 import { Popover } from './Popover';
+import { SaveSearchButton } from './SaveSearchButton';
 
 const PRICE_STEPS: Record<ListingType, number[]> = {
   rent: [1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000],
@@ -197,6 +198,11 @@ export function FilterBar({ filters, neighborhoods, onChange, onReset }: FilterB
             Clear filters
           </button>
         )}
+
+        <SaveSearchButton
+          filters={filters}
+          neighborhoodName={neighborhoods.find((hood) => hood.slug === filters.neighborhood)?.name ?? null}
+        />
       </div>
     </div>
   );

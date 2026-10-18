@@ -35,10 +35,13 @@ export function Header() {
         <nav className="site-nav" aria-label="Main">
           <NavLink to="/saved" className="site-nav__link">
             <HeartIcon size={17} />
-            Saved homes
+            Saved
           </NavLink>
           <NavLink to="/offers" className="site-nav__link">
             My offers
+          </NavLink>
+          <NavLink to="/affordability" className="site-nav__link">
+            Affordability
           </NavLink>
         </nav>
 
