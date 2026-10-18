@@ -1,0 +1,26 @@
+{
+  "name": "hearth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Find a place to live in Port Ellis.",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "concurrently --names server,client --prefix-colors blue,green \"pnpm --filter @hearth/server dev\" \"pnpm --filter @hearth/client dev\"",
+    "build": "pnpm --filter @hearth/client build",
+    "start": "pnpm --filter @hearth/server start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @hearth/server db:migrate",
+    "db:reset": "pnpm --filter @hearth/server db:reset"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
