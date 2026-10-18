@@ -139,6 +139,79 @@ h4 {
   }
 }
 
+/* Screen recording in the landing page schematic (section 04). Positions are in the recording's 680px viewport. */
+@keyframes rec-scroll {
+  0%,
+  12% {
+    transform: none;
+  }
+  36%,
+  86% {
+    transform: translateY(-230px);
+  }
+  96%,
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes rec-cursor {
+  0%,
+  32% {
+    left: 300px;
+    top: 150px;
+  }
+  52%,
+  86% {
+    left: 546px;
+    top: 254px;
+  }
+  96%,
+  100% {
+    left: 300px;
+    top: 150px;
+  }
+}
+
+@keyframes rec-press {
+  0%,
+  53%,
+  59%,
+  100% {
+    transform: none;
+  }
+  56% {
+    transform: scale(0.95);
+  }
+}
+
+@keyframes rec-toast {
+  0%,
+  57% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  61%,
+  86% {
+    opacity: 1;
+    transform: none;
+  }
+  91%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+@keyframes rec-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);
