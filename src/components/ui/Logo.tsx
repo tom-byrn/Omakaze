@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-/** A drawing of wooden chopsticks on paper (public/logo.svg). It works on light and dark backgrounds. */
+/** An illustration of wooden chopsticks (public/logo.svg). It works on light and dark backgrounds. */
 export function LogoMark({ size = 26 }: { size?: number }) {
   return (
     <Image
