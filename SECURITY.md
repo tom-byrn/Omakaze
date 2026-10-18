@@ -13,7 +13,7 @@ Omakaze has not had a stable release yet. Security fixes are made on the `main` 
 
 Do not open a public issue for security problems.
 
-Report vulnerabilities through GitHub's private vulnerability reporting: open the [Security tab](https://github.com/tom-byrn/guided-prs/security) of the repository and choose **Report a vulnerability**, or go directly to [a new security advisory](https://github.com/tom-byrn/guided-prs/security/advisories/new).
+Report vulnerabilities through GitHub's private vulnerability reporting: open the [Security tab](https://github.com/tom-byrn/omakaze/security) of the repository and choose **Report a vulnerability**, or go directly to [a new security advisory](https://github.com/tom-byrn/omakaze/security/advisories/new).
 
 Include:
 

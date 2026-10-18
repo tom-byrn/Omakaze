@@ -73,7 +73,7 @@ export function AppHeader({
                 </Link>
               ) : null}
               <a
-                href="https://github.com/tom-byrn/guided-prs#readme"
+                href="https://github.com/tom-byrn/omakaze#readme"
                 target="_blank"
                 rel="noreferrer"
                 className="block px-3 py-2 text-[14px] text-ui hover:bg-black/[0.04] hover:text-ink"

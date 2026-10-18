@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Documentation
-    url: https://github.com/tom-byrn/guided-prs/tree/main/docs
+    url: https://github.com/tom-byrn/omakaze/tree/main/docs
     about: Self-hosting, configuration, the GitHub App, the MCP server, the REST API and AI generation.
   - name: Report a security vulnerability
-    url: https://github.com/tom-byrn/guided-prs/security/advisories/new
+    url: https://github.com/tom-byrn/omakaze/security/advisories/new
     about: Report vulnerabilities privately instead of opening an issue.

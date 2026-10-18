@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/tom-byrn/Guided-PRs">
+  <a href="https://github.com/tom-byrn/omakaze">
     <img src="public/logo.svg" width="96" height="96" alt="Omakaze logo">
   </a>
 </p>
@@ -12,16 +12,16 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tom-byrn/Guided-PRs/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/tom-byrn/Guided-PRs/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
-  <a href="https://github.com/tom-byrn/Guided-PRs/pkgs/container/omakaze"><img src="https://img.shields.io/github/actions/workflow/status/tom-byrn/Guided-PRs/release.yml?branch=main&style=flat-square&label=image" alt="Release image"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/github/package-json/v/tom-byrn/Guided-PRs?style=flat-square&label=version" alt="Version"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/tom-byrn/Guided-PRs?style=flat-square" alt="License"></a>
-  <a href="https://github.com/tom-byrn/Guided-PRs/stargazers"><img src="https://img.shields.io/github/stars/tom-byrn/Guided-PRs?style=flat-square" alt="GitHub stars"></a>
-  <a href="https://github.com/tom-byrn/Guided-PRs/network/members"><img src="https://img.shields.io/github/forks/tom-byrn/Guided-PRs?style=flat-square" alt="GitHub forks"></a>
-  <a href="https://github.com/tom-byrn/Guided-PRs/issues"><img src="https://img.shields.io/github/issues/tom-byrn/Guided-PRs?style=flat-square" alt="Open issues"></a>
-  <a href="https://github.com/tom-byrn/Guided-PRs/pulls"><img src="https://img.shields.io/github/issues-pr/tom-byrn/Guided-PRs?style=flat-square" alt="Open pull requests"></a>
-  <a href="https://github.com/tom-byrn/Guided-PRs/commits/main"><img src="https://img.shields.io/github/last-commit/tom-byrn/Guided-PRs?style=flat-square" alt="Last commit"></a>
-  <a href="https://github.com/tom-byrn/Guided-PRs/graphs/contributors"><img src="https://img.shields.io/github/contributors/tom-byrn/Guided-PRs?style=flat-square" alt="Contributors"></a>
+  <a href="https://github.com/tom-byrn/omakaze/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/tom-byrn/omakaze/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
+  <a href="https://github.com/tom-byrn/omakaze/pkgs/container/omakaze"><img src="https://img.shields.io/github/actions/workflow/status/tom-byrn/omakaze/release.yml?branch=main&style=flat-square&label=image" alt="Release image"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/github/package-json/v/tom-byrn/omakaze?style=flat-square&label=version" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/tom-byrn/omakaze?style=flat-square" alt="License"></a>
+  <a href="https://github.com/tom-byrn/omakaze/stargazers"><img src="https://img.shields.io/github/stars/tom-byrn/omakaze?style=flat-square" alt="GitHub stars"></a>
+  <a href="https://github.com/tom-byrn/omakaze/network/members"><img src="https://img.shields.io/github/forks/tom-byrn/omakaze?style=flat-square" alt="GitHub forks"></a>
+  <a href="https://github.com/tom-byrn/omakaze/issues"><img src="https://img.shields.io/github/issues/tom-byrn/omakaze?style=flat-square" alt="Open issues"></a>
+  <a href="https://github.com/tom-byrn/omakaze/pulls"><img src="https://img.shields.io/github/issues-pr/tom-byrn/omakaze?style=flat-square" alt="Open pull requests"></a>
+  <a href="https://github.com/tom-byrn/omakaze/commits/main"><img src="https://img.shields.io/github/last-commit/tom-byrn/omakaze?style=flat-square" alt="Last commit"></a>
+  <a href="https://github.com/tom-byrn/omakaze/graphs/contributors"><img src="https://img.shields.io/github/contributors/tom-byrn/omakaze?style=flat-square" alt="Contributors"></a>
 </p>
 
 <p align="center">
@@ -80,8 +80,8 @@ Omakaze is an open-source, self-hostable web app that turns GitHub pull requests
 Requirements: Docker with Docker Compose.
 
 ```sh
-git clone https://github.com/tom-byrn/guided-prs.git
-cd guided-prs
+git clone https://github.com/tom-byrn/omakaze.git
+cd omakaze
 cp .env.example .env
 ```
 

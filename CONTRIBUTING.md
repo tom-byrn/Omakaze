@@ -4,7 +4,7 @@ Thank you for helping with Omakaze. This page explains how to report problems an
 
 ## Issues
 
-- Search the [existing issues](https://github.com/tom-byrn/guided-prs/issues) first.
+- Search the [existing issues](https://github.com/tom-byrn/omakaze/issues) first.
 - For bugs, include the steps to reproduce, what you expected, what happened, the version or commit, how you run Omakaze (Docker or Node.js), the GitHub connection type and, if relevant, the AI provider or MCP client. Remove tokens and secrets from logs.
 - For feature requests, describe the problem you want to solve before the solution.
 - Report security vulnerabilities privately as described in [SECURITY.md](SECURITY.md), not in an issue.

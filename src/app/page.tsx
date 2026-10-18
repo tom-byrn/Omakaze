@@ -14,11 +14,11 @@ import { landingOnly } from "@/lib/landing-only";
 import { agentPrompt, setupPrompt } from "@/lib/prompts";
 import { homePathFor } from "@/lib/workspaces";
 
-const REPO = "https://github.com/tom-byrn/guided-prs";
+const REPO = "https://github.com/tom-byrn/omakaze";
 
 const TERMINAL_LINES: TerminalLine[] = [
   { text: `git clone ${REPO}.git`, command: true },
-  { text: "cd guided-prs", command: true },
+  { text: "cd omakaze", command: true },
   { text: "cp .env.example .env", command: true },
   { text: "docker compose up -d", command: true },
   { text: "# open http://localhost:3000", command: false },
