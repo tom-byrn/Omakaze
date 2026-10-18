@@ -149,13 +149,10 @@ export default async function LandingPage() {
           <span className="eyebrow">Features</span>
           <h2 className="h2 mt-6 max-w-[620px]">What reviewers get.</h2>
           <div className="mt-12 grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
-            {FEATURES.map((f, i) => (
+            {FEATURES.map((f) => (
               <div key={f.title} className="relative flex min-h-[230px] flex-col justify-between gap-8 border border-black/15 bg-white px-8 pt-8 pb-6 grain">
                 <p className="font-serif text-[26px] leading-[1.1] tracking-[-0.01em] text-black lg:text-[28px]">{f.title}</p>
-                <div>
-                  <p className="body-copy">{f.body}</p>
-                  <p className="mt-5 font-mono text-[10px] tracking-[0.08em] text-black/40 uppercase">F-{String(i + 1).padStart(2, "0")}</p>
-                </div>
+                <p className="body-copy">{f.body}</p>
               </div>
             ))}
           </div>
