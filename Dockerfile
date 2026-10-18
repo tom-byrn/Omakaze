@@ -14,7 +14,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Build-time placeholders; real values come from the runtime environment.
 ENV DATABASE_URL=postgres://build:build@localhost:5432/build \
-    APP_SECRET=build-time-secret-not-used-at-runtime-000000
+    APP_SECRET=build-time-secret-not-used-at-runtime-000000 \
+    NEXT_OUTPUT=standalone
 RUN pnpm build
 
 FROM node:22-alpine AS runner

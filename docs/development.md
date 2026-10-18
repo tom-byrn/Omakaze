@@ -40,7 +40,7 @@ To work with GitHub locally, the simplest option is a personal access token conn
 | Command | What it does |
 | --- | --- |
 | `pnpm dev` | Next.js development server |
-| `pnpm build` | Production build (`output: "standalone"`) |
+| `pnpm build` | Production build. With `NEXT_OUTPUT=standalone` (set in the Dockerfile) it also writes the standalone server to `.next/standalone`. |
 | `pnpm start` | Serve the production build |
 | `pnpm lint` | ESLint (`eslint-config-next` with the TypeScript rules) |
 | `pnpm typecheck` | `next typegen` to generate route types, then `tsc --noEmit` |

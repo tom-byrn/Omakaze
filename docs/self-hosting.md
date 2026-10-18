@@ -65,7 +65,7 @@ pnpm start
 ```
 
 - `pnpm build`, `pnpm start` and `pnpm dev` load `.env` from the project root. The Dockerfile passes placeholder `DATABASE_URL` and `APP_SECRET` values during its build.
-- `pnpm start` runs `next start`, which listens on `PORT` (default 3000). Set `PORT` in the process environment, not in `.env`; Next.js reads it before loading `.env`. Next.js logs a warning that `next start` is not meant for `output: "standalone"` builds; the server still starts. The Docker image runs the standalone server (`node server.js`) instead.
+- `pnpm start` runs `next start`, which listens on `PORT` (default 3000). Set `PORT` in the process environment, not in `.env`; Next.js reads it before loading `.env`. The Docker image builds with `NEXT_OUTPUT=standalone` and runs the standalone server (`node server.js`) instead.
 - Keep the process running with your process manager of choice, and put a reverse proxy with TLS in front of it.
 
 ## Database migrations

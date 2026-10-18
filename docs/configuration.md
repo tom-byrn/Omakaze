@@ -91,6 +91,7 @@ Instance-wide defaults for built-in generation. A workspace that selects its own
 | `MIGRATIONS_DIR` | `drizzle` in the working directory | Folder with the SQL migrations. |
 | `PORT` | `3000` | Port the server listens on. For `pnpm start` and `pnpm dev`, set it in the process environment (`PORT=8080 pnpm start`); Next.js reads it before loading `.env`. The Docker image sets `3000`. |
 | `NODE_USE_ENV_PROXY` | none | Node.js setting. `1` makes `fetch` use `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`. See [self-hosting.md](self-hosting.md#outbound-http-proxy). |
+| `NEXT_OUTPUT` | none | Read by `pnpm build`. `standalone` also writes the standalone server (`.next/standalone/server.js`) that the Docker image runs. |
 
 ### Docker Compose
 

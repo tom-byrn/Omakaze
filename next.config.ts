@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // The Docker image sets NEXT_OUTPUT=standalone and runs `node server.js`; `pnpm start` serves a regular build.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   serverExternalPackages: ["postgres", "shiki", "nodemailer"],
   experimental: {
     serverActions: {
