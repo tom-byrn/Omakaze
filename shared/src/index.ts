@@ -6,3 +6,5 @@ export * from './mortgage';
 export * from './affordability';
 export * from './validation';
 export * from './offers';
+export * from './tours';
+export * from './savedSearches';

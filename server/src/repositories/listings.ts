@@ -61,6 +61,17 @@ export function searchListings(
   };
 }
 
+/** How many listings match, optionally only those listed on or after a date. */
+export function countListings(db: Database, filters: ListingFilters, listedSince?: string): number {
+  const query = buildListingQuery(filters);
+  const since = listedSince ? ' AND l.listed_at >= ?' : '';
+  const params = listedSince ? [...query.params, listedSince] : query.params;
+  const { total } = db
+    .prepare(`SELECT COUNT(*) AS total ${LISTING_FROM} ${query.where}${since}`)
+    .get(...params) as { total: number };
+  return total;
+}
+
 export function getListing(db: Database, id: number, view: ViewContext): ListingDetail | null {
   const row = db
     .prepare(`SELECT ${LISTING_COLUMNS} ${LISTING_FROM} WHERE l.id = ?`)

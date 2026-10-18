@@ -1,7 +1,7 @@
-import { addDays, toIsoDate, type PriceEvent, type SaleStatus } from '@hearth/shared';
+import { addDays, toIsoDate, validateSavedSearch, type PriceEvent, type SaleStatus } from '@hearth/shared';
 import { transaction, type Database } from '../connection';
 import { AGENTS } from './agents';
-import { DEMO_CLIENT_ID, DEMO_OFFERS } from './demo';
+import { DEMO_CLIENT_ID, DEMO_OFFERS, DEMO_SAVED_SEARCHES } from './demo';
 import { NEIGHBORHOODS } from './neighborhoods';
 import { RENTALS } from './rentals';
 import { SALES, type PriceEventSeed } from './sales';
@@ -58,6 +58,8 @@ export function seed(db: Database, { now = new Date() }: SeedOptions = {}): Seed
 
   return transaction(db, () => {
     db.exec(`
+      DELETE FROM saved_searches;
+      DELETE FROM tours;
       DELETE FROM offers;
       DELETE FROM price_history;
       DELETE FROM inquiries;
@@ -198,6 +200,22 @@ export function seed(db: Database, { now = new Date() }: SeedOptions = {}): Seed
         createdAt,
         updatedAt,
       );
+    }
+
+    const insertSavedSearch = db.prepare(
+      'INSERT INTO saved_searches (client_id, name, criteria, alert_frequency, created_at) VALUES (?, ?, ?, ?, ?)',
+    );
+    for (const search of DEMO_SAVED_SEARCHES) {
+      const params = new URLSearchParams(search.query);
+      const hood = NEIGHBORHOODS.find((n) => n.slug === params.get('neighborhood'));
+      const result = validateSavedSearch(
+        { criteria: Object.fromEntries(params), alertFrequency: search.alertFrequency },
+        hood?.name,
+      );
+      if (!result.ok) throw new Error(`Invalid demo search ${search.query}`);
+      const { name, criteria, alertFrequency } = result.value;
+      const createdAt = `${addDays(today, -search.createdDaysAgo)}T09:00:00.000Z`;
+      insertSavedSearch.run(DEMO_CLIENT_ID, name, JSON.stringify(criteria), alertFrequency, createdAt);
     }
 
     return { neighborhoods: NEIGHBORHOODS.length, rentals: RENTALS.length, sales: SALES.length };

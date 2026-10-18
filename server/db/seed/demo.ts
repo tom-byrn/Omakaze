@@ -69,3 +69,9 @@ export const DEMO_OFFERS: DemoOfferSeed[] = [
     sellerNote: 'The sellers went with an offer that had no home-sale contingency.',
   },
 ];
+
+/** Saved searches for the demo client, as search URL query strings. */
+export const DEMO_SAVED_SEARCHES = [
+  { query: 'type=sale&neighborhood=kestrel-park&maxPrice=1300000&beds=3', alertFrequency: 'daily', createdDaysAgo: 20 },
+  { query: 'neighborhood=canal-district&beds=1&pets=dogs', alertFrequency: 'weekly', createdDaysAgo: 9 },
+] as const;

@@ -171,6 +171,24 @@ export interface OfferWithListing extends Offer {
   listing: SaleSummary;
 }
 
+export interface TourRequest {
+  id: number;
+  listingId: number;
+  tourType: 'in_person' | 'video';
+  date: string;
+  time: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  status: 'requested' | 'confirmed' | 'cancelled';
+  createdAt: string;
+}
+
+export interface TourDay {
+  date: string;
+  slots: { time: string; available: boolean }[];
+}
+
 export type InquiryKind = 'question' | 'tour';
 
 export interface Inquiry {
