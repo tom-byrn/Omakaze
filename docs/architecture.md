@@ -139,6 +139,8 @@ The right pane loads one file at a time from `GET /api/guides/<id>/file?path=...
 
 With full contents, the viewer can show more context in steps of 20 lines, the enclosing block (found by indentation) or the whole file. Rendered file views are cached in memory (150 per process) and sent with `Cache-Control: private, max-age=3600`. Building a file view needs the repository's GitHub connection; for a repository without one, the request fails with 409. Code blocks in markdown are also highlighted with Shiki on the server.
 
+The file endpoint also returns moved and copied blocks (`src/lib/diff/moves.ts`). Runs of added lines are matched, ignoring indentation, against the base versions of the files the pull request touches (the 40 most changed, fetched once per snapshot and cached), or against the patches alone without a GitHub connection. A block needs at least 3 lines and 40 word characters. It is "moved" when most of its original lines were deleted, and those deleted lines point to the longest block that took them; otherwise, and for any further destination, it is "copied". Edits within a single hunk are not reported as moves.
+
 ## Security model
 
 **Sessions.** Signing in creates a random 32-byte token, stored in the `gpr_session` cookie (`HttpOnly`, `SameSite=Lax`, `Secure` when `APP_URL` uses HTTPS). The database stores only its SHA-256 hash. Sessions expire after 30 days without use. Passwords are hashed with scrypt (N = 2^15, r = 8, p = 1). Changing the password signs out other sessions.

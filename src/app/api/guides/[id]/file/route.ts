@@ -1,4 +1,4 @@
-import { buildFileView } from "@/lib/diff/fileview";
+import { buildFileView, snapshotMoves } from "@/lib/diff/fileview";
 import { ConnectionError, getRepoContext } from "@/lib/github/connections";
 import { getSnapshot } from "@/lib/github/pulls";
 import { requireGuideAccess } from "@/lib/guides/access";
@@ -19,12 +19,13 @@ export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/file
       if (err instanceof ConnectionError) return null;
       throw err;
     });
-    const view = await buildFileView(repoCtx, file, {
-      head: snapshot.headSha,
-      mergeBase: snapshot.mergeBaseSha,
-      snapshotId: snapshot.id,
-    });
-    return Response.json(view, { headers: { "Cache-Control": repoCtx ? "private, max-age=3600" : "no-store" } });
+    const shas = { head: snapshot.headSha, mergeBase: snapshot.mergeBaseSha, snapshotId: snapshot.id };
+    const [view, moves] = await Promise.all([
+      buildFileView(repoCtx, file, shas),
+      // Move detection is an extra; a failure never blocks the diff.
+      snapshotMoves(repoCtx, snapshot.files, shas).catch(() => null),
+    ]);
+    return Response.json({ ...view, moves: moves?.get(path) ?? [] }, { headers: { "Cache-Control": repoCtx ? "private, max-age=3600" : "no-store" } });
   } catch (err) {
     return errorResponse(err);
   }

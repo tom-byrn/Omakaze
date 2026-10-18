@@ -2,6 +2,7 @@ import { ghFileContent } from "@/lib/github/client";
 import type { RepoContext } from "@/lib/github/connections";
 import { parsePatch } from "./parse";
 import { languageForPath, Palette, tokenize, type Tok } from "./highlight";
+import { detectMoves, type MoveLink } from "./moves";
 import type { DiffFile } from "./types";
 
 export type ViewLine = {
@@ -39,6 +40,8 @@ export type FileView = {
   /** Fallback tokens per hunk line when file contents are unavailable */
   hunkTokens: Tok[][][] | null;
   palette: string[];
+  /** Blocks of this file moved or copied from (or moved to) elsewhere in the pull request */
+  moves?: MoveLink[];
 };
 
 const MAX_LINES = 6000;
@@ -187,4 +190,50 @@ export async function buildFileView(
   // A patch-only view is not cached, so full contents load once a connection is back.
   if (ctx) remember(key, view);
   return view;
+}
+
+/** Base files fetched for move and copy detection, most changed first */
+const MAX_MOVE_SOURCES = 40;
+const moveCache = new Map<string, Promise<Map<string, MoveLink[]>>>();
+
+/**
+ * Moved and copied blocks across a snapshot, by path. Copies are found in the
+ * base versions of the files the pull request touches; without a repository
+ * context only the lines in the patches are searched.
+ */
+export function snapshotMoves(
+  ctx: RepoContext | null,
+  files: DiffFile[],
+  shas: { mergeBase: string; snapshotId: string },
+): Promise<Map<string, MoveLink[]>> {
+  const hit = ctx ? moveCache.get(shas.snapshotId) : undefined;
+  if (hit) return hit;
+  const run = async () => {
+    const base = new Map<string, string[]>();
+    if (ctx && files.some((f) => f.additions > 0)) {
+      const candidates = files
+        .filter((f) => f.status !== "added" && f.patch !== null)
+        .sort((a, b) => b.additions + b.deletions - (a.additions + a.deletions))
+        .slice(0, MAX_MOVE_SOURCES);
+      await Promise.all(
+        candidates.map(async (f) => {
+          const content = await ghFileContent(ctx.token, ctx.repo.owner, ctx.repo.name, f.previousPath ?? f.path, shas.mergeBase).catch(() => null);
+          if (content === null) return;
+          const lines = splitLines(content);
+          if (lines.length <= MAX_LINES) base.set(f.path, lines);
+        }),
+      );
+    }
+    return detectMoves(files, base);
+  };
+  const result = run();
+  if (ctx) {
+    moveCache.set(shas.snapshotId, result);
+    result.catch(() => moveCache.delete(shas.snapshotId));
+    if (moveCache.size > MAX_CACHE) {
+      const oldest = moveCache.keys().next().value;
+      if (oldest) moveCache.delete(oldest);
+    }
+  }
+  return result;
 }
