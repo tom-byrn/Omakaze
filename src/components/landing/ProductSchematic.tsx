@@ -166,7 +166,7 @@ export function ProductSchematic() {
                         <div className="border-y border-dashed border-black/10 bg-wash px-3 py-2">
                           <div className="ml-[34px] border border-black/15 bg-white px-3 py-2 font-sans">
                             <p className="text-[10.5px] text-muted">
-                              <span className="text-ink">tom-byrn</span> · just now
+                              <span className="text-ink">reviewer</span> · just now
                             </p>
                             <p className="mt-0.5 text-[11.5px] text-text">Should this use the loan&apos;s original value for LTV?</p>
                           </div>
