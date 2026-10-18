@@ -247,11 +247,11 @@ await d.sleep(2200);
 await d.scroll(1400, { duration: 2600 });
 await d.sleep(1200);
 await hoverEach(
-  ["HOW IT WORKS", "AGENTS AND MCP", "DOCKER COMPOSE", "MCP TOOLS", "REST API"].map((name) => page.locator("footer").getByRole("link", { name, exact: true })),
+  [/^how it works$/i, /^agents and mcp$/i, /^docker compose$/i, /^mcp tools$/i, /^rest api$/i].map((name) => page.locator("footer").getByRole("link", { name })),
   700,
 );
 await d.sleep(800);
-await d.click(page.locator("footer").getByRole("link", { name: /BACK TO TOP/ }));
+await d.click(page.locator("footer").getByRole("link", { name: /back to top/i }));
 await d.sleep(2600);
 
 // 2. Sign in
