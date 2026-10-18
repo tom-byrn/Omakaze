@@ -1,0 +1,256 @@
+.map-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #cfe2ee;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.map-view.is-interactive {
+  cursor: grab;
+  touch-action: none;
+}
+
+.map-view.is-interactive:active {
+  cursor: grabbing;
+}
+
+.map-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Base map layers */
+
+.map-water {
+  fill: #cfe2ee;
+}
+
+.map-shore {
+  fill: none;
+  stroke: #e0edf5;
+}
+
+.map-land {
+  fill: #f3f0e8;
+}
+
+.map-hood--0 {
+  fill: #f4f1ea;
+}
+
+.map-hood--1 {
+  fill: #f0ede4;
+}
+
+.map-hood--2 {
+  fill: #f5f3ec;
+}
+
+.map-hood.is-highlighted {
+  fill: #e8eefc;
+}
+
+.map-street {
+  fill: none;
+  stroke: #e7e2d7;
+}
+
+.map-marsh {
+  fill: #e1ead7;
+}
+
+.map-reeds {
+  fill: none;
+  stroke: #b9cba8;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.map-park {
+  fill: #d5e7cb;
+}
+
+.map-road-casing {
+  fill: none;
+  stroke: #e2dbcd;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.map-road {
+  fill: none;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.map-rail {
+  fill: none;
+  stroke: #a3abb8;
+}
+
+.map-hood-edge {
+  fill: none;
+  stroke: #cbc3b3;
+}
+
+.map-hood-edge.is-highlighted {
+  stroke: var(--color-accent);
+}
+
+.map-river {
+  fill: none;
+  stroke: #cfe2ee;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.map-station {
+  fill: #ffffff;
+  stroke: #5d6776;
+}
+
+.map-label {
+  fill: #857b6c;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #f4f1ea;
+  stroke-linejoin: round;
+}
+
+.map-label.is-highlighted {
+  fill: var(--color-accent);
+}
+
+.map-park-label {
+  fill: #5c8957;
+  font-style: italic;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.map-water-label {
+  fill: #7ea3bd;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-anchor: middle;
+}
+
+/* Markers */
+
+.map-marker {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.18),
+    0 2px 6px rgba(15, 23, 42, 0.12);
+  transform: translate(-50%, calc(-100% - 7px));
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.12s ease;
+}
+
+.map-marker::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 1px;
+}
+
+.map-marker:hover,
+.map-marker.is-active {
+  z-index: 3;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  transform: translate(-50%, calc(-100% - 7px)) scale(1.08);
+}
+
+.map-marker.is-muted {
+  background: #eceff3;
+  color: var(--color-text-muted);
+}
+
+.map-marker--pin {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  box-shadow: 0 0 0 6px rgba(29, 78, 216, 0.18), var(--shadow);
+}
+
+.map-marker--pin:hover {
+  transform: translate(-50%, calc(-100% - 7px));
+}
+
+.map-popup {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, calc(-100% - 44px));
+}
+
+.map-popup.is-below {
+  transform: translate(-50%, 10px);
+}
+
+.map-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow);
+}
+
+.map-controls button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  background: var(--color-surface);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text);
+}
+
+.map-controls button + button {
+  border-top: 1px solid var(--color-border);
+}
+
+.map-controls button:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+}
+
+.map-controls button:disabled {
+  color: var(--color-text-subtle);
+}
