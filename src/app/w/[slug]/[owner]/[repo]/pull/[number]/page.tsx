@@ -18,6 +18,7 @@ import { listGuideVersions, getGuide } from "@/lib/guides/service";
 import { loadGuideData } from "@/lib/guides/view";
 import { agentPrompt } from "@/lib/prompts";
 import { requireWorkspace } from "@/lib/workspaces";
+import { startManualGuideAction } from "./edit/actions";
 
 export async function generateMetadata(props: PageProps<"/w/[slug]/[owner]/[repo]/pull/[number]">) {
   const { owner, repo, number } = await props.params;
@@ -82,6 +83,11 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
           {versions.length > 0 ? <VersionSelect versions={versions.map((v) => ({ version: v.version, status: v.status, headSha: shortSha(v.headSha) }))} current={selectedMeta?.version ?? null} /> : null}
           <CopyButton text={prompt} label="Copy agent prompt" className="btn btn-secondary btn-sm" />
           {guide ? (
+            <Link href={`/w/${slug}/${repo.fullName}/pull/${pull.number}/edit?v=${guide.version}`} className="btn btn-ghost btn-sm">
+              Edit
+            </Link>
+          ) : null}
+          {guide ? (
             <GenerateButton
               slug={slug}
               repositoryId={repo.id}
@@ -96,6 +102,15 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
           </a>
         </div>
       </div>
+      {guide?.status === "draft" ? (
+        <div className="flex flex-wrap items-center gap-3 border-t border-dashed border-line bg-mist px-4 py-2 text-[12px] text-ink lg:px-6">
+          <span className="dot bg-black/40" />
+          Draft. Only people in this workspace can see it.
+          <Link href={`/w/${slug}/${repo.fullName}/pull/${pull.number}/edit?v=${guide.version}`} className="link">
+            Continue editing
+          </Link>
+        </div>
+      ) : null}
       {outdated ? (
         <div className="flex flex-wrap items-center gap-3 border-t border-dashed border-line bg-highlight/15 px-4 py-2 text-[12px] text-ink lg:px-6">
           <span className="dot bg-highlight" />
@@ -111,6 +126,7 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
       <div className="flex min-h-[calc(100vh-64px)] flex-col">
         {bar}
         <NoGuide
+          startManual={startManualGuideAction.bind(null, slug, repo.owner, repo.name, pull.number)}
           prompt={prompt}
           canGenerate={Boolean(ai)}
           slug={slug}

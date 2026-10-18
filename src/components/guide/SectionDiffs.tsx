@@ -70,6 +70,7 @@ export function SectionDiffs({
   wrap,
   onComment,
   onReply,
+  onDelete,
 }: {
   guideId: string;
   files: { path: string; additions: number; deletions: number }[];
@@ -81,6 +82,7 @@ export function SectionDiffs({
   wrap: boolean;
   onComment: DiffFileProps["onComment"];
   onReply: DiffFileProps["onReply"];
+  onDelete?: DiffFileProps["onDelete"];
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -100,6 +102,7 @@ export function SectionDiffs({
           wrap={wrap}
           onComment={onComment}
           onReply={onReply}
+          onDelete={onDelete}
         />
       ))}
     </div>

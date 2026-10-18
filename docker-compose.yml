@@ -1,0 +1,39 @@
+# Guided PRs: app + Postgres.
+# 1. cp .env.example .env and fill in APP_SECRET (openssl rand -hex 32) and APP_URL
+# 2. docker compose up -d
+# 3. open http://localhost:3000 and create the first account (it becomes the instance admin)
+
+services:
+  app:
+    build: .
+    image: ghcr.io/tom-byrn/guided-prs:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://guided:${POSTGRES_PASSWORD:-guided}@db:5432/guided_prs
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - app-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: guided
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-guided}
+      POSTGRES_DB: guided_prs
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guided -d guided_prs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  app-data:
+  db-data:

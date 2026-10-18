@@ -57,13 +57,13 @@ export default async function AccountPage() {
               <p className="text-[13px] text-muted">{account ? "Avatar from GitHub." : "Link GitHub to use its avatar."}</p>
             </div>
             <div>
-              <label className="label" htmlFor="name">
+              <label className="field-label" htmlFor="name">
                 Name
               </label>
               <input id="name" name="name" defaultValue={user.name} className="input" required />
             </div>
             <div>
-              <label className="label" htmlFor="email">
+              <label className="field-label" htmlFor="email">
                 Email
               </label>
               <input id="email" name="email" type="email" defaultValue={user.email ?? ""} className="input" />
@@ -99,7 +99,7 @@ export default async function AccountPage() {
                 </a>
               ) : null}
               <ActionForm action={linkGitHubTokenAction} className="flex max-w-[480px] flex-col gap-3">
-                <label className="label" htmlFor="gh-token">
+                <label className="field-label" htmlFor="gh-token">
                   Or link with a personal access token
                 </label>
                 <input id="gh-token" name="token" type="password" autoComplete="off" className="input font-mono" placeholder="github_pat_…" />
@@ -118,14 +118,14 @@ export default async function AccountPage() {
             <ActionForm action={changePasswordAction} resetOnSuccess className="flex max-w-[480px] flex-col gap-4">
               {user.passwordHash ? (
                 <div>
-                  <label className="label" htmlFor="current">
+                  <label className="field-label" htmlFor="current">
                     Current password
                   </label>
                   <input id="current" name="current" type="password" autoComplete="current-password" className="input" />
                 </div>
               ) : null}
               <div>
-                <label className="label" htmlFor="password">
+                <label className="field-label" htmlFor="password">
                   New password
                 </label>
                 <input id="password" name="password" type="password" autoComplete="new-password" minLength={8} className="input" />
@@ -159,7 +159,7 @@ export default async function AccountPage() {
 
         <Panel tone="danger" title="Delete account" description="Removes your user, memberships and tokens. Workspaces you solely own are deleted.">
           <ActionForm action={deleteAccountAction} className="flex max-w-[480px] flex-col gap-3">
-            <label className="label" htmlFor="confirm">
+            <label className="field-label" htmlFor="confirm">
               Type &quot;delete my account&quot;
             </label>
             <input id="confirm" name="confirm" className="input" autoComplete="off" />

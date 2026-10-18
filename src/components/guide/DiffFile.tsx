@@ -59,10 +59,10 @@ export type DiffFileProps = {
   wrap: boolean;
   onComment: (input: { path: string; line: number; side: "LEFT" | "RIGHT"; startLine?: number | null; body: string }) => Promise<string | null>;
   onReply: (rootId: number, body: string) => Promise<string | null>;
-  sectionLabel?: (row: Row) => string | null;
+  onDelete?: (id: number) => Promise<string | null>;
 };
 
-export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onComment, onReply }: DiffFileProps) {
+export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onComment, onReply, onDelete }: DiffFileProps) {
   const { rows, full } = useMemo(() => buildRows(view), [view]);
   const initial = useMemo(
     () => (mode === "all" ? selectRows(rows, [{ path: view.path }]) : selectRows(rows, refs)),
@@ -312,7 +312,7 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
                       <tr className="diff-thread-row">
                         <td colSpan={3}>
                           {rowThreads.map((t) => (
-                            <CommentThread key={t.root.id} thread={t} onReply={onReply} />
+                            <CommentThread key={t.root.id} thread={t} onReply={onReply} onDelete={onDelete} />
                           ))}
                         </td>
                       </tr>

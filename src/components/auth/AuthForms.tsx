@@ -80,7 +80,7 @@ export function AuthForms({
             <form action={login} className="flex flex-col gap-3">
               {hidden}
               <div>
-                <label className="label" htmlFor="email">
+                <label className="field-label" htmlFor="email">
                   Email
                 </label>
                 <input
@@ -94,7 +94,7 @@ export function AuthForms({
                 />
               </div>
               <div>
-                <label className="label" htmlFor="password">
+                <label className="field-label" htmlFor="password">
                   Password
                 </label>
                 <input id="password" name="password" type="password" autoComplete="current-password" required className="input" />
@@ -116,7 +116,7 @@ export function AuthForms({
             <form action={signup} className="flex flex-col gap-3">
               {hidden}
               <div>
-                <label className="label" htmlFor="name">
+                <label className="field-label" htmlFor="name">
                   Name
                 </label>
                 <input
@@ -129,7 +129,7 @@ export function AuthForms({
                 />
               </div>
               <div>
-                <label className="label" htmlFor="email">
+                <label className="field-label" htmlFor="email">
                   Email
                 </label>
                 <input
@@ -143,7 +143,7 @@ export function AuthForms({
                 />
               </div>
               <div>
-                <label className="label" htmlFor="password">
+                <label className="field-label" htmlFor="password">
                   Password
                 </label>
                 <input
@@ -183,7 +183,7 @@ export function AuthForms({
           <form action={tokenLogin} className="flex flex-col gap-3 border-t border-dashed border-line p-3">
             {hidden}
             <div>
-              <label className="label" htmlFor="token">
+              <label className="field-label" htmlFor="token">
                 Personal access token
               </label>
               <input

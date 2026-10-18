@@ -21,13 +21,13 @@ export function CreateTokenForm({ action }: { action: (prev: FormState, form: Fo
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-end">
         <div>
-          <label className="label" htmlFor="token-name">
+          <label className="field-label" htmlFor="token-name">
             Name
           </label>
           <input id="token-name" name="name" placeholder="e.g. Claude Code on my laptop" className="input" />
         </div>
         <div>
-          <label className="label" htmlFor="token-expires">
+          <label className="field-label" htmlFor="token-expires">
             Expires
           </label>
           <select id="token-expires" name="expires" className="input" defaultValue="90">

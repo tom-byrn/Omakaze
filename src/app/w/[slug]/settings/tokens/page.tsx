@@ -43,7 +43,7 @@ export default async function TokensPage(props: PageProps<"/w/[slug]/settings/to
       >
         <div className="flex flex-col gap-5">
           <div>
-            <p className="label">MCP server URL</p>
+            <p className="field-label">MCP server URL</p>
             <div className="flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate border border-dashed border-line bg-paper px-3 py-2 font-mono text-[13px] text-ink">
                 {mcpUrl}
@@ -53,7 +53,7 @@ export default async function TokensPage(props: PageProps<"/w/[slug]/settings/to
           </div>
           <McpClientTabs mcpUrl={mcpUrl} />
           <div>
-            <p className="label">Setup prompt</p>
+            <p className="field-label">Setup prompt</p>
             <pre className="max-h-56 overflow-auto border border-dashed border-line bg-paper p-3 font-mono text-[12px] leading-[18px] whitespace-pre-wrap text-ui">
               {setupPrompt(appUrl)}
             </pre>

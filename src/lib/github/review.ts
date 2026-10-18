@@ -244,6 +244,45 @@ export async function postIssueComment(
   return result;
 }
 
+/** Delete a review comment the user wrote (directly or through the workspace connection). */
+export async function deleteReviewComment(ctx: RepoContext, prNumber: number, user: Author, githubId: number): Promise<void> {
+  const [ours] = await db
+    .select()
+    .from(comments)
+    .where(and(eq(comments.repositoryId, ctx.repo.id), eq(comments.githubId, githubId)))
+    .limit(1);
+  const own = await getUserGitHubToken(user.id).catch(() => null);
+  let token: string | null = null;
+  if (ours && ours.authorUserId === user.id) token = ours.postedAs === "user" && own ? own : ctx.token;
+  else if (own) {
+    const login = (await gh<{ login: string }>(own, "/user")).login;
+    const c = await gh<GhReviewComment>(ctx.token, `/repos/${ctx.repo.owner}/${ctx.repo.name}/pulls/comments/${githubId}`).catch((err) => {
+      if (err instanceof GitHubError && err.status === 404) return null;
+      throw err;
+    });
+    if (!c) return; // already deleted
+    if (c.user?.login === login) token = own;
+  }
+  if (!token) throw new GitHubError("You can only delete your own comments.", 403, "delete");
+  try {
+    await gh(token, `/repos/${ctx.repo.owner}/${ctx.repo.name}/pulls/comments/${githubId}`, { method: "DELETE" });
+  } catch (err) {
+    // Already gone (e.g. deleted on GitHub or a double click).
+    if (!(err instanceof GitHubError && err.status === 404)) throw err;
+  }
+  commentCache.delete(`${ctx.repo.id}:${prNumber}`);
+  if (ours) await db.delete(comments).where(eq(comments.id, ours.id));
+}
+
+/** GitHub ids of comments this user posted through Guided PRs. */
+export async function ownCommentIds(repositoryId: string, prNumber: number, userId: string): Promise<Set<number>> {
+  const rows = await db
+    .select({ githubId: comments.githubId })
+    .from(comments)
+    .where(and(eq(comments.repositoryId, repositoryId), eq(comments.prNumber, prNumber), eq(comments.authorUserId, userId)));
+  return new Set(rows.map((r) => r.githubId).filter((x): x is number => x !== null));
+}
+
 export async function commentsPostedThroughApp(repositoryId: string, prNumber: number) {
   return db
     .select()

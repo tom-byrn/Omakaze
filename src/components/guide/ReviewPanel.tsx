@@ -78,7 +78,7 @@ export function ReviewPanel({
         ))}
       </ul>
       <div className="mt-8">
-        <label className="label" htmlFor="review-body">
+        <label className="field-label" htmlFor="review-body">
           Review comment
         </label>
         <textarea

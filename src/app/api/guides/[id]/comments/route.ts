@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getRepoContext } from "@/lib/github/connections";
-import { createReviewComment, listReviewComments, replyToReviewComment } from "@/lib/github/review";
+import { createReviewComment, deleteReviewComment, listReviewComments, ownCommentIds, replyToReviewComment } from "@/lib/github/review";
+import { getGitHubAccount } from "@/lib/auth/users";
 import { requireGuideAccess } from "@/lib/guides/access";
 import { guidePath } from "@/lib/guides/service";
 import { assertSameOrigin, errorResponse, HttpError } from "@/lib/http";
@@ -10,10 +11,14 @@ import { GitHubError } from "@/lib/github/client";
 export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comments">) {
   try {
     const { id } = await ctx.params;
-    const { guide } = await requireGuideAccess(req, id);
+    const { guide, principal } = await requireGuideAccess(req, id);
     const rc = await getRepoContext(guide.repositoryId);
     const fresh = new URL(req.url).searchParams.get("fresh") === "1";
-    const list = await listReviewComments(rc, guide.prNumber, fresh);
+    const [list, mine, account] = await Promise.all([
+      listReviewComments(rc, guide.prNumber, fresh),
+      ownCommentIds(guide.repositoryId, guide.prNumber, principal.user.id),
+      getGitHubAccount(principal.user.id),
+    ]);
     return Response.json({
       comments: list.map((c) => ({
         id: c.id,
@@ -28,6 +33,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comm
         createdAt: c.created_at,
         htmlUrl: c.html_url,
         outdated: c.line === null,
+        mine: mine.has(c.id) || (account !== null && c.user?.login === account.login),
       })),
     });
   } catch (err) {
@@ -82,11 +88,49 @@ export async function POST(req: Request, ctx: RouteContext<"/api/guides/[id]/com
               },
               { workspaceId: workspace.id, guideId: guide.id, sectionId: parsed.data.sectionId ?? null, link },
             );
-      return Response.json({ ok: true, id: created.id, htmlUrl: created.html_url });
+      return Response.json({
+        ok: true,
+        id: created.id,
+        htmlUrl: created.html_url,
+        comment: {
+          id: created.id,
+          inReplyTo: created.in_reply_to_id ?? null,
+          path: created.path,
+          line: created.line,
+          originalLine: created.original_line,
+          startLine: created.start_line,
+          side: created.side ?? "RIGHT",
+          body: created.body,
+          user: created.user ? { login: created.user.login, avatarUrl: created.user.avatar_url } : null,
+          createdAt: created.created_at,
+          htmlUrl: created.html_url,
+          outdated: created.line === null,
+          mine: true,
+        },
+      });
     } catch (err) {
       if (err instanceof GitHubError) throw new HttpError(err.status === 422 ? 422 : 502, `GitHub: ${err.message}`);
       throw err;
     }
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+export async function DELETE(req: Request, ctx: RouteContext<"/api/guides/[id]/comments">) {
+  try {
+    assertSameOrigin(req);
+    const { id } = await ctx.params;
+    const { guide, principal } = await requireGuideAccess(req, id);
+    const commentId = Number(new URL(req.url).searchParams.get("commentId"));
+    if (!Number.isInteger(commentId) || commentId <= 0) throw new HttpError(400, "commentId is required");
+    try {
+      await deleteReviewComment(await getRepoContext(guide.repositoryId), guide.prNumber, { id: principal.user.id, name: principal.user.name }, commentId);
+    } catch (err) {
+      if (err instanceof GitHubError) throw new HttpError(err.status === 403 ? 403 : 502, err.message);
+      throw err;
+    }
+    return Response.json({ ok: true });
   } catch (err) {
     return errorResponse(err);
   }

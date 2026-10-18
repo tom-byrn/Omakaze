@@ -22,7 +22,7 @@ export function AiSettingsForm({
   return (
     <form action={formAction} className="flex max-w-[620px] flex-col gap-4">
       <div>
-        <label className="label" htmlFor="provider">
+        <label className="field-label" htmlFor="provider">
           Provider
         </label>
         <select id="provider" name="provider" className="input" value={provider} onChange={(e) => setProvider(e.target.value)}>
@@ -34,7 +34,7 @@ export function AiSettingsForm({
         </select>
       </div>
       <div>
-        <label className="label" htmlFor="model">
+        <label className="field-label" htmlFor="model">
           Model
         </label>
         <input
@@ -50,7 +50,7 @@ export function AiSettingsForm({
         </p>
       </div>
       <div>
-        <label className="label" htmlFor="apiKey">
+        <label className="field-label" htmlFor="apiKey">
           API key {info.keyRequired ? "" : "(optional)"}
         </label>
         <input
@@ -63,7 +63,7 @@ export function AiSettingsForm({
         />
       </div>
       <div>
-        <label className="label" htmlFor="baseUrl">
+        <label className="field-label" htmlFor="baseUrl">
           Base URL (optional)
         </label>
         <input
@@ -76,7 +76,7 @@ export function AiSettingsForm({
         />
       </div>
       <div>
-        <label className="label" htmlFor="instructions">
+        <label className="field-label" htmlFor="instructions">
           Extra instructions (optional)
         </label>
         <textarea

@@ -32,7 +32,12 @@ function loadMermaid() {
         clusterBkg: "#f4f4f3",
         clusterBorder: "#d4d4d4",
       },
-      flowchart: { curve: "basis", htmlLabels: true },
+      flowchart: { curve: "basis", htmlLabels: true, useMaxWidth: false },
+      sequence: { useMaxWidth: false },
+      er: { useMaxWidth: false },
+      state: { useMaxWidth: false },
+      class: { useMaxWidth: false },
+      gantt: { useMaxWidth: false },
     });
     return m.default;
   });

@@ -128,7 +128,7 @@ export default async function GitHubSettingsPage(props: PageProps<"/w/[slug]/set
           >
             <ActionForm action={connectWithTokenAction.bind(null, slug)} resetOnSuccess className="flex max-w-[560px] flex-col gap-3">
               <div>
-                <label className="label" htmlFor="gh-token">
+                <label className="field-label" htmlFor="gh-token">
                   Token
                 </label>
                 <input id="gh-token" name="token" type="password" autoComplete="off" placeholder="github_pat_…" className="input font-mono" />

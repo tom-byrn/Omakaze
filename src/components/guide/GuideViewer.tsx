@@ -131,10 +131,13 @@ export function GuideViewer(props: ViewerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...input, sectionId }),
       });
-      const data = (await res.json()) as { error?: string; htmlUrl?: string };
+      const data = (await res.json()) as { error?: string; htmlUrl?: string; comment?: ReviewComment };
       if (!res.ok) return data.error ?? "Could not post the comment";
       flash("Comment posted to GitHub", { href: data.htmlUrl });
-      await comments.mutate();
+      if (data.comment) {
+        const added = data.comment;
+        await comments.mutate((d) => ({ comments: [...(d?.comments ?? []).filter((c) => c.id !== added.id), added] }), { revalidate: false });
+      }
       return null;
     },
     [guide.id, step, sections, comments, flash],
@@ -147,10 +150,25 @@ export function GuideViewer(props: ViewerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inReplyTo: rootId, body }),
       });
-      const data = (await res.json()) as { error?: string; htmlUrl?: string };
+      const data = (await res.json()) as { error?: string; htmlUrl?: string; comment?: ReviewComment };
       if (!res.ok) return data.error ?? "Could not post the reply";
       flash("Reply posted to GitHub", { href: data.htmlUrl });
-      await comments.mutate();
+      if (data.comment) {
+        const added = data.comment;
+        await comments.mutate((d) => ({ comments: [...(d?.comments ?? []).filter((c) => c.id !== added.id), added] }), { revalidate: false });
+      }
+      return null;
+    },
+    [guide.id, comments, flash],
+  );
+
+  const onDelete = useCallback(
+    async (commentId: number) => {
+      const res = await fetch(`/api/guides/${guide.id}/comments?commentId=${commentId}`, { method: "DELETE" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) return data.error ?? "Could not delete the comment";
+      flash("Comment deleted on GitHub");
+      await comments.mutate((d) => ({ comments: (d?.comments ?? []).filter((c) => c.id !== commentId) }), { revalidate: false });
       return null;
     },
     [guide.id, comments, flash],
@@ -404,6 +422,7 @@ export function GuideViewer(props: ViewerProps) {
                 wrap={wrap}
                 onComment={onComment}
                 onReply={onReply}
+                onDelete={onDelete}
               />
             )}
           </div>

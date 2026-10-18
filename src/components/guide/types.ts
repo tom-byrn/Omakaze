@@ -11,6 +11,7 @@ export type ReviewComment = {
   createdAt: string;
   htmlUrl: string;
   outdated: boolean;
+  mine?: boolean;
 };
 
 export type Thread = { root: ReviewComment; replies: ReviewComment[] };

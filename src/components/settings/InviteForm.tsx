@@ -27,13 +27,13 @@ export function InviteForm({
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-end">
         <div>
-          <label className="label" htmlFor="invite-email">
+          <label className="field-label" htmlFor="invite-email">
             Email {canEmail ? "" : "(optional, restricts the link)"}
           </label>
           <input id="invite-email" name="email" type="email" placeholder="teammate@example.com" className="input" />
         </div>
         <div>
-          <label className="label" htmlFor="invite-role">
+          <label className="field-label" htmlFor="invite-role">
             Role
           </label>
           <select id="invite-role" name="role" className="input" defaultValue="member">

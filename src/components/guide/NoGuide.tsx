@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export function NoGuide({
+  startManual,
   prompt,
   canGenerate,
   slug,
@@ -15,6 +17,7 @@ export function NoGuide({
   prNumber: number;
   body: React.ReactNode;
   generateButton: React.ReactNode;
+  startManual: () => Promise<void>;
 }) {
   return (
     <div className="grid flex-1 grid-cols-1 lg:grid-cols-[minmax(380px,42%)_minmax(0,1fr)]">
@@ -58,6 +61,20 @@ export function NoGuide({
                   Configure AI
                 </Link>
               ) : null}
+            </div>
+          </div>
+
+          <div className="mt-6 border border-black/15 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+              <div>
+                <p className="mono-label">Option 3 · Write it yourself</p>
+                <p className="mt-2 text-[14px] leading-[22px] text-body">Start an empty draft and add sections in the editor.</p>
+              </div>
+              <form action={startManual}>
+                <SubmitButton className="btn btn-secondary btn-sm" pendingText="Creating…">
+                  Start a draft
+                </SubmitButton>
+              </form>
             </div>
           </div>
         </div>

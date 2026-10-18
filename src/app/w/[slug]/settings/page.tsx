@@ -17,13 +17,13 @@ export default async function GeneralSettingsPage(props: PageProps<"/w/[slug]/se
       <Panel title="Workspace" description="Name and URL of this workspace.">
         <ActionForm action={updateWorkspaceAction.bind(null, slug)} className="flex max-w-[480px] flex-col gap-4">
           <div>
-            <label className="label" htmlFor="name">
+            <label className="field-label" htmlFor="name">
               Name
             </label>
             <input id="name" name="name" defaultValue={workspace.name} className="input" disabled={!admin} required />
           </div>
           <div>
-            <label className="label" htmlFor="slug">
+            <label className="field-label" htmlFor="slug">
               URL
             </label>
             <div className="flex items-center">
@@ -58,7 +58,7 @@ export default async function GeneralSettingsPage(props: PageProps<"/w/[slug]/se
           description="Deletes the workspace, its guides, comments history, tokens and invites. GitHub data is not touched."
         >
           <ActionForm action={deleteWorkspaceAction.bind(null, slug)} className="flex max-w-[480px] flex-col gap-3">
-            <label className="label" htmlFor="confirm">
+            <label className="field-label" htmlFor="confirm">
               Type <span className="text-danger">{workspace.slug}</span> to confirm
             </label>
             <input id="confirm" name="confirm" className="input font-mono" autoComplete="off" />

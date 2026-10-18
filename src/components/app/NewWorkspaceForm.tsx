@@ -9,7 +9,7 @@ export function NewWorkspaceForm() {
   return (
     <form action={action} className="mt-8 flex flex-col gap-4">
       <div>
-        <label className="label" htmlFor="ws-name">
+        <label className="field-label" htmlFor="ws-name">
           Name
         </label>
         <input id="ws-name" name="name" required placeholder="Acme Engineering" className="input" />

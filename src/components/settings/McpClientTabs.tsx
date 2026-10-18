@@ -28,7 +28,7 @@ export function McpClientTabs({ mcpUrl }: { mcpUrl: string }) {
   const current = clients.find((c) => c.id === active) ?? clients[0];
   return (
     <div>
-      <p className="label">Add to your client</p>
+      <p className="field-label">Add to your client</p>
       <div className="flex flex-wrap border border-tab">
         {clients.map((c, i) => (
           <button

@@ -78,7 +78,7 @@ export default async function AuthorizePage(props: PageProps<"/oauth/authorize">
         <form action={authorizeAction} className="mt-6 flex flex-col gap-4">
           <input type="hidden" name="query" value={params.toString()} />
           <div>
-            <label className="label" htmlFor="workspaceId">
+            <label className="field-label" htmlFor="workspaceId">
               Workspace
             </label>
             <select id="workspaceId" name="workspaceId" className="input" defaultValue={user.lastWorkspaceId ?? workspaces[0].workspace.id}>

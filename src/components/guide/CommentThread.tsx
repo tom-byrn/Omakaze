@@ -7,7 +7,8 @@ import { timeAgo } from "@/lib/format";
 import { ClientMarkdown } from "./ClientMarkdown";
 import type { ReviewComment, Thread } from "./types";
 
-function CommentBody({ c }: { c: ReviewComment }) {
+function CommentBody({ c, onDelete }: { c: ReviewComment; onDelete?: (id: number) => Promise<string | null> }) {
+  const [deleting, setDeleting] = useState(false);
   return (
     <div className="flex gap-3 px-4 py-3">
       <Avatar src={c.user?.avatarUrl} name={c.user?.login} size={22} />
@@ -15,6 +16,22 @@ function CommentBody({ c }: { c: ReviewComment }) {
         <div className="flex items-center gap-2 text-[12px]">
           <span className="font-medium text-ink">{c.user?.login ?? "unknown"}</span>
           <span className="text-muted">{timeAgo(c.createdAt)}</span>
+          {c.mine && onDelete ? (
+            <button
+              type="button"
+              className="text-muted hover:text-danger"
+              disabled={deleting}
+              onClick={async () => {
+                if (!window.confirm("Delete this comment on GitHub?")) return;
+                setDeleting(true);
+                const err = await onDelete(c.id);
+                setDeleting(false);
+                if (err) window.alert(err);
+              }}
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          ) : null}
           <a href={c.htmlUrl} target="_blank" rel="noreferrer" className="ml-auto text-black/35 hover:text-ink" aria-label="Open on GitHub">
             <RiExternalLinkLine size={13} />
           </a>
@@ -86,14 +103,22 @@ export function Composer({
   );
 }
 
-export function CommentThread({ thread, onReply }: { thread: Thread; onReply: (rootId: number, body: string) => Promise<string | null> }) {
+export function CommentThread({
+  thread,
+  onReply,
+  onDelete,
+}: {
+  thread: Thread;
+  onReply: (rootId: number, body: string) => Promise<string | null>;
+  onDelete?: (id: number) => Promise<string | null>;
+}) {
   const [replying, setReplying] = useState(false);
   return (
     <div className="my-2 mr-3 ml-[96px] border border-black/15 bg-white font-sans">
-      <CommentBody c={thread.root} />
+      <CommentBody c={thread.root} onDelete={onDelete} />
       {thread.replies.map((r) => (
         <div key={r.id} className="border-t border-dashed border-line">
-          <CommentBody c={r} />
+          <CommentBody c={r} onDelete={onDelete} />
         </div>
       ))}
       <div className="border-t border-dashed border-line">

@@ -427,7 +427,7 @@ h4 {
     background-position: right 12px center;
   }
 
-  .label {
+  .field-label {
     display: block;
     margin-bottom: 6px;
     font-family: var(--font-mono);
@@ -726,7 +726,6 @@ h4 {
 .guide-prose .md-mermaid svg {
   display: block;
   margin: 0 auto;
-  max-width: 100%;
   height: auto;
 }
 .guide-prose .md-mermaid-error {

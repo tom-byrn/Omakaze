@@ -52,7 +52,7 @@ export function RepoPicker({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
         <div>
-          <label className="label" htmlFor="conn">
+          <label className="field-label" htmlFor="conn">
             Connection
           </label>
           <select id="conn" className="input" value={connectionId} onChange={(e) => setConnectionId(e.target.value)}>
@@ -64,7 +64,7 @@ export function RepoPicker({
           </select>
         </div>
         <form action={formAction} className="flex flex-col">
-          <label className="label" htmlFor="manual">
+          <label className="field-label" htmlFor="manual">
             Repository
           </label>
           <div className="flex gap-2">

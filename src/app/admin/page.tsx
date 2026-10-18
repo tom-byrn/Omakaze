@@ -188,7 +188,7 @@ function OrgField() {
   return (
     <>
       <div>
-        <label className="label" htmlFor="org">
+        <label className="field-label" htmlFor="org">
           Or create it for an organization
         </label>
         <input id="org" name="org" placeholder="organization login" className="input w-64" />
