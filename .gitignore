@@ -24,6 +24,10 @@ coverage/
 playwright-report/
 test-results/
 
+# demo recording output (scripts/demo)
+demo-output/
+demo-media/
+
 # misc
 .DS_Store
 *.pem

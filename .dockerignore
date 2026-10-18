@@ -8,5 +8,7 @@ data
 coverage
 playwright-report
 test-results
-demo/media
+docs
+demo-output
+demo-media
 *.log

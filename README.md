@@ -4,6 +4,10 @@ Guided PRs is an open-source, self-hostable web app that turns GitHub pull reque
 
 ![A guided pull request: explanation on the left, code on the right](docs/images/guide.png)
 
+## Demo
+
+[guided-prs-demo.mp4](docs/demo/guided-prs-demo.mp4) (6½ minutes, no sound) is a recording of a self-hosted instance and a real pull request, [tom-byrn/Guided-PRs#1](https://github.com/tom-byrn/Guided-PRs/pull/1), which adds home buying to a small rental listings app. It shows connecting GitHub, a coding agent writing the guide through the MCP server, reviewing it section by section, a line comment and a review posted to GitHub, a teammate joining through an invite link, and the settings. The recording script is in [scripts/demo](scripts/demo).
+
 ## Features
 
 - **Sections instead of files.** A section references whole files, individual hunks or line ranges, so one file can appear in several sections.
