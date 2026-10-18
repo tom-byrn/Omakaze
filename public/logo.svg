@@ -1,67 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs>
-<radialGradient id="tile" cx="40%" cy="35%" r="80%"><stop offset="0" stop-color="#2a2c33"/><stop offset="0.6" stop-color="#17181c"/><stop offset="1" stop-color="#0c0d10"/></radialGradient>
-<linearGradient id="wood" x1="0" y1="-2.8" x2="0" y2="2.8" gradientUnits="userSpaceOnUse">
-  <stop offset="0" stop-color="#6e3f16"/><stop offset="0.16" stop-color="#b9783a"/><stop offset="0.34" stop-color="#e9b77a"/>
-  <stop offset="0.5" stop-color="#d49a5a"/><stop offset="0.78" stop-color="#a0612b"/><stop offset="1" stop-color="#5a3010"/>
-</linearGradient>
-<linearGradient id="tipshade" x1="0" y1="0" x2="57.0" y2="0" gradientUnits="userSpaceOnUse">
-  <stop offset="0" stop-color="#3b200a" stop-opacity="0.55"/><stop offset="0.12" stop-color="#3b200a" stop-opacity="0"/>
-</linearGradient>
-<linearGradient id="lacquer" x1="0" y1="-2.8" x2="0" y2="2.8" gradientUnits="userSpaceOnUse">
-  <stop offset="0" stop-color="#000"/><stop offset="0.22" stop-color="#2b2b2e"/><stop offset="0.36" stop-color="#6a6a70"/>
-  <stop offset="0.5" stop-color="#1a1a1c"/><stop offset="1" stop-color="#000"/>
-</linearGradient>
-<linearGradient id="ring" x1="0" y1="-2.8" x2="0" y2="2.8" gradientUnits="userSpaceOnUse">
-  <stop offset="0" stop-color="#0a5f5c"/><stop offset="0.3" stop-color="#25fff9"/><stop offset="0.45" stop-color="#c9fffd"/>
-  <stop offset="0.6" stop-color="#25fff9"/><stop offset="1" stop-color="#075250"/>
-</linearGradient>
-<linearGradient id="gold" x1="0" y1="-2.8" x2="0" y2="2.8" gradientUnits="userSpaceOnUse">
-  <stop offset="0" stop-color="#6b4a12"/><stop offset="0.35" stop-color="#f3d27a"/><stop offset="0.55" stop-color="#c79a3a"/><stop offset="1" stop-color="#5a3c0c"/>
-</linearGradient>
-<linearGradient id="glaze" x1="0" y1="0" x2="0" y2="1">
-  <stop offset="0" stop-color="#e8f2ec"/><stop offset="0.45" stop-color="#bcd6c8"/><stop offset="1" stop-color="#7fa592"/>
-</linearGradient>
-<clipPath id="stickclip"><path d="M56.50 -2.80L0.90 -0.90A0.90 0.90 0 0 0 0.90 0.90L56.50 2.80Q57.00 2.80 57.00 2.30L57.00 -2.30Q57.00 -2.80 56.50 -2.80Z"/></clipPath>
-<filter id="grain" x="-5%" y="-50%" width="110%" height="200%">
-  <feTurbulence type="fractalNoise" baseFrequency="0.035 1.6" numOctaves="3" seed="7" result="n"/>
-  <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.22  0 0 0 0 0.1  0 0 0 0 0.02  0 0 0 2.8 -1.1" result="g"/>
-  <feComposite in="g" in2="SourceGraphic" operator="in" result="gc"/>
-  <feBlend in="gc" in2="SourceGraphic" mode="multiply"/>
-</filter>
-<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-  <feGaussianBlur in="SourceAlpha" stdDeviation="1.1"/><feOffset dx="1.2" dy="2" result="b"/>
-  <feComponentTransfer><feFuncA type="linear" slope="0.75"/></feComponentTransfer>
-  <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-</filter>
-</defs><rect width="64" height="64" fill="url(#tile)"/>
-<g filter="url(#shadow)">
-  <g transform="translate(31.5 33) rotate(-40) translate(-29.5 0)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs>
+  <linearGradient id="wood" x1="0" y1="-3" x2="0" y2="3" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#e6b97f"/><stop offset="1" stop-color="#cc8f53"/>
+  </linearGradient>
+  <pattern id="hatch" width="1.9" height="1.9" patternUnits="userSpaceOnUse" patternTransform="rotate(38)">
+    <line x1="0.3" y1="0" x2="0.3" y2="1.9" stroke="#6b3d17" stroke-width="0.36"/>
+  </pattern>
+  <clipPath id="clip"><path d="M56.00 -2.55L56.00 2.55Q56.00 2.90 55.65 2.90L1.00 1.00A1.00 1.00 0 0 1 1.00 -1.00L55.65 -2.90Q56.00 -2.90 56.00 -2.55Z"/></clipPath>
+  <filter id="rough" x="-10%" y="-60%" width="120%" height="220%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" seed="4" result="t"/>
+    <feDisplacementMap in="SourceGraphic" in2="t" scale="0.6" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="paper" x="0" y="0" width="100%" height="100%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="9" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.35  0 0 0 0 0.27  0 0 0 0 0.18  0 0 0 0.9 -0.35"/>
+  </filter>
+</defs>
+<rect width="64" height="64" fill="#f4ead6"/>
+<rect width="64" height="64" filter="url(#paper)" opacity="0.22"/>
+<g transform="translate(1.1 1.9)" opacity="0.16">
+  <g transform="translate(31.5 32.5) rotate(-40) translate(-29 0)">
+    <path d="M56.00 -2.55L56.00 2.55Q56.00 2.90 55.65 2.90L1.00 1.00A1.00 1.00 0 0 1 1.00 -1.00L55.65 -2.90Q56.00 -2.90 56.00 -2.55Z" transform="translate(0 -3.7)" fill="#4a3624"/>
+    <path d="M56.00 -2.55L56.00 2.55Q56.00 2.90 55.65 2.90L1.00 1.00A1.00 1.00 0 0 1 1.00 -1.00L55.65 -2.90Q56.00 -2.90 56.00 -2.55Z" transform="translate(1.6 3.7)" fill="#4a3624"/>
+  </g>
+</g>
+<g transform="translate(31.5 32.5) rotate(-40) translate(-29 0)">
+    <g transform="translate(0 -3.7)">
+  <path d="M56.00 -2.55L56.00 2.55Q56.00 2.90 55.65 2.90L1.00 1.00A1.00 1.00 0 0 1 1.00 -1.00L55.65 -2.90Q56.00 -2.90 56.00 -2.55Z" fill="url(#wood)"/>
+  <g clip-path="url(#clip)">
+    <path d="M1.50 0.16L56.00 0.43L56.00 3.04L1.50 1.10Z" fill="url(#hatch)" opacity="0.45"/>
+    <path d="M7.00 -0.77L41.00 -1.48L41.00 -0.91L7.00 -0.47Z" fill="#f7ddb4" opacity="0.75"/>
+    <path d="M44.60 -2.64L46.60 -2.71L46.60 2.71L44.60 2.64Z" fill="#4ed3cf"/>
+    <path d="M4.00 0.08L4.80 0.01L5.60 -0.07L6.40 -0.15L7.20 -0.21L8.00 -0.24L8.80 -0.24L9.60 -0.20L10.40 -0.13L11.20 -0.05L12.00 0.03L12.80 0.08L13.60 0.11L14.40 0.09L15.20 0.05L16.00 -0.03L16.80 -0.11M20.00 -0.25L20.80 -0.20L21.60 -0.13L22.40 -0.05L23.20 0.02L24.00 0.07L24.80 0.09L25.60 0.07L26.40 0.01L27.20 -0.07L28.00 -0.15L28.80 -0.22L29.60 -0.27L30.40 -0.28L31.20 -0.26L32.00 -0.20L32.80 -0.13M35.20 0.06L36.00 0.07L36.80 0.04L37.60 -0.03L38.40 -0.10L39.20 -0.19L40.00 -0.25L40.80 -0.29L41.60 -0.30M9.00 0.55L9.80 0.48L10.60 0.44L11.40 0.45L12.20 0.51L13.00 0.61L13.80 0.70L14.60 0.76L15.40 0.77L16.20 0.73L17.00 0.66L17.80 0.59L18.60 0.55L19.40 0.56L20.20 0.63L21.00 0.72L21.80 0.81L22.60 0.88L23.40 0.89M27.40 0.68L28.20 0.74L29.00 0.83L29.80 0.93L30.60 0.99L31.40 1.00L32.20 0.96L33.00 0.89L33.80 0.82L34.60 0.78L35.40 0.79L36.20 0.85L37.00 0.95L37.80 1.04L38.60 1.10L39.40 1.11L40.20 1.08L41.00 1.00L41.80 0.93M20.00 -1.04L20.80 -1.03L21.60 -0.99L22.40 -0.93L23.20 -0.89L24.00 -0.88L24.80 -0.90L25.60 -0.96L26.40 -1.03L27.20 -1.11L28.00 -1.18L28.80 -1.21L29.60 -1.20L30.40 -1.17L31.20 -1.12L32.00 -1.07L32.80 -1.05L33.60 -1.06L34.40 -1.11L35.20 -1.18L36.00 -1.26L36.80 -1.33L37.60 -1.37L38.40 -1.37L39.20 -1.35L40.00 -1.30" fill="none" stroke="#7a4a22" stroke-width="0.4" stroke-linecap="round" opacity="0.8"/>
+    <ellipse cx="32.0" cy="0.4" rx="1.1" ry="0.45" fill="none" stroke="#7a4a22" stroke-width="0.35"/>
+  </g>
+  <g filter="url(#rough)" fill="none" stroke="#2a1b10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M56.00 -2.55L56.00 2.55Q56.00 2.90 55.65 2.90L1.00 1.00A1.00 1.00 0 0 1 1.00 -1.00L55.65 -2.90Q56.00 -2.90 56.00 -2.55Z" stroke-width="1.0"/>
+    <path d="M44.60 -2.51Q45.05 0 44.60 2.51" stroke-width="0.6"/>
+    <path d="M46.60 -2.58Q47.05 0 46.60 2.58" stroke-width="0.6"/>
+    <path d="M53.80 -2.83Q54.15 0 53.80 2.83" stroke-width="0.5"/>
+  </g>
+</g>
+    <g transform="translate(1.6 3.7)">
+  <path d="M56.00 -2.55L56.00 2.55Q56.00 2.90 55.65 2.90L1.00 1.00A1.00 1.00 0 0 1 1.00 -1.00L55.65 -2.90Q56.00 -2.90 56.00 -2.55Z" fill="url(#wood)"/>
+  <g clip-path="url(#clip)">
+    <path d="M1.50 0.16L56.00 0.43L56.00 3.04L1.50 1.10Z" fill="url(#hatch)" opacity="0.45"/>
+    <path d="M7.00 -0.77L41.00 -1.48L41.00 -0.91L7.00 -0.47Z" fill="#f7ddb4" opacity="0.75"/>
+    <path d="M44.60 -2.64L46.60 -2.71L46.60 2.71L44.60 2.64Z" fill="#4ed3cf"/>
+    <path d="M4.00 0.08L4.80 0.01L5.60 -0.07L6.40 -0.15L7.20 -0.21L8.00 -0.24L8.80 -0.24L9.60 -0.20L10.40 -0.13L11.20 -0.05L12.00 0.03L12.80 0.08L13.60 0.11L14.40 0.09L15.20 0.05L16.00 -0.03L16.80 -0.11M20.00 -0.25L20.80 -0.20L21.60 -0.13L22.40 -0.05L23.20 0.02L24.00 0.07L24.80 0.09L25.60 0.07L26.40 0.01L27.20 -0.07L28.00 -0.15L28.80 -0.22L29.60 -0.27L30.40 -0.28L31.20 -0.26L32.00 -0.20L32.80 -0.13M35.20 0.06L36.00 0.07L36.80 0.04L37.60 -0.03L38.40 -0.10L39.20 -0.19L40.00 -0.25L40.80 -0.29L41.60 -0.30M9.00 0.55L9.80 0.48L10.60 0.44L11.40 0.45L12.20 0.51L13.00 0.61L13.80 0.70L14.60 0.76L15.40 0.77L16.20 0.73L17.00 0.66L17.80 0.59L18.60 0.55L19.40 0.56L20.20 0.63L21.00 0.72L21.80 0.81L22.60 0.88L23.40 0.89M27.40 0.68L28.20 0.74L29.00 0.83L29.80 0.93L30.60 0.99L31.40 1.00L32.20 0.96L33.00 0.89L33.80 0.82L34.60 0.78L35.40 0.79L36.20 0.85L37.00 0.95L37.80 1.04L38.60 1.10L39.40 1.11L40.20 1.08L41.00 1.00L41.80 0.93M20.00 -1.04L20.80 -1.03L21.60 -0.99L22.40 -0.93L23.20 -0.89L24.00 -0.88L24.80 -0.90L25.60 -0.96L26.40 -1.03L27.20 -1.11L28.00 -1.18L28.80 -1.21L29.60 -1.20L30.40 -1.17L31.20 -1.12L32.00 -1.07L32.80 -1.05L33.60 -1.06L34.40 -1.11L35.20 -1.18L36.00 -1.26L36.80 -1.33L37.60 -1.37L38.40 -1.37L39.20 -1.35L40.00 -1.30" fill="none" stroke="#7a4a22" stroke-width="0.4" stroke-linecap="round" opacity="0.8"/>
     
-    <g transform="translate(0 -3.6)">
-  <path d="M56.50 -2.80L0.90 -0.90A0.90 0.90 0 0 0 0.90 0.90L56.50 2.80Q57.00 2.80 57.00 2.30L57.00 -2.30Q57.00 -2.80 56.50 -2.80Z" fill="url(#wood)" filter="url(#grain)"/>
-  <path d="M56.50 -2.80L0.90 -0.90A0.90 0.90 0 0 0 0.90 0.90L56.50 2.80Q57.00 2.80 57.00 2.30L57.00 -2.30Q57.00 -2.80 56.50 -2.80Z" fill="url(#tipshade)"/>
-  <g clip-path="url(#stickclip)">
-    <rect x="42.0" y="-3.5" width="16.0" height="7" fill="url(#lacquer)"/>
-    <rect x="40.9" y="-3.5" width="1.1" height="7" fill="url(#ring)"/>
-    <rect x="40.4" y="-3.5" width="0.4" height="7" fill="url(#gold)"/>
-    <rect x="54.6" y="-3.5" width="0.4" height="7" fill="url(#gold)" opacity="0.8"/>
   </g>
-  <path d="M2.50 -0.61L40.80 -1.40L40.80 -0.41L2.50 -0.18Z" fill="#fff6e6" opacity="0.55"/>
-  <path d="M42.60 -1.39L56.20 -1.66L56.20 -0.78L42.60 -0.65Z" fill="#ffffff" opacity="0.5"/>
-  <path d="M56.50 -2.80L0.90 -0.90A0.90 0.90 0 0 0 0.90 0.90L56.50 2.80Q57.00 2.80 57.00 2.30L57.00 -2.30Q57.00 -2.80 56.50 -2.80Z" fill="none" stroke="#2a1405" stroke-opacity="0.55" stroke-width="0.25"/>
+  <g filter="url(#rough)" fill="none" stroke="#2a1b10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M56.00 -2.55L56.00 2.55Q56.00 2.90 55.65 2.90L1.00 1.00A1.00 1.00 0 0 1 1.00 -1.00L55.65 -2.90Q56.00 -2.90 56.00 -2.55Z" stroke-width="1.0"/>
+    <path d="M44.60 -2.51Q45.05 0 44.60 2.51" stroke-width="0.6"/>
+    <path d="M46.60 -2.58Q47.05 0 46.60 2.58" stroke-width="0.6"/>
+    <path d="M53.80 -2.83Q54.15 0 53.80 2.83" stroke-width="0.5"/>
+  </g>
 </g>
-    <g transform="translate(1.6 3.6)">
-  <path d="M56.50 -2.80L0.90 -0.90A0.90 0.90 0 0 0 0.90 0.90L56.50 2.80Q57.00 2.80 57.00 2.30L57.00 -2.30Q57.00 -2.80 56.50 -2.80Z" fill="url(#wood)" filter="url(#grain)"/>
-  <path d="M56.50 -2.80L0.90 -0.90A0.90 0.90 0 0 0 0.90 0.90L56.50 2.80Q57.00 2.80 57.00 2.30L57.00 -2.30Q57.00 -2.80 56.50 -2.80Z" fill="url(#tipshade)"/>
-  <g clip-path="url(#stickclip)">
-    <rect x="42.0" y="-3.5" width="16.0" height="7" fill="url(#lacquer)"/>
-    <rect x="40.9" y="-3.5" width="1.1" height="7" fill="url(#ring)"/>
-    <rect x="40.4" y="-3.5" width="0.4" height="7" fill="url(#gold)"/>
-    <rect x="54.6" y="-3.5" width="0.4" height="7" fill="url(#gold)" opacity="0.8"/>
-  </g>
-  <path d="M2.50 -0.61L40.80 -1.40L40.80 -0.41L2.50 -0.18Z" fill="#fff6e6" opacity="0.55"/>
-  <path d="M42.60 -1.39L56.20 -1.66L56.20 -0.78L42.60 -0.65Z" fill="#ffffff" opacity="0.5"/>
-  <path d="M56.50 -2.80L0.90 -0.90A0.90 0.90 0 0 0 0.90 0.90L56.50 2.80Q57.00 2.80 57.00 2.30L57.00 -2.30Q57.00 -2.80 56.50 -2.80Z" fill="none" stroke="#2a1405" stroke-opacity="0.55" stroke-width="0.25"/>
 </g>
-  </g>
-</g></svg>
+<rect x="0.8" y="0.8" width="62.4" height="62.4" fill="none" stroke="#2a1b10" stroke-width="1.6"/>
+</svg>

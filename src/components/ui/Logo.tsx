@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 
-/** Wooden chopsticks with lacquered ends: public/logo.svg, or public/logo-light.svg on dark backgrounds. */
-export function LogoMark({ size = 26, invert = false }: { size?: number; invert?: boolean }) {
+/** A drawing of wooden chopsticks on paper (public/logo.svg). It works on light and dark backgrounds. */
+export function LogoMark({ size = 26 }: { size?: number }) {
   return (
     <Image
-      src={invert ? "/logo-light.svg" : "/logo.svg"}
+      src="/logo.svg"
       alt=""
       aria-hidden="true"
       width={size}
@@ -18,7 +18,7 @@ export function LogoMark({ size = 26, invert = false }: { size?: number; invert?
 export function Logo({ href = "/", invert = false }: { href?: string; invert?: boolean }) {
   return (
     <Link href={href} className="flex items-center gap-2.5" aria-label="Omakaze home">
-      <LogoMark invert={invert} />
+      <LogoMark />
       <span
         className={`font-serif text-[19px] leading-none tracking-[-0.02em] ${invert ? "text-white" : "text-black"}`}
       >
