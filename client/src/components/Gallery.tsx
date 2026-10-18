@@ -82,7 +82,13 @@ function Lightbox({ listingId, propertyType, title, index, onIndexChange, onClos
           <CloseIcon />
         </button>
       </div>
-      <div className="lightbox__stage">
+      {/* Clicking the dark area around the photo closes the viewer, like most photo viewers. */}
+      <div
+        className="lightbox__stage"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) onClose();
+        }}
+      >
         <button type="button" className="lightbox__nav" onClick={() => go(-1)} aria-label="Previous photo">
           <ChevronLeftIcon size={28} />
         </button>
