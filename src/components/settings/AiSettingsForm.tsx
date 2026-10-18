@@ -136,7 +136,7 @@ function ProviderFields({ info, current, listModels }: { info: Provider; current
       />
       {info.local ? (
         <p className="mt-1.5 text-[12px] text-muted">
-          The address as seen from the Guided PRs server. In Docker, <code className="font-mono">localhost</code> is the
+          The address as seen from the Omakaze server. In Docker, <code className="font-mono">localhost</code> is the
           container: use <code className="font-mono">host.docker.internal</code> or the service name instead.
         </p>
       ) : null}

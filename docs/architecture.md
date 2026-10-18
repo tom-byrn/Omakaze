@@ -1,6 +1,6 @@
 # Architecture
 
-Guided PRs is a single Next.js 16 application (App Router, TypeScript) backed by PostgreSQL through Drizzle ORM. There is no separate worker service, cache or object store.
+Omakaze is a single Next.js 16 application (App Router, TypeScript) backed by PostgreSQL through Drizzle ORM. There is no separate worker service, cache or object store.
 
 ## Components
 
@@ -28,7 +28,7 @@ flowchart LR
   ai[AI provider]
   db[(PostgreSQL)]
 
-  subgraph app[Guided PRs server process]
+  subgraph app[Omakaze server process]
     web[Pages, Server Actions<br/>and /api routes]
     mcp[MCP endpoint<br/>/api/mcp]
     api[REST API<br/>/api/v1]
@@ -57,7 +57,7 @@ Automatic generation, from webhook to summary comment:
 ```mermaid
 sequenceDiagram
   participant GH as GitHub
-  participant S as Guided PRs
+  participant S as Omakaze
   participant DB as PostgreSQL
   participant W as Job worker
   participant AI as AI provider
@@ -85,7 +85,7 @@ The schema is in `src/db/schema.ts`; migrations are in `drizzle/`.
 | Workspaces | `workspaces` (including AI and automation settings), `memberships` (role per user), `invites` |
 | GitHub | `github_connections` (app installation, token or linked account), `repositories` (followed per workspace, through one connection or none), `pull_requests` (cache) |
 | Guides | `diff_snapshots`, `guides` (one row per version), `guide_sections`, `section_reviews`, `guide_views` |
-| Reviews | `comments` (comments and reviews posted through Guided PRs) |
+| Reviews | `comments` (comments and reviews posted through Omakaze) |
 | API access | `api_tokens` (personal tokens and OAuth access tokens), `oauth_clients`, `oauth_codes`, `oauth_refresh_tokens` |
 | Uploads | `assets`, `asset_blobs` |
 | Operations | `jobs`, `activity`, `webhook_deliveries`, `instance_settings` (holds the GitHub App created on `/admin`) |
@@ -143,7 +143,7 @@ The file endpoint also returns moved and copied blocks (`src/lib/diff/moves.ts`)
 
 ## Security model
 
-**Sessions.** Signing in creates a random 32-byte token, stored in the `gpr_session` cookie (`HttpOnly`, `SameSite=Lax`, `Secure` when `APP_URL` uses HTTPS). The database stores only its SHA-256 hash. Sessions expire after 30 days without use. Passwords are hashed with scrypt (N = 2^15, r = 8, p = 1). Changing the password signs out other sessions.
+**Sessions.** Signing in creates a random 32-byte token, stored in the `omk_session` cookie (`HttpOnly`, `SameSite=Lax`, `Secure` when `APP_URL` uses HTTPS). The database stores only its SHA-256 hash. Sessions expire after 30 days without use. Passwords are hashed with scrypt (N = 2^15, r = 8, p = 1). Changing the password signs out other sessions.
 
 **Tokens.** API tokens, OAuth access and refresh tokens, authorization codes, OAuth client secrets and invite tokens are stored as SHA-256 hashes and looked up by hash. API tokens are shown once, when they are created. API and OAuth tokens are bound to one workspace and stop working when their user leaves it. Revoking an OAuth access token also revokes the refresh token issued with it. The OAuth server only accepts the MCP endpoint (or the instance URL) as a `resource` and only grants the `mcp` scope.
 

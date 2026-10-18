@@ -181,7 +181,7 @@ export function ProductSchematic() {
         </div>
       </div>
       <div className="pointer-events-none mt-4 hidden justify-between font-mono text-[8px] leading-[12px] tracking-[0.2px] text-[#898989] uppercase md:flex" aria-hidden="true">
-        <span>GPR-0007 // Version 1 // 5 sections // 46 files</span>
+        <span>OMK-0007 // Version 1 // 5 sections // 46 files</span>
         <span>process: diff → sections → review → github</span>
       </div>
     </div>

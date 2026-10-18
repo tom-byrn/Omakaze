@@ -1,17 +1,19 @@
-# Guided PRs: app + Postgres.
+# Omakaze: app + Postgres.
 # 1. cp .env.example .env and fill in APP_SECRET (openssl rand -hex 32) and APP_URL
 # 2. docker compose up -d
 # 3. open http://localhost:3000 and create the first account (it becomes the instance admin)
 
+name: omakaze
+
 services:
   app:
     # Builds the image from this checkout. To run a published image instead, replace `build: .`
-    # with `image: ghcr.io/tom-byrn/guided-prs:latest` (see .github/workflows/release.yml).
+    # with `image: ghcr.io/tom-byrn/omakaze:latest` (see .github/workflows/release.yml).
     build: .
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgres://guided:${POSTGRES_PASSWORD:-guided}@db:5432/guided_prs
+      DATABASE_URL: postgres://omakaze:${POSTGRES_PASSWORD:-omakaze}@db:5432/omakaze
       # The server always listens on 3000 inside the container; PORT only changes the host port below.
       PORT: "3000"
       HOSTNAME: 0.0.0.0
@@ -27,13 +29,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: guided
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-guided}
-      POSTGRES_DB: guided_prs
+      POSTGRES_USER: omakaze
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-omakaze}
+      POSTGRES_DB: omakaze
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U guided -d guided_prs"]
+      test: ["CMD-SHELL", "pg_isready -U omakaze -d omakaze"]
       interval: 5s
       timeout: 5s
       retries: 10

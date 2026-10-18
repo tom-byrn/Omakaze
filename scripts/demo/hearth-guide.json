@@ -193,6 +193,6 @@
     "offers-dashboard.png",
     "affordability.png"
   ],
-  "lineComment": "This runs two COUNT queries per saved search just to check the limit. A plain COUNT(*) would do.",
-  "reviewComment": "Read through every section. One note on the saved-search limit; the rest looks good."
+  "lineComment": "Saving the same search twice returns a 409. Could this return the existing saved search instead, so a double click is harmless?",
+  "reviewComment": "Read through every section. One question on saving duplicate searches; the rest looks good."
 }

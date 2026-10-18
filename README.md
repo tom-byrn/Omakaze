@@ -1,10 +1,10 @@
 <p align="center">
   <a href="https://github.com/tom-byrn/Guided-PRs">
-    <img src="public/icon.svg" width="96" height="96" alt="Guided PRs logo">
+    <img src="public/logo.svg" width="96" height="96" alt="Omakaze logo">
   </a>
 </p>
 
-<h1 align="center">Guided PRs</h1>
+<h1 align="center">Omakaze</h1>
 
 <p align="center">
   <strong>Turn GitHub pull requests into guided, section-by-section walkthroughs.</strong><br>
@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://github.com/tom-byrn/Guided-PRs/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/tom-byrn/Guided-PRs/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
-  <a href="https://github.com/tom-byrn/Guided-PRs/pkgs/container/guided-prs"><img src="https://img.shields.io/github/actions/workflow/status/tom-byrn/Guided-PRs/release.yml?branch=main&style=flat-square&label=image" alt="Release image"></a>
+  <a href="https://github.com/tom-byrn/Guided-PRs/pkgs/container/omakaze"><img src="https://img.shields.io/github/actions/workflow/status/tom-byrn/Guided-PRs/release.yml?branch=main&style=flat-square&label=image" alt="Release image"></a>
   <a href="CHANGELOG.md"><img src="https://img.shields.io/github/package-json/v/tom-byrn/Guided-PRs?style=flat-square&label=version" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/tom-byrn/Guided-PRs?style=flat-square" alt="License"></a>
   <a href="https://github.com/tom-byrn/Guided-PRs/stargazers"><img src="https://img.shields.io/github/stars/tom-byrn/Guided-PRs?style=flat-square" alt="GitHub stars"></a>
@@ -49,16 +49,16 @@
 
 ## What it is
 
-Guided PRs is an open-source, self-hostable web app that turns GitHub pull requests into guided walkthroughs. A guide splits a pull request into ordered sections. Each section has a markdown explanation on the left and the parts of the diff it covers on the right, so reviewers read the change in a planned order instead of file by file. Guides are written by coding agents through the built-in MCP server, by the built-in AI generator, through the REST API, or by hand in the editor. Comments and reviews made in Guided PRs are posted to the pull request on GitHub.
+Omakaze is an open-source, self-hostable web app that turns GitHub pull requests into guided walkthroughs. A guide splits a pull request into ordered sections. Each section has a markdown explanation on the left and the parts of the diff it covers on the right, so reviewers read the change in a planned order instead of file by file. Guides are written by coding agents through the built-in MCP server, by the built-in AI generator, through the REST API, or by hand in the editor. Comments and reviews made in Omakaze are posted to the pull request on GitHub.
 
 ## Demo
 
-[guided-prs-demo.mp4](docs/demo/guided-prs-demo.mp4) (6½ minutes, no sound) is a recording of a self-hosted instance and a real pull request, [tom-byrn/Guided-PRs#1](https://github.com/tom-byrn/Guided-PRs/pull/1), which adds home buying to a small rental listings app. It shows connecting GitHub, a coding agent writing the guide through the MCP server, reviewing it section by section, a line comment and a review posted to GitHub, a teammate joining through an invite link, and the settings. The recording script is in [scripts/demo](scripts/demo).
+[omakaze-demo.mp4](docs/demo/omakaze-demo.mp4) (7 minutes, no sound) is a recording of a self-hosted instance and a real pull request, [tom-byrn/Guided-PRs#1](https://github.com/tom-byrn/Guided-PRs/pull/1), which adds home buying to a small rental listings app. It shows connecting GitHub, a coding agent writing the guide through the MCP server, reviewing it section by section, a line comment and a review posted to GitHub, a teammate joining through an invite link, and the settings. The recording script is in [scripts/demo](scripts/demo).
 
 ## Features
 
 - **Sections instead of files.** A section references whole files, individual hunks or line ranges, so one file can appear in several sections.
-- **Coverage.** Guided PRs counts which changed lines belong to a section. Changes that no section covers go to an automatic "Other changes" section when a guide is published.
+- **Coverage.** Omakaze counts which changed lines belong to a section. Changes that no section covers go to an automatic "Other changes" section when a guide is published.
 - **Markdown explanations.** GitHub-flavored markdown with Mermaid diagrams, math, alert blocks, syntax-highlighted code blocks, images, videos and `diff:` links that jump to specific lines of the diff.
 - **Diff view.** Syntax highlighting, context that expands 20 lines at a time, to the enclosing block or to the whole file, an all-files view and optional line wrapping. Moved and copied code is detected and links to where it came from.
 - **Reviews on GitHub.** Line and multi-line comments, replies, deleting your own comments, and approve, request changes or comment. Everything is posted to the pull request.
@@ -115,45 +115,45 @@ The MCP server is at `<APP_URL>/api/mcp`. Clients that support OAuth open the in
 Claude Code:
 
 ```sh
-claude mcp add --transport http guided-prs <APP_URL>/api/mcp
+claude mcp add --transport http omakaze <APP_URL>/api/mcp
 ```
 
 Codex:
 
 ```sh
-codex mcp add guided-prs --url <APP_URL>/api/mcp
+codex mcp add omakaze --url <APP_URL>/api/mcp
 ```
 
 Cursor (`mcp.json`):
 
 ```json
-{ "mcpServers": { "guided-prs": { "url": "<APP_URL>/api/mcp" } } }
+{ "mcpServers": { "omakaze": { "url": "<APP_URL>/api/mcp" } } }
 ```
 
 VS Code (`mcp.json`):
 
 ```json
-{ "servers": { "guided-prs": { "type": "http", "url": "<APP_URL>/api/mcp" } } }
+{ "servers": { "omakaze": { "type": "http", "url": "<APP_URL>/api/mcp" } } }
 ```
 
 Clients without OAuth support can send an API token created in **Settings → API tokens & MCP**:
 
 ```sh
-claude mcp add --transport http guided-prs <APP_URL>/api/mcp \
+claude mcp add --transport http omakaze <APP_URL>/api/mcp \
   --header "Authorization: Bearer <token>"
 ```
 
 For each pull request, give the agent this prompt:
 
 ```text
-Create a guided PR for <PR URL> using the Guided PRs MCP.
+Create a guided PR for <PR URL> using the Omakaze MCP.
 ```
 
 **Settings → API tokens & MCP** also shows a setup prompt that asks an agent to add the server itself. The tools, reference syntax and authentication details are in [docs/mcp.md](docs/mcp.md).
 
 ## Built-in AI
 
-Built-in generation is optional: agents connected over MCP use their own model. To have Guided PRs write guides itself, pick a provider per workspace in **Settings → AI provider** (Anthropic, OpenAI, Google, OpenRouter, Ollama, LM Studio or any OpenAI-compatible server; the model list is loaded from the provider), or set instance defaults with `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL`. Then use **Generate with AI** on a pull request, turn on automation in **Settings → Automation**, or call `POST /api/v1/generate`. The diff is sent to the provider you configure; a local model through Ollama, LM Studio or another OpenAI-compatible server keeps it on your network. See [docs/ai.md](docs/ai.md).
+Built-in generation is optional: agents connected over MCP use their own model. To have Omakaze write guides itself, pick a provider per workspace in **Settings → AI provider** (Anthropic, OpenAI, Google, OpenRouter, Ollama, LM Studio or any OpenAI-compatible server; the model list is loaded from the provider), or set instance defaults with `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL`. Then use **Generate with AI** on a pull request, turn on automation in **Settings → Automation**, or call `POST /api/v1/generate`. The diff is sent to the provider you configure; a local model through Ollama, LM Studio or another OpenAI-compatible server keeps it on your network. See [docs/ai.md](docs/ai.md).
 
 ## Documentation
 
@@ -175,8 +175,8 @@ Requirements: Node.js 22, pnpm (through Corepack) and PostgreSQL 16.
 ```sh
 corepack enable
 pnpm install
-docker run -d --name guided-prs-db -p 5432:5432 \
-  -e POSTGRES_USER=guided -e POSTGRES_PASSWORD=guided -e POSTGRES_DB=guided_prs \
+docker run -d --name omakaze-db -p 5432:5432 \
+  -e POSTGRES_USER=omakaze -e POSTGRES_PASSWORD=omakaze -e POSTGRES_DB=omakaze \
   postgres:16-alpine
 cp .env.example .env   # then set APP_SECRET
 pnpm dev
@@ -186,6 +186,6 @@ The app runs at http://localhost:3000 and applies migrations on start. See [docs
 
 ## License
 
-Guided PRs is released under the [MIT License](LICENSE).
+Omakaze is released under the [MIT License](LICENSE). The landing page uses a subset of Shippori Mincho, licensed under the [SIL Open Font License 1.1](src/app/fonts/OFL-ShipporiMincho.txt).
 
 <p align="right"><a href="#readme">Back to top ↑</a></p>

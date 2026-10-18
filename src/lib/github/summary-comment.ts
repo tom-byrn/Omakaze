@@ -6,9 +6,9 @@ import { gh } from "@/lib/github/client";
 import { getGuide, getSections, guideUrl } from "@/lib/guides/service";
 import { shortSha } from "@/lib/format";
 
-const MARKER = "<!-- guided-prs:summary -->";
+const MARKER = "<!-- omakaze:summary -->";
 
-/** Replace diff: links (only meaningful inside Guided PRs) with their label. */
+/** Replace diff: links (only meaningful inside Omakaze) with their label. */
 export function stripDiffLinks(md: string): string {
   return md.replace(/\[([^\]]+)\]\(diff:[^)]*\)/g, "$1");
 }
@@ -66,7 +66,7 @@ export async function postGuideSummaryComment(guideId: string): Promise<void> {
     "",
     `**[Open the guided walkthrough →](${url})**`,
     "",
-    `<sub>Guided PRs · version ${guide.version} · ${shortSha(guide.headSha)}</sub>`,
+    `<sub>Omakaze · version ${guide.version} · ${shortSha(guide.headSha)}</sub>`,
     MARKER,
   ].join("\n");
 

@@ -1,6 +1,6 @@
 # GitHub App and GitHub access
 
-Guided PRs reads pull requests, diffs and file contents from GitHub and posts comments and reviews back. A workspace gets access to repositories through one or more **connections**:
+Omakaze reads pull requests, diffs and file contents from GitHub and posts comments and reviews back. A workspace gets access to repositories through one or more **connections**:
 
 | Connection | Set up by | Best for |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ An instance admin can create the GitHub App in one step with GitHub's app manife
 2. Open `/admin`.
 3. Choose **Create GitHub App on my account**, or enter an organization login and choose **Create for organization** to create an app owned by that organization.
 4. GitHub shows the app settings filled in. Confirm the creation; you can change the name first if it is already taken.
-5. GitHub redirects back to `<APP_URL>/api/github/manifest`. Guided PRs exchanges the one-time code for the app's ID, slug, private key, webhook secret, client ID and client secret, and stores them encrypted in the database. `/admin` then shows the app.
+5. GitHub redirects back to `<APP_URL>/api/github/manifest`. Omakaze exchanges the one-time code for the app's ID, slug, private key, webhook secret, client ID and client secret, and stores them encrypted in the database. `/admin` then shows the app.
 
 The request must be completed within an hour by the same admin who started it. **Remove stored app** on `/admin` deletes the stored credentials; it does not delete the app on GitHub.
 
@@ -28,7 +28,7 @@ The settings come from `buildAppManifest` in `src/lib/github/app.ts`:
 
 | Setting | Value |
 | --- | --- |
-| Name | `Guided PRs (<host of APP_URL>)` |
+| Name | `Omakaze (<host of APP_URL>)` |
 | Homepage URL | `<APP_URL>` |
 | Callback URL (user sign-in) | `<APP_URL>/api/auth/github/callback` |
 | Setup URL | `<APP_URL>/api/github/setup`, also called after an installation is updated |
@@ -51,7 +51,7 @@ What the permissions are used for:
 
 Without the email permission (for example in an app created before it was added to the manifest), only the public email of a user's GitHub profile is used. `/admin` points this out with a link to the app's permission settings on GitHub, where it can be added.
 
-Guided PRs acts on the `pull_request`, `pull_request_review` and `pull_request_review_comment` events, and on `installation` events, which GitHub sends to every app. Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
+Omakaze acts on the `pull_request`, `pull_request_review` and `pull_request_review_comment` events, and on `installation` events, which GitHub sends to every app. Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
 
 If `APP_URL` is not reachable from the internet (for example `http://localhost:3000`), GitHub cannot deliver webhooks to it. Sign-in and API access do not depend on webhooks; pull requests are then refreshed by polling and when members open the app.
 
@@ -71,7 +71,7 @@ Create a GitHub App in your account or organization settings (**Developer settin
 | Subscribe to events | Pull request, Pull request review, Pull request review comment |
 | Where can this GitHub App be installed | Only on this account, or Any account if you want to install it on other accounts |
 
-Expiring user tokens can stay on; Guided PRs refreshes them. After creating the app, generate a private key and a client secret, and set:
+Expiring user tokens can stay on; Omakaze refreshes them. After creating the app, generate a private key and a client secret, and set:
 
 | Variable | Value |
 | --- | --- |
@@ -89,9 +89,9 @@ When `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` are both set, they take preced
 A workspace admin connects an installation from **Settings → GitHub → Install on GitHub**:
 
 1. Link your GitHub account first: sign in with GitHub, or link it on the **Account** page with **Link GitHub account** or a personal access token.
-2. Choose **Install on GitHub**. Guided PRs sends you to the app's installation page with a signed `state` that names the workspace and your user; it is valid for an hour.
+2. Choose **Install on GitHub**. Omakaze sends you to the app's installation page with a signed `state` that names the workspace and your user; it is valid for an hour.
 3. On GitHub, choose the account or organization and the repositories, then install.
-4. GitHub redirects to the setup URL. Guided PRs checks the installation (below), creates or updates the connection, and returns you to **Settings → GitHub**. A new connection is also attached to the workspace's repositories that have [no connection](#repositories-without-a-connection) and that it can access.
+4. GitHub redirects to the setup URL. Omakaze checks the installation (below), creates or updates the connection, and returns you to **Settings → GitHub**. A new connection is also attached to the workspace's repositories that have [no connection](#repositories-without-a-connection) and that it can access.
 5. Add repositories on the **Repositories** page. The list shows the repositories selected for the installation.
 
 ### Installation ownership check
@@ -166,8 +166,8 @@ A repository is reconnected when:
 
 **Continue with GitHub** appears on the sign-in page when an OAuth client is available:
 
-- **GitHub App (recommended).** An app created on `/admin` provides its client ID and secret automatically. For an app configured with environment variables, set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to the app's own client credentials. No OAuth scopes are requested; access follows the app's permissions and the user's own access. GitHub App user tokens can expire; Guided PRs stores the refresh token encrypted and refreshes the access token when it is within two minutes of expiry.
-- **OAuth App.** Leave `GITHUB_APP_ID` empty and set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` from an OAuth App whose callback URL is `<APP_URL>/api/auth/github/callback`. Guided PRs requests the scopes `read:user user:email repo`. With a GitHub App installed as well, the [installation ownership check](#installation-ownership-check) relies on the account and organization checks for these users.
+- **GitHub App (recommended).** An app created on `/admin` provides its client ID and secret automatically. For an app configured with environment variables, set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to the app's own client credentials. No OAuth scopes are requested; access follows the app's permissions and the user's own access. GitHub App user tokens can expire; Omakaze stores the refresh token encrypted and refreshes the access token when it is within two minutes of expiry.
+- **OAuth App.** Leave `GITHUB_APP_ID` empty and set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` from an OAuth App whose callback URL is `<APP_URL>/api/auth/github/callback`. Omakaze requests the scopes `read:user user:email repo`. With a GitHub App installed as well, the [installation ownership check](#installation-ownership-check) relies on the account and organization checks for these users.
 
 When `GITHUB_APP_ID` is set, `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are treated as the GitHub App's credentials.
 
@@ -175,7 +175,7 @@ Sign-in behavior:
 
 - An existing user is matched by GitHub user ID. Accounts are never merged by email.
 - New users are created only when sign-up is allowed: `AUTH_SIGNUP_ENABLED=true`, a valid invite link, or an instance with no users yet.
-- Guided PRs reads the user's verified GitHub email addresses (`/user/emails`, plus the public profile email). A new user gets one of them, preferring one in `AUTH_ALLOWED_EMAIL_DOMAINS`, and it counts as confirmed. If that address already belongs to another user, the new user is created without an email.
+- Omakaze reads the user's verified GitHub email addresses (`/user/emails`, plus the public profile email). A new user gets one of them, preferring one in `AUTH_ALLOWED_EMAIL_DOMAINS`, and it counts as confirmed. If that address already belongs to another user, the new user is created without an email.
 - When `AUTH_ALLOWED_EMAIL_DOMAINS` is set, a new user without an invite link needs a verified GitHub email in one of the domains.
 - When an existing user signs in with GitHub or links GitHub, their email counts as confirmed if it is one of their verified GitHub addresses. Confirmed addresses are needed for [email-restricted invites](configuration.md#invites).
 - Signed-in users can link GitHub later on the **Account** page, with **Link GitHub account** or with a personal access token.
@@ -185,10 +185,10 @@ The linked credential is used to post comments and reviews as the user, for **Us
 
 ## Posting comments and reviews
 
-- Line comments, replies and reviews are posted with the reviewer's linked GitHub credential. Without one, or if GitHub rejects it with 401, 403 or 404, they are posted through the workspace connection with the footer `Posted by <name> via Guided PRs`.
+- Line comments, replies and reviews are posted with the reviewer's linked GitHub credential. Without one, or if GitHub rejects it with 401, 403 or 404, they are posted through the workspace connection with the footer `Posted by <name> via Omakaze`.
 - **Approve** and **Request changes** require a linked GitHub account; they are never posted through a connection.
 - Without a linked account, **Comment** in the review panel posts a comment in the pull request conversation through the connection.
-- You can delete line comments and replies that you posted through Guided PRs, and line comments on GitHub written by your linked account.
+- You can delete line comments and replies that you posted through Omakaze, and line comments on GitHub written by your linked account.
 - Summary comments (see [ai.md](ai.md#automation)) are posted through the connection.
 
 ## Token permissions

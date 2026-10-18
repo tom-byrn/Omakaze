@@ -55,7 +55,7 @@ export default async function AuthorizePage(props: PageProps<"/oauth/authorize">
   return (
     <Shell>
       <span className="eyebrow">Connect an agent</span>
-      <h1 className="h3 mt-6">Allow {clientName} to use Guided PRs?</h1>
+      <h1 className="h3 mt-6">Allow {clientName} to use Omakaze?</h1>
       <p className="body-copy mt-3">
         It will be able to read pull requests in the workspace you choose and create or edit guides as you.
       </p>

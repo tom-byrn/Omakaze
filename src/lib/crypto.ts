@@ -21,6 +21,7 @@ const scrypt = promisify(scryptCb) as (
 let encKey: Buffer | null = null;
 
 function deriveKey(info: string): Buffer {
+  // The salt is the project's original name. Changing it would make every stored secret unreadable.
   return Buffer.from(hkdfSync("sha256", env().APP_SECRET, "guided-prs", info, 32));
 }
 
@@ -108,7 +109,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return timingSafeEqual(actual, expected);
 }
 
-/** Secret used for repository webhooks created by Guided PRs. */
+/** Secret used for repository webhooks created by Omakaze. */
 export function repoWebhookSecret(): string {
   return env().GITHUB_WEBHOOK_SECRET ?? hmac("repository-webhooks", "webhook-secret");
 }

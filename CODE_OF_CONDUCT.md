@@ -1,6 +1,6 @@
 # Code of conduct
 
-Guided PRs adopts the [Contributor Covenant, version 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/) as its code of conduct. The full text on that page applies to everyone who participates in the project: in issues, pull requests, discussions, reviews and any other project space, and when representing the project elsewhere.
+Omakaze adopts the [Contributor Covenant, version 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/) as its code of conduct. The full text on that page applies to everyone who participates in the project: in issues, pull requests, discussions, reviews and any other project space, and when representing the project elsewhere.
 
 ## Our pledge
 

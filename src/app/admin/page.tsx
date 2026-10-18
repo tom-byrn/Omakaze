@@ -38,7 +38,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
       .limit(10),
   ]);
   const state = signPayload({ uid: user.id }, "github-manifest", 3600);
-  const manifest = JSON.stringify(buildAppManifest(`Guided PRs (${new URL(e.APP_URL).host})`));
+  const manifest = JSON.stringify(buildAppManifest(`Omakaze (${new URL(e.APP_URL).host})`));
   const current = list.find((x) => x.workspace.id === user.lastWorkspaceId) ?? list[0];
   const created = typeof sp.created === "string" ? sp.created : null;
   const error = typeof sp.error === "string" ? sp.error : null;

@@ -22,7 +22,7 @@ export default async function AiSettingsPage(props: PageProps<"/w/[slug]/setting
         title="Built-in generation"
         description={
           <>
-            Optional. Guided PRs can write guides itself with a model you choose: a hosted API or a local model. If your team
+            Optional. Omakaze can write guides itself with a model you choose: a hosted API or a local model. If your team
             writes guides with its own agent (Claude Code, Codex, Cursor and others), it uses that agent&apos;s model over{" "}
             <Link href={`/w/${slug}/settings/tokens`} className="link">
               MCP

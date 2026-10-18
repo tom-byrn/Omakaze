@@ -80,7 +80,7 @@ async function getJson<T>(url: string): Promise<T> {
 const VIA_LABEL: Record<string, string> = {
   mcp: "MCP",
   api: "API",
-  ui: "Guided PRs",
+  ui: "Omakaze",
   webhook: "automation",
   poll: "automation",
 };
@@ -92,7 +92,7 @@ export function GuideViewer(props: ViewerProps) {
   const toStep = (s: ViewerProps["initialStep"]) => (s === "review" ? reviewStep : s === "files" ? -1 : Math.min(Math.max(0, s), reviewStep));
   const [step, setStep] = useState<number>(toStep(props.initialStep));
   const [focus, setFocus] = useState<FocusTarget | null>(null);
-  const [wrap, setWrap] = useStoredBoolean("gpr:wrap", true);
+  const [wrap, setWrap] = useStoredBoolean("omk:wrap", true);
   const [reviewed, setReviewed] = useState<Set<string>>(
     () => new Set(sections.filter((s) => s.reviewedBy.includes(me.id)).map((s) => s.id)),
   );

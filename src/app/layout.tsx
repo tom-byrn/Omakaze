@@ -5,8 +5,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Guided PRs",
-    template: "%s · Guided PRs",
+    default: "Omakaze",
+    template: "%s · Omakaze",
   },
   description: "Open-source, self-hostable guided walkthroughs for pull requests.",
   icons: { icon: "/icon.svg" },

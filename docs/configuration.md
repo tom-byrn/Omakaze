@@ -1,6 +1,6 @@
 # Configuration
 
-Guided PRs is configured with environment variables (instance settings) and with settings that workspace admins change in the app (workspace settings).
+Omakaze is configured with environment variables (instance settings) and with settings that workspace admins change in the app (workspace settings).
 
 ## Environment variables
 
@@ -53,7 +53,7 @@ See [github-app.md](github-app.md) for how these fit together.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `SMTP_URL` | none | SMTP connection URL, for example `smtps://user:password@smtp.example.com:465`. Used for invite emails and for links that confirm an address for an email-restricted invite. Without it, invites are shared as links only, and an email-restricted invite can only be accepted with an address that is verified on GitHub. |
-| `SMTP_FROM` | `Guided PRs <no-reply@localhost>` | Sender address for these emails. |
+| `SMTP_FROM` | `Omakaze <no-reply@localhost>` | Sender address for these emails. |
 
 ### Storage
 
@@ -99,7 +99,7 @@ These are read by `docker-compose.yml` itself:
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD` | `guided` | Password of the `db` service, also used in the app's `DATABASE_URL`. The Postgres image applies it only when its data volume is created. |
+| `POSTGRES_PASSWORD` | `omakaze` | Password of the `db` service, also used in the app's `DATABASE_URL`. The Postgres image applies it only when its data volume is created. |
 | `PORT` | `3000` | Published host port, from `.env` or the shell. The server inside the container always listens on 3000; see [self-hosting.md](self-hosting.md#docker-compose). |
 
 ## Instance settings and workspace settings
@@ -128,7 +128,7 @@ The **Repositories** page lists followed repositories. Admins add and remove the
 Admins create invite links on **Members** with the member or admin role. Each link is valid for 14 days and can be used once; admins can copy pending links again or revoke them.
 
 - **Without an email address**, anyone with the link can join.
-- **With an email address**, the link is emailed there when SMTP is configured, and only an account with that address can use it. The address must also be confirmed on the account: either it is a verified email of the user's GitHub account (checked when they sign up, sign in or link GitHub), or the user opens a confirmation link that Guided PRs emails to the address when they accept the invite. The confirmation link (`/invite/<token>/confirm`) is valid for 24 hours and must be opened while signed in as the same user. Without SMTP, only a verified GitHub email works.
+- **With an email address**, the link is emailed there when SMTP is configured, and only an account with that address can use it. The address must also be confirmed on the account: either it is a verified email of the user's GitHub account (checked when they sign up, sign in or link GitHub), or the user opens a confirmation link that Omakaze emails to the address when they accept the invite. The confirmation link (`/invite/<token>/confirm`) is valid for 24 hours and must be opened while signed in as the same user. Without SMTP, only a verified GitHub email works.
 - Changing the email address on the **Account** page removes its confirmation.
 - Signing up with a valid invite link is possible even when `AUTH_SIGNUP_ENABLED` is false or the address is outside `AUTH_ALLOWED_EMAIL_DOMAINS`.
 

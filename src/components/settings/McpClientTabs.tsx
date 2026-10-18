@@ -6,22 +6,22 @@ import { CopyButton } from "@/components/ui/CopyButton";
 
 export function McpClientTabs({ mcpUrl }: { mcpUrl: string }) {
   const clients = [
-    { id: "claude", label: "Claude Code", snippet: `claude mcp add --transport http guided-prs ${mcpUrl}` },
-    { id: "codex", label: "Codex", snippet: `codex mcp add guided-prs --url ${mcpUrl}` },
+    { id: "claude", label: "Claude Code", snippet: `claude mcp add --transport http omakaze ${mcpUrl}` },
+    { id: "codex", label: "Codex", snippet: `codex mcp add omakaze --url ${mcpUrl}` },
     {
       id: "cursor",
       label: "Cursor",
-      snippet: JSON.stringify({ mcpServers: { "guided-prs": { url: mcpUrl } } }, null, 2),
+      snippet: JSON.stringify({ mcpServers: { omakaze: { url: mcpUrl } } }, null, 2),
     },
     {
       id: "vscode",
       label: "VS Code",
-      snippet: JSON.stringify({ servers: { "guided-prs": { type: "http", url: mcpUrl } } }, null, 2),
+      snippet: JSON.stringify({ servers: { omakaze: { type: "http", url: mcpUrl } } }, null, 2),
     },
     {
       id: "token",
       label: "With a token",
-      snippet: `claude mcp add --transport http guided-prs ${mcpUrl} \\\n  --header "Authorization: Bearer <your token>"`,
+      snippet: `claude mcp add --transport http omakaze ${mcpUrl} \\\n  --header "Authorization: Bearer <your token>"`,
     },
   ];
   const [active, setActive] = useState(clients[0].id);

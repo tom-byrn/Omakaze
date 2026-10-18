@@ -101,7 +101,7 @@ export function fetchPublicUrl(url: URL, opts: { maxBytes: number; timeoutMs?: n
       {
         lookup: publicLookup as never,
         timeout: opts.timeoutMs ?? 30_000,
-        headers: { "user-agent": "GuidedPRs", accept: "image/*,video/*,application/pdf;q=0.9,*/*;q=0.5" },
+        headers: { "user-agent": "Omakaze", accept: "image/*,video/*,application/pdf;q=0.9,*/*;q=0.5" },
       },
       (res) => {
         const status = res.statusCode ?? 0;

@@ -1,6 +1,6 @@
 # MCP server
 
-Guided PRs includes a Model Context Protocol (MCP) server. A coding agent connected to it can read a pull request, write the guide section by section, upload screenshots and publish the result. The agent uses its own model; Guided PRs stores what the agent sends and validates every diff reference.
+Omakaze includes a Model Context Protocol (MCP) server. A coding agent connected to it can read a pull request, write the guide section by section, upload screenshots and publish the result. The agent uses its own model; Omakaze stores what the agent sends and validates every diff reference.
 
 The implementation is in `src/lib/mcp/server.ts` (tools, prompt, instructions) and `src/app/api/mcp/route.ts` (transport and authentication).
 
@@ -11,7 +11,7 @@ The implementation is in `src/lib/mcp/server.ts` (tools, prompt, instructions) a
 | URL | `<APP_URL>/api/mcp` |
 | Transport | Streamable HTTP, stateless: no session ID, a new server instance per request, JSON responses instead of an event stream |
 | Methods | `POST`; `GET` and `DELETE` are routed to the same handler |
-| Server | name `guided-prs`, version `0.1.0`, capabilities `tools` and `prompts` |
+| Server | name `omakaze`, version `0.1.0`, capabilities `tools` and `prompts` |
 | CORS | `Access-Control-Allow-Origin: *` |
 
 During initialization the server sends instructions that contain the workflow, the authoring guidelines from `src/lib/guides/guidelines.ts` and a description of the diff format. Clients that pass server instructions to the model give the agent these rules without extra prompting.
@@ -21,7 +21,7 @@ During initialization the server sends instructions that contain the workflow, t
 Every request needs `Authorization: Bearer <token>`. A missing, expired or revoked token gets HTTP 401 with a JSON-RPC error (code `-32001`) and this header:
 
 ```text
-WWW-Authenticate: Bearer realm="guided-prs", resource_metadata="<APP_URL>/.well-known/oauth-protected-resource/api/mcp"
+WWW-Authenticate: Bearer realm="omakaze", resource_metadata="<APP_URL>/.well-known/oauth-protected-resource/api/mcp"
 ```
 
 A token belongs to one user and one workspace. Every tool works in that workspace and acts as that user. Tokens stop working when they are revoked or expire, or when the user is no longer a member of the workspace.
@@ -32,7 +32,7 @@ Clients that implement MCP authorization handle these steps themselves:
 
 1. **Discovery.** The client reads the protected resource metadata (RFC 9728) at `/.well-known/oauth-protected-resource/api/mcp` (also served at `/.well-known/oauth-protected-resource`), which names the instance as the authorization server, and then the authorization server metadata (RFC 8414) at `/.well-known/oauth-authorization-server`. The same document is also served at `/.well-known/openid-configuration` for clients that look there.
 2. **Registration.** The client registers itself with dynamic client registration (RFC 7591) at `POST /api/oauth/register`.
-3. **Consent.** The client opens `/oauth/authorize` in the browser. You sign in if needed, see a page that asks whether to allow the client (by its registered name) to use Guided PRs, choose a workspace and select **Allow** or **Deny**.
+3. **Consent.** The client opens `/oauth/authorize` in the browser. You sign in if needed, see a page that asks whether to allow the client (by its registered name) to use Omakaze, choose a workspace and select **Allow** or **Deny**.
 4. **Token.** The client exchanges the authorization code at `POST /api/oauth/token`.
 
 Authorization server metadata:
@@ -76,19 +76,19 @@ Token lifetimes (`src/lib/oauth/server.ts`):
 - Refreshing rotates the tokens: the refresh token that was used and the access token issued with it are revoked, and a new pair is returned.
 - `POST /api/oauth/revoke` (RFC 7009) takes `token=<token>` and needs the client's identity: `client_id` in the body or HTTP Basic authentication. Clients registered with a secret must authenticate with it. Without a valid client the response is 401 `invalid_client`; otherwise it is 200, and tokens issued to other clients are left alone. Revoking an access token or a refresh token revokes both tokens of that grant.
 - Authorized clients are listed in **Settings → API tokens & MCP** with an `OAuth` tag. **Revoke** there revokes the access token and its refresh token, so the client has to be authorized again. Removing a user from the workspace stops all of their tokens.
-- Token formats: access tokens start with `gpo_`, refresh tokens with `gpr_refresh_`, client IDs with `gpc_`.
+- Token formats: access tokens start with `omko_`, refresh tokens with `omkr_`, client IDs with `omkc_`.
 
 ### API tokens
 
 For clients without OAuth support, create a token in **Settings → API tokens & MCP**:
 
-- Choose a name and an expiry: 30 days, 90 days (default), 1 year or never. Tokens start with `gpr_` and are shown once; only a hash is stored.
+- Choose a name and an expiry: 30 days, 90 days (default), 1 year or never. Tokens start with `omk_` and are shown once; only a hash is stored.
 - Send it as `Authorization: Bearer <token>`. The same token works for the [REST API](api.md).
 - Members see and revoke their own tokens. Admins and owners see and revoke all tokens of the workspace.
 
 ### Repositories and permissions
 
-- Tools that take a `pr` work only with repositories the workspace follows. If an admin or owner passes a pull request from a repository that is not followed yet, or one that [has no GitHub connection](github-app.md#repositories-without-a-connection), Guided PRs adds or reconnects the repository with the first GitHub connection of the workspace that can access it. For members, a repository that is not followed is an error with a link to the **Repositories** page, and a repository without a connection is an error that says so.
+- Tools that take a `pr` work only with repositories the workspace follows. If an admin or owner passes a pull request from a repository that is not followed yet, or one that [has no GitHub connection](github-app.md#repositories-without-a-connection), Omakaze adds or reconnects the repository with the first GitHub connection of the workspace that can access it. For members, a repository that is not followed is an error with a link to the **Repositories** page, and a repository without a connection is an error that says so.
 - Every member can create and edit guides. The editing tools work on any guide of the workspace, including published ones.
 
 ## Client configuration
@@ -98,13 +98,13 @@ Replace `<APP_URL>` with the URL of your instance. **Settings → API tokens & M
 Claude Code:
 
 ```sh
-claude mcp add --transport http guided-prs <APP_URL>/api/mcp
+claude mcp add --transport http omakaze <APP_URL>/api/mcp
 ```
 
 Codex:
 
 ```sh
-codex mcp add guided-prs --url <APP_URL>/api/mcp
+codex mcp add omakaze --url <APP_URL>/api/mcp
 ```
 
 Cursor, in `mcp.json`:
@@ -112,7 +112,7 @@ Cursor, in `mcp.json`:
 ```json
 {
   "mcpServers": {
-    "guided-prs": {
+    "omakaze": {
       "url": "<APP_URL>/api/mcp"
     }
   }
@@ -124,7 +124,7 @@ VS Code, in `mcp.json`:
 ```json
 {
   "servers": {
-    "guided-prs": {
+    "omakaze": {
       "type": "http",
       "url": "<APP_URL>/api/mcp"
     }
@@ -135,23 +135,23 @@ VS Code, in `mcp.json`:
 With an API token instead of OAuth:
 
 ```sh
-claude mcp add --transport http guided-prs <APP_URL>/api/mcp \
+claude mcp add --transport http omakaze <APP_URL>/api/mcp \
   --header "Authorization: Bearer <your token>"
 ```
 
-Other clients: add a remote MCP server named `guided-prs` that uses HTTP (Streamable HTTP) with the URL `<APP_URL>/api/mcp`, and either let the client handle OAuth or configure the `Authorization` header.
+Other clients: add a remote MCP server named `omakaze` that uses HTTP (Streamable HTTP) with the URL `<APP_URL>/api/mcp`, and either let the client handle OAuth or configure the `Authorization` header.
 
 ## Prompts
 
 **Setup prompt.** Shown on the landing page and in **Settings → API tokens & MCP**. Paste it into an agent to have it add the server:
 
 ```text
-Set up the Guided PRs MCP server so you can create guided pull request walkthroughs.
+Set up the Omakaze MCP server so you can create guided pull request walkthroughs.
 
 1. Add the remote MCP server (Streamable HTTP):
-   - Claude Code: claude mcp add --transport http guided-prs <APP_URL>/api/mcp
-   - Codex: codex mcp add guided-prs --url <APP_URL>/api/mcp
-   - Cursor / VS Code / other clients: add an HTTP MCP server named "guided-prs" with the URL <APP_URL>/api/mcp
+   - Claude Code: claude mcp add --transport http omakaze <APP_URL>/api/mcp
+   - Codex: codex mcp add omakaze --url <APP_URL>/api/mcp
+   - Cursor / VS Code / other clients: add an HTTP MCP server named "omakaze" with the URL <APP_URL>/api/mcp
 2. Authenticate when the client asks (it opens <APP_URL> to sign in and pick a workspace). If the client does not support OAuth, create an API token at <APP_URL>/settings/tokens and send it as the header "Authorization: Bearer <token>".
 3. Call the whoami tool to confirm the connection, then tell me which workspace you are connected to.
 
@@ -161,7 +161,7 @@ Docs: https://github.com/tom-byrn/guided-prs/blob/main/docs/mcp.md
 **Per pull request.** Every pull request page has **Copy agent prompt**:
 
 ```text
-Create a guided PR for <PR URL> using the Guided PRs MCP.
+Create a guided PR for <PR URL> using the Omakaze MCP.
 ```
 
 The server also provides this as the MCP prompt [`create_guided_pr`](#prompt-create_guided_pr).
@@ -380,7 +380,7 @@ Uploads a screenshot, image, screen recording or PDF and returns its URL and a m
 
 ### list_review_comments
 
-Reads the line comments on the pull request from GitHub, including comments posted from Guided PRs: author, `path:line`, the comment it replies to, and the body (first 400 characters).
+Reads the line comments on the pull request from GitHub, including comments posted from Omakaze: author, `path:line`, the comment it replies to, and the body (first 400 characters).
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -392,7 +392,7 @@ Reads the line comments on the pull request from GitHub, including comments post
 | --- | --- | --- |
 | `pr_url` | Yes | Pull request URL |
 
-Returns one user message: `Create a guided PR for <pr_url> using the Guided PRs MCP.` followed by the workflow below.
+Returns one user message: `Create a guided PR for <pr_url> using the Omakaze MCP.` followed by the workflow below.
 
 ## Writing a guide
 
@@ -542,7 +542,7 @@ Use `upload_asset` to add screenshots or screen recordings to a section:
 - Allowed types: `png`, `jpg`, `jpeg`, `gif`, `webp`, `avif`, `svg`, `mp4`, `webm`, `mov`, `m4v`, `pdf`. The type comes from the file name's extension, otherwise from `content_type` (or the downloaded file's `Content-Type`) if it is one of these types.
 - The maximum size is `MAX_UPLOAD_MB` (default 50 MB). The MCP endpoint accepts request bodies large enough for a base64-encoded file of that size.
 - The result contains the URL `<APP_URL>/api/assets/<id>/<filename>` and a snippet: `![alt](url)` for images, `<video src="url" controls></video>` for videos, `[alt](url)` for PDFs. Put the snippet in a section body with `add_section` or `update_section`.
-- Files are served only to signed-in members of the workspace and to tokens of that workspace. They do not display outside Guided PRs, for example in GitHub.
+- Files are served only to signed-in members of the workspace and to tokens of that workspace. They do not display outside Omakaze, for example in GitHub.
 - Markdown images that point to a video file (`mp4`, `webm`, `mov`, `m4v`, `ogv`) are shown as video players.
 
 ### Downloads from a URL
@@ -558,7 +558,7 @@ With `url`, the server downloads the file itself (`src/lib/storage/remote.ts`):
 
 ## Example session
 
-An agent asked to "Create a guided PR for https://github.com/acme/web/pull/412 using the Guided PRs MCP." might make these calls:
+An agent asked to "Create a guided PR for https://github.com/acme/web/pull/412 using the Omakaze MCP." might make these calls:
 
 1. `whoami` to confirm the workspace.
 2. `get_pull_request`:

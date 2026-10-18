@@ -72,7 +72,7 @@ export function languageModel(cfg: AiConfig): LanguageModel {
         baseURL: cfg.baseUrl,
         apiKey,
         supportsStructuredOutputs: true,
-        headers: cfg.provider === "openrouter" ? { "HTTP-Referer": env().APP_URL, "X-Title": "Guided PRs" } : undefined,
+        headers: cfg.provider === "openrouter" ? { "HTTP-Referer": env().APP_URL, "X-Title": "Omakaze" } : undefined,
       }).chatModel(cfg.model);
   }
 }

@@ -20,7 +20,7 @@ async function postingCredentials(user: Author, ctx: RepoContext): Promise<{ tok
 
 function attributed(body: string, user: Author, as: "user" | "connection", link?: string): string {
   if (as === "user") return body;
-  const via = link ? `[Guided PRs](${link})` : "Guided PRs";
+  const via = link ? `[Omakaze](${link})` : "Omakaze";
   return `${body}\n\n<sub>Posted by ${user.name} via ${via}</sub>`;
 }
 
@@ -279,7 +279,7 @@ export async function deleteReviewComment(ctx: RepoContext, prNumber: number, us
   if (ours) await db.delete(comments).where(eq(comments.id, ours.id));
 }
 
-/** GitHub ids of comments this user posted through Guided PRs. */
+/** GitHub ids of comments this user posted through Omakaze. */
 export async function ownCommentIds(repositoryId: string, prNumber: number, userId: string): Promise<Set<number>> {
   const rows = await db
     .select({ githubId: comments.githubId })

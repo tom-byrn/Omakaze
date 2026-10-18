@@ -130,17 +130,20 @@ export function makeDemo(page) {
     await locator.waitFor();
     await locator.evaluate(
       async (el, [sel, offset, ms]) => {
-        const box = document.querySelector(sel);
-        const start = box.scrollTop;
-        const max = box.scrollHeight - box.clientHeight;
-        const goal = start + el.getBoundingClientRect().top - box.getBoundingClientRect().top - offset;
+        // A null container scrolls the page.
+        const box = sel ? document.querySelector(sel) : null;
+        const start = box ? box.scrollTop : window.scrollY;
+        const max = box ? box.scrollHeight - box.clientHeight : document.documentElement.scrollHeight - window.innerHeight;
+        const goal = start + el.getBoundingClientRect().top - (box ? box.getBoundingClientRect().top : 0) - offset;
         const target = Math.max(0, Math.min(max, goal));
         const t0 = performance.now();
         await new Promise((resolve) => {
           const step = (t) => {
             const p = Math.min(1, (t - t0) / ms);
             const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-            box.scrollTop = start + (target - start) * ease;
+            const y = start + (target - start) * ease;
+            if (box) box.scrollTop = y;
+            else window.scrollTo(0, y);
             if (p < 1) requestAnimationFrame(step);
             else resolve();
           };

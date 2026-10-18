@@ -16,7 +16,7 @@ function unauthorized(message: string) {
       status: 401,
       headers: {
         ...CORS_HEADERS,
-        "WWW-Authenticate": `Bearer realm="guided-prs", resource_metadata="${env().APP_URL}/.well-known/oauth-protected-resource/api/mcp"`,
+        "WWW-Authenticate": `Bearer realm="omakaze", resource_metadata="${env().APP_URL}/.well-known/oauth-protected-resource/api/mcp"`,
       },
     },
   );

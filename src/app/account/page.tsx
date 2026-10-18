@@ -76,7 +76,7 @@ export default async function AccountPage() {
 
         <Panel
           title="GitHub"
-          description="Comments and reviews you post from Guided PRs use this account. Without it they are posted through the workspace connection with your name attached."
+          description="Comments and reviews you post from Omakaze use this account. Without it they are posted through the workspace connection with your name attached."
         >
           {account ? (
             <div className="flex flex-wrap items-center gap-3">

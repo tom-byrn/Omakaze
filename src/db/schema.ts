@@ -397,7 +397,7 @@ export const guideViews = pgTable(
 );
 
 /* ------------------------------------------------------------------ */
-/* Comments posted through Guided PRs                                  */
+/* Comments posted through Omakaze                                    */
 /* ------------------------------------------------------------------ */
 
 export const comments = pgTable(

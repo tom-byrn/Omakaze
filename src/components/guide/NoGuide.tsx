@@ -31,7 +31,7 @@ export function NoGuide({
             <div className="border-b border-dashed border-line px-5 py-4">
               <p className="mono-label">Option 1 · Your agent</p>
               <p className="mt-2 text-[14px] leading-[22px] text-body">
-                Paste this into Claude Code, Codex, Cursor or another agent connected to the Guided PRs MCP server.
+                Paste this into Claude Code, Codex, Cursor or another agent connected to the Omakaze MCP server.
               </p>
             </div>
             <div className="px-5 py-4">
