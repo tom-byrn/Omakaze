@@ -2,8 +2,10 @@ import Link from "next/link";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { Footer } from "@/components/landing/Footer";
 import { ProductSchematic } from "@/components/landing/ProductSchematic";
+import { SideNote } from "@/components/landing/SideNote";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { Steps } from "@/components/landing/Steps";
+import { shipporiMincho } from "@/app/landing-font";
 import { getAuthMethods } from "@/lib/auth/methods";
 import { getCurrentUser } from "@/lib/auth/session";
 import { env } from "@/lib/env";
@@ -44,7 +46,7 @@ export default async function LandingPage() {
   const appUrl = env().APP_URL;
   const prompt = setupPrompt(appUrl);
   return (
-    <div className="bg-paper">
+    <div id="top" className={`${shipporiMincho.variable} bg-paper`}>
       <SiteHeader signedIn={Boolean(user)} repoUrl={REPO} />
 
       {/* Hero */}
@@ -54,6 +56,8 @@ export default async function LandingPage() {
         <div className="pointer-events-none absolute inset-y-0 left-[271px] hidden border-l border-dashed border-black/[0.06] xl:block" aria-hidden="true" />
         <div className="pointer-events-none absolute inset-y-0 right-[271px] hidden border-r border-dashed border-black/[0.06] xl:block" aria-hidden="true" />
         <div className="relative mx-auto max-w-[1560px] px-4 pt-36 pb-24 md:px-[72px] md:pt-44">
+          <SideNote note="hero" side="left" className="top-44" />
+          <SideNote note="heroAside" side="right" className="top-44" />
           <div className="mx-auto flex max-w-[840px] flex-col items-center text-center">
             <span className="eyebrow animate-reveal">Open source · Self-hosted · MCP</span>
             <h1 className="h1 mt-6 animate-reveal">
@@ -61,7 +65,7 @@ export default async function LandingPage() {
               one section at a time.
             </h1>
             <p className="lead mt-6 max-w-[560px] animate-reveal">
-              Guided PRs splits a pull request into sections. Each section explains one part of the change next to the code it
+              Omakaze splits a pull request into sections. Each section explains one part of the change next to the code it
               covers.
             </p>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
@@ -95,7 +99,8 @@ export default async function LandingPage() {
 
       {/* Intro split */}
       <section className="border-b border-dashed border-line">
-        <div className="mx-auto grid max-w-[1560px] grid-cols-1 gap-10 px-6 py-16 md:px-[72px] md:py-24 lg:grid-cols-2 lg:gap-0">
+        <div className="relative mx-auto grid max-w-[1560px] grid-cols-1 gap-10 px-6 py-16 md:px-[72px] md:py-24 lg:grid-cols-2 lg:gap-0">
+          <SideNote note="why" side="right" />
           <div className="lg:pr-16">
             <span className="eyebrow">Why</span>
             <h2 className="h2 mt-6">
@@ -119,14 +124,16 @@ export default async function LandingPage() {
 
       {/* How it works */}
       <section id="how-it-works" className="dark scroll-mt-16 bg-night-2 grain-dark">
-        <div className="mx-auto max-w-[1560px] px-4 py-16 md:px-[72px] md:py-24">
+        <div className="relative mx-auto max-w-[1560px] px-4 py-16 md:px-[72px] md:py-24">
+          <SideNote note="steps" side="left" />
           <Steps />
         </div>
       </section>
 
       {/* Features */}
       <section id="features" className="scroll-mt-16 border-b border-dashed border-line">
-        <div className="mx-auto max-w-[1560px] px-6 py-16 md:px-[72px] md:py-24">
+        <div className="relative mx-auto max-w-[1560px] px-6 py-16 md:px-[72px] md:py-24">
+          <SideNote note="features" side="right" />
           <span className="eyebrow">Features</span>
           <h2 className="h2 mt-6 max-w-[620px]">What reviewers get.</h2>
           <div className="mt-12 grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
@@ -145,7 +152,8 @@ export default async function LandingPage() {
 
       {/* Agents */}
       <section id="agents" className="blue scroll-mt-16 bg-brand-gradient">
-        <div className="mx-auto grid max-w-[1560px] grid-cols-1 gap-12 px-6 py-16 md:px-[72px] md:py-[110px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <div className="relative mx-auto grid max-w-[1560px] grid-cols-1 gap-12 px-6 py-16 md:px-[72px] md:py-[110px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <SideNote note="agents" side="left" className="top-[110px]" />
           <div>
             <span className="eyebrow">Agents</span>
             <h2 className="mt-6 font-serif text-[36px] leading-none tracking-[-1.44px] text-white sm:text-[44px] sm:tracking-[-0.025em]">
@@ -154,7 +162,7 @@ export default async function LandingPage() {
               the guide.
             </h2>
             <p className="mt-6 max-w-[480px] text-[16px] leading-[26px] tracking-[-0.4px] text-white/75">
-              Guided PRs runs an MCP server. Claude Code, Codex, Cursor and other MCP clients connect with OAuth and can read
+              Omakaze runs an MCP server. Claude Code, Codex, Cursor and other MCP clients connect with OAuth and can read
               the diff, write sections, upload screenshots and publish the guide.
             </p>
             <div className="mt-10 grid grid-cols-2 gap-px border border-white/15 bg-white/15 font-mono text-[10px] tracking-[0.09em] text-[#dddddd] uppercase">
@@ -186,7 +194,8 @@ export default async function LandingPage() {
 
       {/* Self-host */}
       <section id="self-host" className="scroll-mt-16 border-b border-dashed border-line bg-mist">
-        <div className="mx-auto grid max-w-[1560px] grid-cols-1 gap-10 px-6 py-16 md:px-[72px] md:py-24 lg:grid-cols-2">
+        <div className="relative mx-auto grid max-w-[1560px] grid-cols-1 gap-10 px-6 py-16 md:px-[72px] md:py-24 lg:grid-cols-2">
+          <SideNote note="selfHost" side="right" />
           <div>
             <span className="eyebrow">Self-host</span>
             <h2 className="h2 mt-6">
@@ -229,7 +238,8 @@ export default async function LandingPage() {
 
       {/* Final CTA */}
       <section className="relative overflow-hidden bg-paper grain">
-        <div className="mx-auto max-w-[1560px] px-6 py-24 md:px-[72px] md:py-32">
+        <div className="relative mx-auto max-w-[1560px] px-6 py-24 md:px-[72px] md:py-32">
+          <SideNote note="next" side="left" className="top-32" />
           <p className="max-w-[1000px] font-serif text-[52px] leading-none tracking-[-0.04em] text-black md:text-[80px] lg:text-[104px]">
             Review the next one
             <br />
@@ -253,7 +263,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <Footer />
+      <Footer signedIn={Boolean(user)} repoUrl={REPO} />
     </div>
   );
 }

@@ -18,7 +18,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
   return (
     <div>
       <span className="eyebrow">Sign in</span>
-      <h1 className="h2 mt-6">Sign in to Guided PRs.</h1>
+      <h1 className="h2 mt-6">Sign in to Omakaze.</h1>
       <p className="lead mt-3 mb-8">Use your GitHub account to see your repositories and pull requests.</p>
       <AuthForms mode="login" methods={methods} next={next || undefined} invite={invite} initialError={error} />
     </div>

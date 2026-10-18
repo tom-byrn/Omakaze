@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Guided PRs are recorded in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
+All notable changes to Omakaze are recorded in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
 ## 0.1.0 — Unreleased
 

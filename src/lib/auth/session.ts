@@ -9,7 +9,7 @@ import { sha256 } from "@/lib/crypto";
 import { isSecureUrl } from "@/lib/env";
 import { clientIp } from "@/lib/http";
 
-export const SESSION_COOKIE = "gpr_session";
+export const SESSION_COOKIE = "omk_session";
 const SESSION_DAYS = 30;
 const DAY = 24 * 60 * 60 * 1000;
 

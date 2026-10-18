@@ -1,8 +1,8 @@
 name: Release image
 
 # Publishes the Docker image to GitHub Container Registry:
-#   ghcr.io/<owner>/guided-prs:latest  from the default branch
-#   ghcr.io/<owner>/guided-prs:1.2.3   from tags such as v1.2.3
+#   ghcr.io/<owner>/omakaze:latest  from the default branch
+#   ghcr.io/<owner>/omakaze:1.2.3   from tags such as v1.2.3
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/guided-prs
+          images: ghcr.io/${{ github.repository_owner }}/omakaze
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}

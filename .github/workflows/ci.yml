@@ -12,17 +12,17 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: guided
-          POSTGRES_PASSWORD: guided
-          POSTGRES_DB: guided_prs
+          POSTGRES_USER: omakaze
+          POSTGRES_PASSWORD: omakaze
+          POSTGRES_DB: omakaze
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U guided"
+          --health-cmd "pg_isready -U omakaze"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgres://guided:guided@localhost:5432/guided_prs
+      DATABASE_URL: postgres://omakaze:omakaze@localhost:5432/omakaze
       APP_SECRET: ci-secret-0123456789abcdef0123456789abcdef
       APP_URL: http://localhost:3000
     steps:
@@ -49,6 +49,6 @@ jobs:
         with:
           context: .
           push: false
-          tags: guided-prs:ci
+          tags: omakaze:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max

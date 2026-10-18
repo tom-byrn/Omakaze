@@ -1,6 +1,6 @@
 # Self-hosting
 
-Guided PRs is one Next.js server process and a PostgreSQL database. The server also runs database migrations on start and a background worker for AI generation, polling and GitHub comments. This page covers running it with Docker Compose or directly with Node.js. Every environment variable is listed in [configuration.md](configuration.md).
+Omakaze is one Next.js server process and a PostgreSQL database. The server also runs database migrations on start and a background worker for AI generation, polling and GitHub comments. This page covers running it with Docker Compose or directly with Node.js. Every environment variable is listed in [configuration.md](configuration.md).
 
 ## Requirements
 
@@ -17,9 +17,9 @@ Guided PRs is one Next.js server process and a PostgreSQL database. The server a
 | Service | Details |
 | --- | --- |
 | `app` | Built from the `Dockerfile` in your checkout. Reads `.env` through `env_file`. Listens on port 3000 inside the container, published on `${PORT:-3000}`. Stores files in the `app-data` volume at `/app/data`. |
-| `db` | `postgres:16-alpine` with user `guided`, database `guided_prs` and password `${POSTGRES_PASSWORD:-guided}`. Data is in the `db-data` volume. Its port is not published. |
+| `db` | `postgres:16-alpine` with user `omakaze`, database `omakaze` and password `${POSTGRES_PASSWORD:-omakaze}`. Data is in the `db-data` volume. Its port is not published. |
 
-For the app, Compose sets `DATABASE_URL` to `postgres://guided:${POSTGRES_PASSWORD:-guided}@db:5432/guided_prs`, `PORT` to `3000` and `HOSTNAME` to `0.0.0.0`. These override the same variables in `.env`. The app starts after the database reports healthy.
+For the app, Compose sets `DATABASE_URL` to `postgres://omakaze:${POSTGRES_PASSWORD:-omakaze}@db:5432/omakaze`, `PORT` to `3000` and `HOSTNAME` to `0.0.0.0`. These override the same variables in `.env`. The app starts after the database reports healthy.
 
 ```sh
 git clone https://github.com/tom-byrn/guided-prs.git
@@ -41,7 +41,7 @@ Notes:
 
 ### Published image
 
-`.github/workflows/release.yml` builds the image and publishes it to GitHub Container Registry as `ghcr.io/<owner>/guided-prs`, which is `ghcr.io/tom-byrn/guided-prs` for this repository:
+`.github/workflows/release.yml` builds the image and publishes it to GitHub Container Registry as `ghcr.io/<owner>/omakaze`, which is `ghcr.io/tom-byrn/omakaze` for this repository:
 
 | Tag | Published from |
 | --- | --- |
@@ -49,7 +49,7 @@ Notes:
 | `1.2.3` and `1.2` | Git tags such as `v1.2.3` |
 | `sha-<short commit>` | Every build of the workflow |
 
-To run a published image instead of building one, replace `build: .` with `image: ghcr.io/tom-byrn/guided-prs:latest` (or a version tag) in `docker-compose.yml`.
+To run a published image instead of building one, replace `build: .` with `image: ghcr.io/tom-byrn/omakaze:latest` (or a version tag) in `docker-compose.yml`.
 
 ## Running without Docker
 
@@ -80,16 +80,16 @@ Migrations are SQL files in `drizzle/`. On start, `src/instrumentation.ts` appli
 
 Terminate TLS at a reverse proxy or load balancer and forward requests to port 3000.
 
-- `APP_URL` must be the public URL that browsers use, including scheme and port if it is not the default (a trailing slash is removed). Guided PRs uses it for OAuth issuer and redirect URLs, the GitHub sign-in callback, the URLs in the GitHub App manifest, links in GitHub comments, upload URLs, and the same-origin check on API requests from the browser. Session cookies get the `Secure` attribute when `APP_URL` starts with `https://`.
+- `APP_URL` must be the public URL that browsers use, including scheme and port if it is not the default (a trailing slash is removed). Omakaze uses it for OAuth issuer and redirect URLs, the GitHub sign-in callback, the URLs in the GitHub App manifest, links in GitHub comments, upload URLs, and the same-origin check on API requests from the browser. Session cookies get the `Secure` attribute when `APP_URL` starts with `https://`.
 - Preserve the `Host` header or set `X-Forwarded-Host`. All forms in the app are Next.js Server Actions, which reject requests whose `Origin` does not match that host.
-- Set `X-Forwarded-For`. Guided PRs takes the client address for rate limits (sign-in, sign-up, OAuth client registration) and the session list on the account page from this header: the entry `TRUST_PROXY_HOPS` places from the right (default 1, the address added by the proxy in front of the app). Set `TRUST_PROXY_HOPS` to the number of proxies that append to the header. Next.js fills the header in with the connection's address only when a request arrives without one, so without a proxy that sets it, clients can choose the address used for rate limits.
+- Set `X-Forwarded-For`. Omakaze takes the client address for rate limits (sign-in, sign-up, OAuth client registration) and the session list on the account page from this header: the entry `TRUST_PROXY_HOPS` places from the right (default 1, the address added by the proxy in front of the app). Set `TRUST_PROXY_HOPS` to the number of proxies that append to the header. Next.js fills the header in with the connection's address only when a request arrives without one, so without a proxy that sets it, clients can choose the address used for rate limits.
 - Allow request bodies of at least `MAX_UPLOAD_MB` (default 50 MB) for uploads. Uploads through MCP are base64-encoded and therefore larger.
 - Allow long requests on `/api/mcp`; the route declares a maximum duration of 300 seconds. Tools that read large diffs from GitHub can take a while.
 
 Caddy:
 
 ```text
-guided-prs.example.com {
+omakaze.example.com {
 	reverse_proxy 127.0.0.1:3000
 }
 ```
@@ -99,7 +99,7 @@ nginx:
 ```nginx
 server {
     listen 443 ssl;
-    server_name guided-prs.example.com;
+    server_name omakaze.example.com;
     # ssl_certificate and ssl_certificate_key omitted
 
     client_max_body_size 100m;
@@ -139,13 +139,13 @@ Each upload records the driver it was written with, so changing `STORAGE_DRIVER`
 Back up the database:
 
 ```sh
-docker compose exec -T db pg_dump -U guided -d guided_prs -Fc > guided-prs.dump
+docker compose exec -T db pg_dump -U omakaze -d omakaze -Fc > omakaze.dump
 ```
 
-With `STORAGE_DRIVER=filesystem`, also back up the `app-data` volume. Compose prefixes volume names with the project name, which defaults to the directory name; check with `docker volume ls`.
+With `STORAGE_DRIVER=filesystem`, also back up the `app-data` volume. `docker-compose.yml` sets the project name to `omakaze`, so Compose names the volume `omakaze_app-data`.
 
 ```sh
-docker run --rm -v guided-prs_app-data:/data -v "$PWD":/backup alpine \
+docker run --rm -v omakaze_app-data:/data -v "$PWD":/backup alpine \
   tar czf /backup/app-data.tgz -C /data .
 ```
 
@@ -155,7 +155,7 @@ Restore into a stopped app:
 
 ```sh
 docker compose stop app
-docker compose exec -T db pg_restore -U guided -d guided_prs --clean --if-exists < guided-prs.dump
+docker compose exec -T db pg_restore -U omakaze -d omakaze --clean --if-exists < omakaze.dump
 docker compose up -d
 ```
 
@@ -205,7 +205,7 @@ GITHUB_API_URL=https://github.example.com/api/v3
 The first account on an instance is the instance admin. There is no page for granting this to other users; set the flag in the database:
 
 ```sh
-docker compose exec db psql -U guided -d guided_prs \
+docker compose exec db psql -U omakaze -d omakaze \
   -c "update users set is_instance_admin = true where lower(email) = 'admin@example.com';"
 ```
 

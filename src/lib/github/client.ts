@@ -55,7 +55,7 @@ function headersFor(token: string | null, accept: string, hasBody: boolean): Rec
   const headers: Record<string, string> = {
     Accept: accept,
     "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "guided-prs",
+    "User-Agent": "omakaze",
   };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (hasBody) headers["Content-Type"] = "application/json";

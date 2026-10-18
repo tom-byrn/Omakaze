@@ -5,7 +5,7 @@ export function newId(): string {
   return randomBytes(12).toString("base64url");
 }
 
-/** Random secret token with a readable prefix, e.g. `gpr_…`. */
+/** Random secret token with a readable prefix, e.g. `omk_…`. */
 export function newToken(prefix: string, bytes = 32): string {
   return `${prefix}_${randomBytes(bytes).toString("base64url")}`;
 }

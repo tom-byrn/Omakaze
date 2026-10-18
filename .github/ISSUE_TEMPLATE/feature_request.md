@@ -12,7 +12,7 @@ assignees: ""
 
 ## Proposed solution
 
-<!-- How should Guided PRs behave? Mention the parts it affects, for example the viewer, MCP tools, REST API, AI generation or self-hosting. -->
+<!-- How should Omakaze behave? Mention the parts it affects, for example the viewer, MCP tools, REST API, AI generation or self-hosting. -->
 
 ## Alternatives considered
 

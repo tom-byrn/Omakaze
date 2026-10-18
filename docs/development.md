@@ -12,8 +12,8 @@
 Start a local PostgreSQL that matches the default `DATABASE_URL` in `.env.example`. The `db` service in `docker-compose.yml` does not publish its port, so run a separate container:
 
 ```sh
-docker run -d --name guided-prs-db -p 5432:5432 \
-  -e POSTGRES_USER=guided -e POSTGRES_PASSWORD=guided -e POSTGRES_DB=guided_prs \
+docker run -d --name omakaze-db -p 5432:5432 \
+  -e POSTGRES_USER=omakaze -e POSTGRES_PASSWORD=omakaze -e POSTGRES_DB=omakaze \
   postgres:16-alpine
 ```
 
@@ -83,7 +83,10 @@ src/
     *.ts                  shared helpers: crypto, http, workspaces, invites, mail, automation, activity
   instrumentation.ts      runs migrations and starts the worker
 drizzle/                  SQL migrations and drizzle-kit metadata
-scripts/migrate.ts        migration command used by pnpm db:migrate
+scripts/
+  migrate.ts              migration command used by pnpm db:migrate
+  subset-landing-font.mjs rebuilds the landing page's Japanese font subset in src/app/fonts
+  demo/                   recording script for the demo video
 tests/                    Vitest tests
 public/                   static files
 ```

@@ -1,6 +1,6 @@
 # AI generation
 
-Built-in generation is optional. Agents connected over [MCP](mcp.md) write guides with their own model, and a workspace without a provider works normally: **Generate with AI** and automation are simply unavailable. To have Guided PRs write guides itself, configure a model.
+Built-in generation is optional. Agents connected over [MCP](mcp.md) write guides with their own model, and a workspace without a provider works normally: **Generate with AI** and automation are simply unavailable. To have Omakaze write guides itself, configure a model.
 
 The code is in `src/lib/ai/`: `config.ts` (providers and defaults), `providers.ts` (model calls through the [Vercel AI SDK](https://ai-sdk.dev)), `models.ts` (model lists) and `generate.ts` (the pipeline).
 
@@ -20,7 +20,7 @@ For Anthropic, a base URL without `/v1` gets it appended, so `https://proxy.exam
 
 ### Local models
 
-The base URL is the address as seen from the Guided PRs server. When Guided PRs runs in Docker, `localhost` is the container itself: use `http://host.docker.internal:11434/v1` for Ollama on the host, or the Compose service name, for example `http://ollama:11434/v1`.
+The base URL is the address as seen from the Omakaze server. When Omakaze runs in Docker, `localhost` is the container itself: use `http://host.docker.internal:11434/v1` for Ollama on the host, or the Compose service name, for example `http://ollama:11434/v1`.
 
 Guides need a long context. Ollama runs models with a small context window by default and drops the start of longer prompts without an error, so raise it (for example `OLLAMA_CONTEXT_LENGTH=65536`) or expect weaker guides for large pull requests. The diff budget for models other than Claude and Gemini is 240,000 characters per request, roughly 60,000 tokens.
 
@@ -69,7 +69,7 @@ If the provider rejects the structured output format with a 400, 404 or 422 erro
 | Anthropic | Messages API. Models with native structured outputs get the schema as `output_config.format`; others use the AI SDK's JSON tool. Effort is set to `high` for models that accept it. For `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5-5` and `claude-fable-5-1` on `https://api.anthropic.com`, the request sets `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`), which retries a declined request on Anthropic's recommended fallback model. |
 | OpenAI | Responses API with a strict JSON schema. |
 | Google | Gemini API with a response schema. |
-| OpenRouter, Ollama, LM Studio, OpenAI-compatible | `POST <base URL>/chat/completions` with `response_format` set to a strict JSON schema. OpenRouter requests also send `HTTP-Referer: <APP_URL>` and `X-Title: Guided PRs`. |
+| OpenRouter, Ollama, LM Studio, OpenAI-compatible | `POST <base URL>/chat/completions` with `response_format` set to a strict JSON schema. OpenRouter requests also send `HTTP-Referer: <APP_URL>` and `X-Title: Omakaze`. |
 
 Output limits per request: 64,000 tokens for the single-request path with Anthropic and 32,000 tokens otherwise. Requests time out after 20 minutes.
 
@@ -107,7 +107,7 @@ Repositories can override the first switch on the **Repositories** page: **Works
 
 ### When a guide is generated automatically
 
-Guided PRs checks a pull request when:
+Omakaze checks a pull request when:
 
 - a `pull_request` webhook arrives with the action `opened`, `reopened`, `synchronize` or `ready_for_review`, or
 - the poller finds an open pull request that was updated in the last three days.
@@ -135,7 +135,7 @@ With **Post a summary comment on GitHub** on, a job runs every time a guide of t
 - a table of the sections with links to each one and the number of files it references;
 - a link to the guide and the version and short head commit.
 
-It is posted with the workspace's GitHub connection. The links open Guided PRs, which requires signing in as a member of the workspace.
+It is posted with the workspace's GitHub connection. The links open Omakaze, which requires signing in as a member of the workspace.
 
 ## Cost and privacy
 
@@ -143,4 +143,4 @@ It is posted with the workspace's GitHub connection. The links open Guided PRs, 
 - A local model through Ollama, LM Studio or another OpenAI-compatible server on your network (for example Ollama at `http://ollama:11434/v1`) keeps the data there.
 - Large pull requests use several requests: one per batch of hunk summaries, one for the plan and one per section. Automation can create a new version on every push, and each version is a full generation.
 - Workspace API keys are stored encrypted with a key derived from `APP_SECRET`.
-- Agents connected over MCP use their own model and their own provider account. Guided PRs makes no model requests for guides written through MCP, `POST /api/v1/guides` or the editor.
+- Agents connected over MCP use their own model and their own provider account. Omakaze makes no model requests for guides written through MCP, `POST /api/v1/guides` or the editor.

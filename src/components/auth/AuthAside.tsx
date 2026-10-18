@@ -34,7 +34,7 @@ export function AuthAside() {
           ))}
         </div>
         <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.08em] text-white/40">
-          GPR-0042 // 4 sections // 21 files
+          OMK-0042 // 4 sections // 21 files
         </p>
       </div>
     </aside>

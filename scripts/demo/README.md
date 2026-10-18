@@ -1,6 +1,6 @@
 # Demo recording
 
-These scripts record the product walkthrough in [docs/demo](../../docs/demo). They are not part of the application.
+These scripts record a product walkthrough video. They are not part of the application.
 
 | File | Purpose |
 | --- | --- |
@@ -29,7 +29,7 @@ GITHUB_TOKEN=… MEDIA_DIR=path/to/media OUT_DIR=demo-output node scripts/demo/r
 | `DEMO_REPO`, `DEMO_PR` | `tom-byrn/tester-renting-app`, `1` | Pull request to guide |
 | `GUIDE_FILE` | `scripts/demo/hearth-guide.json` | Guide content |
 | `MEDIA_DIR` | `demo-media` | Images and videos uploaded with `upload_asset` |
-| `OUT_DIR` | `demo-output` | `raw.mp4` and the final `guided-prs-demo.mp4` |
+| `OUT_DIR` | `demo-output` | `raw.mp4` and the final `omakaze-demo.mp4` |
 | `SKIP_GITHUB_WRITES` | | `1` skips posting the line comment and the review |
 | `STOP_AT` | | Stop after a step, e.g. `dashboard` |
 

@@ -20,7 +20,7 @@ export function AppHeader({
       <div className="mx-auto flex h-full max-w-[1560px] items-center gap-6 px-4 lg:px-8">
         <Link href={current ? `/w/${current.slug}` : "/"} className="flex items-center gap-2.5" aria-label="Home">
           <LogoMark />
-          <span className="hidden font-serif text-[19px] tracking-[-0.02em] text-black sm:inline">Guided PRs</span>
+          <span className="hidden font-serif text-[19px] tracking-[-0.02em] text-black sm:inline">Omakaze</span>
         </Link>
         <span className="h-6 border-l border-dashed border-line" aria-hidden="true" />
         {current ? (

@@ -115,7 +115,7 @@ describe("misc", () => {
   });
 
   it("builds the agent prompt", () => {
-    expect(agentPrompt("https://github.com/a/b/pull/1")).toBe("Create a guided PR for https://github.com/a/b/pull/1 using the Guided PRs MCP.");
+    expect(agentPrompt("https://github.com/a/b/pull/1")).toBe("Create a guided PR for https://github.com/a/b/pull/1 using the Omakaze MCP.");
   });
 });
 

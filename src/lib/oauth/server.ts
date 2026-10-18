@@ -68,7 +68,7 @@ export function protectedResourceMetadata() {
     authorization_servers: [issuer()],
     bearer_methods_supported: ["header"],
     scopes_supported: ["mcp"],
-    resource_name: "Guided PRs",
+    resource_name: "Omakaze",
     resource_documentation: "https://github.com/tom-byrn/guided-prs/blob/main/docs/mcp.md",
   };
 }
@@ -100,7 +100,7 @@ export async function registerClient(meta: Record<string, unknown>) {
   if (!["none", "client_secret_post", "client_secret_basic"].includes(authMethod)) {
     throw new OAuthError("invalid_client_metadata", "Unsupported token_endpoint_auth_method");
   }
-  const clientId = newToken("gpc", 16);
+  const clientId = newToken("omkc", 16);
   const secret = authMethod === "none" ? null : randomBytes(32).toString("base64url");
   const name = typeof meta.client_name === "string" && meta.client_name.trim() ? meta.client_name.trim().slice(0, 100) : "MCP client";
   await db.insert(oauthClients).values({
@@ -197,8 +197,8 @@ async function authenticateClient(clientId: string, secret: string | null) {
 }
 
 async function issueTokens(input: { clientId: string; clientName: string; userId: string; workspaceId: string; scope: string | null }) {
-  const access = newToken("gpo");
-  const refresh = newToken("gpr_refresh");
+  const access = newToken("omko");
+  const refresh = newToken("omkr");
   const [tok] = await db
     .insert(apiTokens)
     .values({
