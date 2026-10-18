@@ -578,7 +578,8 @@ await d2.type(page2.locator("#password"), "correct-horse-battery", { delay: 15 }
 await d2.click(page2.getByRole("button", { name: "Create account" }));
 await page2.waitForURL(/\/w\//);
 await d2.sleep(3000);
-await d2.click(page2.getByRole("link", { name: "Open guide" }).first());
+const teammateRow = page2.locator("li").filter({ has: page2.getByText(`#${PR}`, { exact: true }) }).first();
+await d2.click(teammateRow.getByRole("link", { name: "Open guide" }));
 await page2.waitForURL(/\/pull\//);
 await d2.sleep(2200);
 await d2.click(page2.locator('nav[aria-label="Guide sections"] button').nth(9));
