@@ -8,7 +8,7 @@ Guided PRs is one Next.js server process and a PostgreSQL database. The server a
 - PostgreSQL 16. `docker-compose.yml` includes it, and CI tests against it.
 - GitHub access for the repositories you want to review: a GitHub App (recommended), a personal access token, or a GitHub account. See [github-app.md](github-app.md).
 - A public HTTPS URL if GitHub should deliver webhooks. Without one, pull requests are refreshed when people open the app and, for repositories with automatic guides, by polling.
-- Optional: an SMTP server for invite emails and an API key for an AI provider.
+- Optional: an SMTP server for invite emails and address confirmation links, and an API key for an AI provider.
 
 ## Docker Compose
 
@@ -16,10 +16,10 @@ Guided PRs is one Next.js server process and a PostgreSQL database. The server a
 
 | Service | Details |
 | --- | --- |
-| `app` | Built from the `Dockerfile` (image name `ghcr.io/tom-byrn/guided-prs:latest`). Reads `.env` through `env_file`. Listens on port 3000 inside the container and is published on `${PORT:-3000}`. Stores files in the `app-data` volume at `/app/data`. |
+| `app` | Built from the `Dockerfile` in your checkout. Reads `.env` through `env_file`. Listens on port 3000 inside the container, published on `${PORT:-3000}`. Stores files in the `app-data` volume at `/app/data`. |
 | `db` | `postgres:16-alpine` with user `guided`, database `guided_prs` and password `${POSTGRES_PASSWORD:-guided}`. Data is in the `db-data` volume. Its port is not published. |
 
-Compose sets `DATABASE_URL` for the app to `postgres://guided:${POSTGRES_PASSWORD:-guided}@db:5432/guided_prs`, which overrides any `DATABASE_URL` in `.env`. The app starts after the database reports healthy.
+For the app, Compose sets `DATABASE_URL` to `postgres://guided:${POSTGRES_PASSWORD:-guided}@db:5432/guided_prs`, `PORT` to `3000` and `HOSTNAME` to `0.0.0.0`. These override the same variables in `.env`. The app starts after the database reports healthy.
 
 ```sh
 git clone https://github.com/tom-byrn/guided-prs.git
@@ -30,14 +30,26 @@ docker compose up -d --build
 docker compose logs -f app
 ```
 
-`--build` builds the image from your checkout. Open `APP_URL` and create the first account; it becomes the instance admin. Then set up GitHub as described in [github-app.md](github-app.md).
+Compose builds the image from your checkout; `--build` rebuilds it after the code has changed. Open `APP_URL` and create the first account; it becomes the instance admin. Then set up GitHub as described in [github-app.md](github-app.md).
 
 Notes:
 
 - Set `POSTGRES_PASSWORD` (in `.env` or the shell) to a random value before the first start, for example from `openssl rand -hex 16`. It is inserted into `DATABASE_URL` as is, so avoid characters that have a meaning in URLs. The Postgres image applies it only when the `db-data` volume is created.
-- `PORT` changes the published host port. Set it in the shell (`PORT=8080 docker compose up -d`), not in `.env`: the app container also receives `.env`, and a `PORT` there changes the port the server listens on inside the container, which the `3000` port mapping and the image health check do not follow. Update `APP_URL` to match.
+- `PORT` (in `.env` or the shell) changes only the published host port; the server inside the container stays on 3000. Update `APP_URL` to match.
 - The image runs `node server.js` as the unprivileged user `app`, with `NODE_ENV=production`, `PORT=3000`, `HOSTNAME=0.0.0.0` and `STORAGE_DIR=/app/data/uploads`.
 - The image has a `HEALTHCHECK` that requests `/api/health` every 30 seconds.
+
+### Published image
+
+`.github/workflows/release.yml` builds the image and publishes it to GitHub Container Registry as `ghcr.io/<owner>/guided-prs`, which is `ghcr.io/tom-byrn/guided-prs` for this repository:
+
+| Tag | Published from |
+| --- | --- |
+| `latest` | Pushes to the default branch (`main`) |
+| `1.2.3` and `1.2` | Git tags such as `v1.2.3` |
+| `sha-<short commit>` | Every build of the workflow |
+
+To run a published image instead of building one, replace `build: .` with `image: ghcr.io/tom-byrn/guided-prs:latest` (or a version tag) in `docker-compose.yml`.
 
 ## Running without Docker
 
@@ -70,7 +82,7 @@ Terminate TLS at a reverse proxy or load balancer and forward requests to port 3
 
 - `APP_URL` must be the public URL that browsers use, including scheme and port if it is not the default (a trailing slash is removed). Guided PRs uses it for OAuth issuer and redirect URLs, the GitHub sign-in callback, the URLs in the GitHub App manifest, links in GitHub comments, upload URLs, and the same-origin check on API requests from the browser. Session cookies get the `Secure` attribute when `APP_URL` starts with `https://`.
 - Preserve the `Host` header or set `X-Forwarded-Host`. All forms in the app are Next.js Server Actions, which reject requests whose `Origin` does not match that host.
-- Set `X-Forwarded-For` to the client address and replace any value the client sent. Guided PRs uses the first address in this header for sign-in and client registration rate limits and for the session list on the account page.
+- Set `X-Forwarded-For`. Guided PRs takes the client address for rate limits (sign-in, sign-up, OAuth client registration) and the session list on the account page from this header: the entry `TRUST_PROXY_HOPS` places from the right (default 1, the address added by the proxy in front of the app). Set `TRUST_PROXY_HOPS` to the number of proxies that append to the header. Next.js fills the header in with the connection's address only when a request arrives without one, so without a proxy that sets it, clients can choose the address used for rate limits.
 - Allow request bodies of at least `MAX_UPLOAD_MB` (default 50 MB) for uploads. Uploads through MCP are base64-encoded and therefore larger.
 - Allow long requests on `/api/mcp`; the route declares a maximum duration of 300 seconds. Tools that read large diffs from GitHub can take a while.
 
@@ -109,7 +121,7 @@ GitHub sends webhooks to `<APP_URL>/api/github/webhook`, from the GitHub App or 
 Without webhooks:
 
 - The pull request list refreshes when someone opens the workspace and the cached data is older than 60 seconds, or clicks **Sync**.
-- The worker polls repositories that have automatic guides turned on (see [ai.md](ai.md#automation)). `POLL_INTERVAL_SECONDS` sets the interval (default 300; `0` turns polling off). The scheduler wakes at most every 300 seconds and at least 30 seconds apart, so values outside 30 to 300 behave like the nearest bound.
+- The worker polls repositories that have automatic guides turned on (see [ai.md](ai.md#automation)). `POLL_INTERVAL_SECONDS` sets the interval in seconds (default 300; `0` turns polling off; values from 1 to 29 are raised to 30). The scheduler runs every 30 seconds and queues one poll per interval, also when several instances run the worker.
 
 ## File storage
 
@@ -154,7 +166,7 @@ git pull
 docker compose up -d --build
 ```
 
-Pending migrations are applied when the new container starts. Back up the database first and read [CHANGELOG.md](../CHANGELOG.md). Without Docker, run `git pull`, `pnpm install --frozen-lockfile` and `pnpm build`, then restart the server.
+With a [published image](#published-image), run `docker compose pull` and `docker compose up -d` instead. Pending migrations are applied when the new container starts. Back up the database first and read [CHANGELOG.md](../CHANGELOG.md). Without Docker, run `git pull`, `pnpm install --frozen-lockfile` and `pnpm build`, then restart the server.
 
 ## Outbound HTTP proxy
 
@@ -167,7 +179,9 @@ HTTP_PROXY=http://proxy.internal:3128
 NO_PROXY=localhost,127.0.0.1
 ```
 
-This covers requests to GitHub, AI providers (including the Anthropic SDK, which uses `fetch`) and `upload_asset` downloads. It needs a Node.js release that supports `NODE_USE_ENV_PROXY`, such as the Node.js 22 in the Docker image. SMTP and PostgreSQL connections do not use the proxy. Add internal hosts, such as a local model server set in `AI_BASE_URL`, to `NO_PROXY`.
+This covers requests to GitHub and to AI providers (including the Anthropic SDK, which uses `fetch`). It needs a Node.js release that supports `NODE_USE_ENV_PROXY`, such as the Node.js 22 in the Docker image. Add internal hosts, such as a local model server set in `AI_BASE_URL`, to `NO_PROXY`.
+
+These connections do not use the proxy: SMTP, PostgreSQL, and downloads by the MCP `upload_asset` tool from a `url`. Those downloads connect directly to the checked public address (see [mcp.md](mcp.md#screenshots-and-videos)); where outbound traffic must go through a proxy, agents have to send files as `content_base64` instead.
 
 ## GitHub Enterprise Server
 
@@ -197,7 +211,7 @@ docker compose exec db psql -U guided -d guided_prs \
 
 ## Running more than one instance
 
-- All state is in PostgreSQL. Jobs are claimed with `FOR UPDATE SKIP LOCKED`, so several workers can share the queue.
-- Set `WORKER_ENABLED=false` on instances that should only serve requests. At least one instance must run the worker, otherwise AI generation, summary comments and polling do not run.
+- All state is in PostgreSQL. Jobs are claimed with `FOR UPDATE SKIP LOCKED`, so several workers can share the queue, and polling runs once per interval across all instances.
+- Set `WORKER_ENABLED=false` on instances that should only serve requests. At least one instance must run the worker, otherwise AI generation, summary comments, polling and the cleanup of abandoned guides do not run.
 - Rate limits and caches (GitHub responses, installation tokens, rendered file views) are kept in memory per process.
 - Use `STORAGE_DRIVER=database` or a shared `STORAGE_DIR`.

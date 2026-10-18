@@ -36,6 +36,7 @@ The settings come from `buildAppManifest` in `src/lib/github/app.ts`:
 | Request user authorization during installation | Off |
 | Visibility | Private (`public: false`) |
 | Repository permissions | Contents: read, Metadata: read, Pull requests: read and write, Issues: read and write |
+| Account permissions | Email addresses: read |
 | Events | Pull request, Pull request review, Pull request review comment |
 
 What the permissions are used for:
@@ -46,8 +47,9 @@ What the permissions are used for:
 | Metadata: read | Repository information; GitHub requires it for every app |
 | Pull requests: read and write | Pull requests, changed files, review comments, replies and reviews |
 | Issues: read and write | The summary comment in the pull request conversation (`issues/<number>/comments`) |
+| Email addresses: read | The verified email addresses of users who sign in with GitHub: the address of a new account, confirmation for email-restricted invites, and `AUTH_ALLOWED_EMAIL_DOMAINS` |
 
-Of the webhook events, Guided PRs acts on `pull_request` and on `installation` events (which GitHub sends to every app). Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
+Guided PRs acts on the `pull_request`, `pull_request_review` and `pull_request_review_comment` events, and on `installation` events, which GitHub sends to every app. Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
 
 If `APP_URL` is not reachable from the internet (for example `http://localhost:3000`), GitHub cannot deliver webhooks to it. Sign-in and API access do not depend on webhooks; pull requests are then refreshed by polling and when members open the app.
 
@@ -63,6 +65,7 @@ Create a GitHub App in your account or organization settings (**Developer settin
 | Setup URL | `<APP_URL>/api/github/setup`, with **Redirect on update** turned on |
 | Webhook | Active; URL `<APP_URL>/api/github/webhook`; a random secret |
 | Repository permissions | Contents: Read-only; Metadata: Read-only; Pull requests: Read and write; Issues: Read and write |
+| Account permissions | Email addresses: Read-only |
 | Subscribe to events | Pull request, Pull request review, Pull request review comment |
 | Where can this GitHub App be installed | Only on this account, or Any account if you want to install it on other accounts |
 
@@ -83,10 +86,10 @@ When `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` are both set, they take preced
 
 A workspace admin connects an installation from **Settings → GitHub → Install on GitHub**:
 
-1. Link your GitHub account through the app first: sign in with GitHub, or use **Link GitHub account** on the **Account** page.
+1. Link your GitHub account first: sign in with GitHub, or link it on the **Account** page with **Link GitHub account** or a personal access token.
 2. Choose **Install on GitHub**. Guided PRs sends you to the app's installation page with a signed `state` that names the workspace and your user; it is valid for an hour.
 3. On GitHub, choose the account or organization and the repositories, then install.
-4. GitHub redirects to the setup URL. Guided PRs checks the installation (below), creates or updates the connection, and returns you to **Settings → GitHub**.
+4. GitHub redirects to the setup URL. Guided PRs checks the installation (below), creates or updates the connection, and returns you to **Settings → GitHub**. A new connection is also attached to the workspace's repositories that have [no connection](#repositories-without-a-connection) and that it can access.
 5. Add repositories on the **Repositories** page. The list shows the repositories selected for the installation.
 
 ### Installation ownership check
@@ -95,9 +98,10 @@ The setup URL only links an installation when all of these hold:
 
 - the `state` parameter is valid and was issued to the signed-in user for the workspace;
 - the user is still an admin or owner of that workspace;
-- the user's linked GitHub credential lists the installation in `GET /user/installations`.
+- the user has a linked GitHub credential (otherwise: "Sign in with GitHub to finish connecting the app.");
+- that credential can manage the installation: the installation appears in `GET /user/installations`, or the installation belongs to the user's own GitHub account, or the user is an active admin of the organization it belongs to (`GET /user/memberships/orgs/<org>`).
 
-The last check stops someone from linking another account's installation by guessing an `installation_id`. That endpoint only accepts user tokens issued to the same GitHub App, so link your account with **Sign in with GitHub** or **Link GitHub account**; an account linked with a personal access token does not pass. Installations started directly on GitHub, without the **Install on GitHub** button, arrive without a `state` and are not connected.
+These checks stop someone from linking another account's installation by guessing an `installation_id`. `GET /user/installations` only works with user tokens of the GitHub App itself; credentials linked with a personal access token or through an OAuth App rely on the account and organization checks. If all checks fail, the page shows "Your GitHub account can't manage the installation on <account>." Installations started directly on GitHub, without the **Install on GitHub** button, arrive without a `state` and are not connected.
 
 ### Private apps and organizations
 
@@ -107,7 +111,7 @@ The manifest creates a private app, and GitHub only allows a private app to be i
 
 GitHub sends `installation` webhooks to the app:
 
-- `deleted` removes every connection that uses the installation. Removing a connection also removes its repositories, and their guides, from the workspace.
+- `deleted` removes every connection that uses the installation. Their repositories and guides stay in the workspace [without a connection](#repositories-without-a-connection).
 - `suspend` marks the connections as suspended; API calls through them fail until `unsuspend`.
 
 ## Other ways to connect GitHub
@@ -118,7 +122,7 @@ GitHub sends `installation` webhooks to the app:
 
 ### Linked GitHub account
 
-**Settings → GitHub → Use your GitHub account** creates a connection that uses the GitHub credential linked to your user (through GitHub sign-in or a token on the **Account** page). If the credential is a GitHub App user token, GitHub limits it to repositories where the app is installed. If that credential stops working, for example because a refresh token expired, the connection fails until you sign in with GitHub again. The connection belongs to your user: if you delete your account, the connection is deleted together with its repositories and their guides.
+**Settings → GitHub → Use your GitHub account** creates a connection that uses the GitHub credential linked to your user (through GitHub sign-in or a token on the **Account** page). If the credential is a GitHub App user token, GitHub limits it to repositories where the app is installed. If that credential stops working, for example because a refresh token expired, the connection fails until you sign in with GitHub again. The connection belongs to your user: if you delete your account, the connection is deleted, and its repositories stay in the workspace [without a connection](#repositories-without-a-connection).
 
 ### Repository webhooks
 

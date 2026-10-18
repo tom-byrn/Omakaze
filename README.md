@@ -17,10 +17,10 @@ Guided PRs is an open-source, self-hostable web app that turns GitHub pull reque
 - **Built-in AI generation.** OpenRouter (default), Anthropic, OpenAI or an OpenAI-compatible server such as Ollama, vLLM or LM Studio.
 - **REST API.** List pull requests, read and create guides, and start AI generation.
 - **Automation.** Generate a guide when a pull request opens, create a new version when commits are pushed, skip drafts, and post a summary comment on the pull request.
-- **Workspaces.** Members with owner, admin and member roles, invite links and an activity log.
+- **Workspaces.** Members with owner, admin and member roles, invite links (optionally limited to one confirmed email address) and an activity log.
 - **GitHub access.** A GitHub App installation (the app can be created from the admin page in one step), a personal access token, or a member's linked GitHub account. GitHub Enterprise Server is supported.
-- **Sign-in.** Email and password, GitHub, or a GitHub personal access token. Sign-up can be limited to invites, and email sign-up to specific domains.
-- **Self-hosted.** One container and PostgreSQL. Database migrations and the background worker run inside the app process.
+- **Sign-in.** Email and password, GitHub, or a GitHub personal access token. Sign-up can be limited to invites or to email domains.
+- **Self-hosted.** One container and PostgreSQL. Database migrations and the background worker run inside the app process. A release workflow publishes the image to GitHub Container Registry.
 
 ## How it works
 
@@ -44,7 +44,7 @@ Generate a secret and set it as `APP_SECRET` in `.env`:
 openssl rand -hex 32
 ```
 
-If the instance will not be served at `http://localhost:3000`, also set `APP_URL` to its public URL. Then start the app and its database:
+If the instance will not be served at `http://localhost:3000`, also set `APP_URL` to its public URL. Then start the app and its database; Compose builds the image from your checkout:
 
 ```sh
 docker compose up -d
@@ -52,7 +52,7 @@ docker compose up -d
 
 1. Open http://localhost:3000 and create an account. The first account on an instance becomes the instance admin.
 2. Create the GitHub App from `/admin` (on your personal account or an organization), or set the `GITHUB_APP_*` and `GITHUB_CLIENT_*` variables for an existing app. See [docs/github-app.md](docs/github-app.md).
-3. Link your GitHub account on the **Account** page with **Link GitHub account**. Installing the app requires it.
+3. Link your GitHub account on the **Account** page, with **Link GitHub account** or a personal access token. Installing the app requires it.
 4. In your workspace, open **Settings → GitHub** and choose **Install on GitHub** (or add a token connection), then add repositories on the **Repositories** page.
 
 See [docs/self-hosting.md](docs/self-hosting.md) for HTTPS, backups, upgrades and running without Docker.
