@@ -195,12 +195,6 @@ pnpm dev
 
 The app runs at http://localhost:3000 and applies migrations on start. See [docs/development.md](docs/development.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
-## Contributors
-
-<a href="https://github.com/tom-byrn/Guided-PRs/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=tom-byrn/Guided-PRs" alt="Contributors">
-</a>
-
 ## License
 
 Guided PRs is released under the [MIT License](LICENSE).
