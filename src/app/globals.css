@@ -34,6 +34,13 @@
   --color-highlight: #eae058;
   --color-danger: #bf000f;
   --color-moved: #7c4dd8;
+  /* Walnut and lacquer from the chopsticks in public/logo.svg. */
+  --color-wood-light: #cb9363;
+  --color-wood: #a46a3c;
+  --color-wood-ink: #7c4b27;
+  --color-wood-dark: #6e4222;
+  --color-lacquer: #4c9690;
+  --color-lacquer-light: #74bdb6;
   --color-night: #080808;
   --color-night-2: #0c0c0b;
   --color-panel-dark: #171717;
@@ -168,6 +175,17 @@ h4 {
   background-image: var(--grain-dark), linear-gradient(180deg, var(--color-blue-deep) 27%, var(--color-blue-bright) 144%);
 }
 
+@utility text-wood {
+  background: linear-gradient(180deg, var(--color-wood-light), var(--color-wood) 55%, var(--color-wood-dark));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-wood-progress {
+  background: linear-gradient(90deg, var(--color-wood-dark), var(--color-wood) 40%, var(--color-wood-light) 92%, var(--color-lacquer) 92%);
+}
+
 @utility rail-x {
   border-left: 1px dashed rgba(0, 0, 0, 0.08);
   border-right: 1px dashed rgba(0, 0, 0, 0.08);
@@ -230,9 +248,36 @@ h4 {
     letter-spacing: 0.42em;
     white-space: nowrap;
   }
+  /* A small chopstick, tip down, under each side note. */
   .side-note-rule {
-    height: 56px;
-    border-left: 1px dashed currentColor;
+    width: 9px;
+    height: 88px;
+    background: url("/chopstick-vertical.svg") center / contain no-repeat;
+  }
+
+  /* Landing page only: eyebrows carry a walnut square, as on the chopsticks in the logo. */
+  .landing .eyebrow {
+    gap: 8px;
+    border-color: rgba(164, 106, 60, 0.45);
+    color: var(--color-wood-ink);
+  }
+  .landing .eyebrow::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    background: var(--color-wood);
+  }
+  .landing .dark .eyebrow {
+    border-color: rgba(203, 147, 99, 0.4);
+    color: var(--color-wood-light);
+  }
+  .landing .dark .eyebrow::before,
+  .landing .blue .eyebrow::before {
+    background: var(--color-wood-light);
+  }
+  .landing .blue .eyebrow {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--color-blue-mist);
   }
 
   .mono-label {

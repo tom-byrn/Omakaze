@@ -40,7 +40,7 @@ function Media({ step }: { step: number }) {
           ["acme/infra", true],
         ].map(([name, on]) => (
           <div key={String(name)} className="flex items-center gap-3 border-b border-dashed border-white/10 px-4 py-2.5 last:border-b-0">
-            <span className={clsx("flex h-3.5 w-3.5 items-center justify-center border", on ? "border-signal bg-signal" : "border-white/30")}>
+            <span className={clsx("flex h-3.5 w-3.5 items-center justify-center border", on ? "border-lacquer bg-lacquer" : "border-white/30")}>
               {on ? <span className="h-1.5 w-1.5 bg-black" /> : null}
             </span>
             {name}
@@ -77,7 +77,7 @@ function Media({ step }: { step: number }) {
               <span key={i} className="block h-[5px] bg-white/15" style={{ width: `${w}%` }} />
             ))}
           </div>
-          <span className="mt-4 inline-block border border-signal/60 px-2 py-0.5 font-mono text-[9px] text-signal">reviewed</span>
+          <span className="mt-4 inline-block border border-lacquer-light/60 px-2 py-0.5 font-mono text-[9px] text-lacquer-light">reviewed</span>
         </div>
         <div className="p-3 font-mono text-[10px] leading-[17px]">
           {["ctx", "add", "add", "del", "add", "ctx", "add", "ctx"].map((k, i) => (
@@ -139,7 +139,7 @@ export function Steps() {
               aria-expanded={active === i}
             >
               <span className="flex items-center gap-2">
-                <span className={clsx("dot h-[5px] w-[5px]", active === i ? "bg-signal" : "bg-[rgba(206,206,206,0.5)]")} />
+                <span className={clsx("dot h-[5px] w-[5px]", active === i ? "bg-wood-light" : "bg-[rgba(206,206,206,0.5)]")} />
                 <span className={clsx("text-[12px] tracking-[0.025em] uppercase", active === i ? "text-white" : "text-[rgba(206,206,206,0.7)]")}>
                   {String(i + 1).padStart(2, "0")} · {s.label}
                 </span>
@@ -148,7 +148,7 @@ export function Steps() {
                 {active === i ? (
                   <span
                     key={cycle}
-                    className="absolute inset-0 bg-white"
+                    className="absolute inset-x-0 -top-px h-[3px] bg-wood-progress"
                     style={{ animation: `tab-cycle-progress ${DURATION}ms linear forwards` }}
                   />
                 ) : null}

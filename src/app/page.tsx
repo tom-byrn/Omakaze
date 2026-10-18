@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { ChopstickDivider, CrossedChopsticks } from "@/components/landing/Chopsticks";
 import { Footer } from "@/components/landing/Footer";
 import { ProductSchematic } from "@/components/landing/ProductSchematic";
 import { SideNote } from "@/components/landing/SideNote";
@@ -70,7 +71,7 @@ export default async function LandingPage() {
   const { href: appHref, label: ctaLabel, heroLabel, appUrl } = await cta();
   const prompt = setupPrompt(appUrl);
   return (
-    <div id="top" className={`${shipporiMincho.variable} bg-paper`}>
+    <div id="top" className={`${shipporiMincho.variable} landing bg-paper`}>
       <SiteHeader ctaLabel={ctaLabel} appHref={appHref} repoUrl={REPO} />
 
       {/* Hero */}
@@ -106,7 +107,8 @@ export default async function LandingPage() {
       </section>
 
       {/* Stats band */}
-      <section className="border-b border-dashed border-line grain">
+      <section className="relative border-b border-dashed border-line grain">
+        <ChopstickDivider className="-bottom-[54px] hidden md:block" />
         <div className="mx-auto grid max-w-[1560px] grid-cols-1 md:grid-cols-3 md:px-[72px]">
           {[
             ["MIT", "Licensed. Run it anywhere."],
@@ -114,7 +116,7 @@ export default async function LandingPage() {
             ["4", "AI providers, including local models."],
           ].map(([n, c], i) => (
             <div key={c} className={`flex flex-col gap-2.5 px-6 py-8 ${i > 0 ? "border-t border-dashed border-line md:border-t-0 md:border-l" : ""}`}>
-              <span className="font-serif text-[52px] leading-[1.1] tracking-[-0.04em] text-stat lg:text-[64px]">{n}</span>
+              <span className="font-serif text-[52px] leading-[1.1] tracking-[-0.04em] text-wood lg:text-[64px]">{n}</span>
               <span className="text-[16px] leading-[22.4px] tracking-[-0.48px] text-muted">{c}</span>
             </div>
           ))}
@@ -267,16 +269,7 @@ export default async function LandingPage() {
               {ctaLabel}
             </Link>
           </div>
-          <pre
-            className="pointer-events-none absolute right-10 bottom-10 hidden font-mono text-[11px] leading-[17px] text-black/[0.18] lg:block"
-            aria-hidden="true"
-          >{`create_guide({
-  pr: "acme/web#412",
-  sections: [
-    { title: "Data model", refs: ["db/schema.ts"] },
-    { title: "Checkout API", refs: ["api/checkout.ts#1-3"] },
-  ],
-})`}</pre>
+          <CrossedChopsticks className="absolute top-1/2 right-[150px] hidden -translate-y-1/2 lg:block" />
         </div>
       </section>
 

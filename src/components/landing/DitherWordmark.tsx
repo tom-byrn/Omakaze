@@ -5,7 +5,9 @@ import { useEffect, useRef } from "react";
 const WORD = "Omakaze";
 const REF = 100;
 const TRACKING = -0.05;
-const SIGNAL = [37, 255, 249];
+// Walnut dots with a lacquer fringe, from the chopsticks in public/logo.svg.
+const WOOD = [214, 158, 108];
+const LACQUER = [116, 189, 182];
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 
 type Metrics = { adv: number[]; width: number; asc: number; desc: number };
@@ -56,7 +58,7 @@ function drawWord(ctx: CanvasRenderingContext2D, met: Metrics, g: Geom, family: 
 
 /**
  * The footer wordmark as a 4×4 ordered dither that thins out toward the floor. Under the pointer it
- * resolves back into the sharp serif, with a cyan fringe where the two meet. Decorative; redraws only
+ * resolves back into the sharp serif, with a lacquer-teal fringe where the two meet. Decorative; redraws only
  * while the pointer moves or the focus eases in and out.
  */
 export function DitherWordmark({ className }: { className?: string }) {
@@ -92,7 +94,7 @@ export function DitherWordmark({ className }: { className?: string }) {
       drawWord(cx, met, g, family, 1 / cell, "#fff");
       cov = cx.getImageData(0, 0, cols, rows).data;
       sharp = canvas(cv!.width, cv!.height);
-      drawWord(context(sharp), met, g, family, dpr, "rgba(255,255,255,0.94)");
+      drawWord(context(sharp), met, g, family, dpr, "rgba(226,176,126,0.96)");
       tmp = canvas(cv!.width, cv!.height);
       dither = canvas(cols, rows);
       ditherImg = context(dither).createImageData(cols, rows);
@@ -123,9 +125,10 @@ export function DitherWordmark({ className }: { className?: string }) {
           }
           const edge = f > 0 && f > t - 0.2;
           if (a * tone > t || (edge && a > 0.4)) {
-            d[o] = edge ? SIGNAL[0] : 255;
-            d[o + 1] = 255;
-            d[o + 2] = edge ? SIGNAL[2] : 255;
+            const c = edge ? LACQUER : WOOD;
+            d[o] = c[0];
+            d[o + 1] = c[1];
+            d[o + 2] = c[2];
             d[o + 3] = edge ? 255 : 232;
           }
         }
@@ -150,7 +153,7 @@ export function DitherWordmark({ className }: { className?: string }) {
     function tick() {
       raf = 0;
       pointer.focus += reduced ? pointer.target - pointer.focus : (pointer.target - pointer.focus) * 0.14;
-      // Snap the tail so the last frame is exactly at rest; a residual focus would leave a cyan fringe behind.
+      // Snap the tail so the last frame is exactly at rest; a residual focus would leave a fringe behind.
       const settled = Math.abs(pointer.target - pointer.focus) <= 0.003;
       if (settled) pointer.focus = pointer.target;
       draw();
