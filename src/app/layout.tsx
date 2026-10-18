@@ -1,0 +1,25 @@
+import type { Metadata, Viewport } from "next";
+import { geistMono, geistSans, newsreader } from "./fonts";
+import "katex/dist/katex.min.css";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: {
+    default: "Guided PRs",
+    template: "%s · Guided PRs",
+  },
+  description: "Open-source, self-hostable guided walkthroughs for pull requests.",
+  icons: { icon: "/icon.svg" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#fcfcfc",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable}`}>
+      <body className="min-h-screen bg-paper text-fg antialiased">{children}</body>
+    </html>
+  );
+}
