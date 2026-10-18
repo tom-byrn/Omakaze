@@ -5,6 +5,7 @@ import { ProductSchematic } from "@/components/landing/ProductSchematic";
 import { SideNote } from "@/components/landing/SideNote";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { Steps } from "@/components/landing/Steps";
+import { TerminalTyping, type TerminalLine } from "@/components/landing/TerminalTyping";
 import { shipporiMincho } from "@/app/landing-font";
 import { getAuthMethods } from "@/lib/auth/methods";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -14,9 +15,17 @@ import { homePathFor } from "@/lib/workspaces";
 
 const REPO = "https://github.com/tom-byrn/guided-prs";
 
+const TERMINAL_LINES: TerminalLine[] = [
+  { text: `git clone ${REPO}.git`, command: true },
+  { text: "cd guided-prs", command: true },
+  { text: "cp .env.example .env", command: true },
+  { text: "docker compose up -d", command: true },
+  { text: "# open http://localhost:3000", command: false },
+];
+
 const FEATURES = [
   {
-    title: "Sections, not files.",
+    title: "Changes that are understandable.",
     body: "Changes are grouped by what they do. A file can appear in several sections, and every changed line ends up in one.",
   },
   {
@@ -64,7 +73,7 @@ export default async function LandingPage() {
           <div className="mx-auto flex max-w-[840px] flex-col items-center text-center">
             <span className="eyebrow animate-reveal">Open source · Self-hosted · MCP</span>
             <h1 className="h1 mt-6 animate-reveal">
-              Review large pull requests <br className="hidden sm:block" />
+              Review your pull requests <br className="hidden sm:block" />
               one section at a time.
             </h1>
             <p className="lead mt-6 max-w-[560px] animate-reveal">
@@ -73,9 +82,9 @@ export default async function LandingPage() {
             </p>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
               <Link href={appHref} className="btn btn-primary btn-lg w-[260px]">
-                {user ? "Open the app" : methods.github ? "Sign in with GitHub" : "Sign in"}
+                {user ? "Open the app" : methods.github ? "Sign In with GitHub" : "Sign In"}
               </Link>
-              <CopyButton text={prompt} label="Copy agent setup prompt" className="btn btn-secondary btn-lg w-[260px]" />
+              <CopyButton text={prompt} label="Copy Setup Prompt" copiedLabel="Setup Prompt Copied" className="btn btn-secondary btn-lg w-[260px]" />
             </div>
           </div>
           <div className="mt-20">
@@ -223,18 +232,14 @@ export default async function LandingPage() {
             <div className="flex items-center justify-between border-b border-dashed border-line px-4 py-2.5">
               <span className="mono-label">Terminal</span>
               <CopyButton
-                text={`git clone ${REPO}.git\ncd guided-prs\ncp .env.example .env\ndocker compose up -d`}
+                text={TERMINAL_LINES.filter((l) => l.command)
+                  .map((l) => l.text)
+                  .join("\n")}
                 label="Copy"
                 className="btn btn-secondary btn-xs"
               />
             </div>
-            <pre className="overflow-auto p-5 font-mono text-[13px] leading-[24px] text-ink">
-              <span className="text-black/35">$ </span>git clone {REPO}.git{"\n"}
-              <span className="text-black/35">$ </span>cd guided-prs{"\n"}
-              <span className="text-black/35">$ </span>cp .env.example .env{"\n"}
-              <span className="text-black/35">$ </span>docker compose up -d{"\n"}
-              <span className="text-black/40"># open http://localhost:3000</span>
-            </pre>
+            <TerminalTyping lines={TERMINAL_LINES} className="overflow-auto p-5 font-mono text-[13px] leading-[24px] text-ink" />
           </div>
         </div>
       </section>
@@ -250,7 +255,7 @@ export default async function LandingPage() {
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Link href={appHref} className="btn btn-primary btn-lg w-[260px]">
-              {user ? "Open the app" : "Sign in"}
+              {user ? "Open the app" : "Sign In"}
             </Link>
           </div>
           <pre

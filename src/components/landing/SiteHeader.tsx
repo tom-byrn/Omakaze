@@ -52,7 +52,7 @@ export function SiteHeader({ signedIn, appHref, repoUrl }: { signedIn: boolean; 
               GitHub
             </a>
             <Link href={appHref} className="btn btn-primary btn-sm h-9 px-5">
-              {signedIn ? "Open app" : "Sign in"}
+              {signedIn ? "Open app" : "Sign In"}
             </Link>
           </nav>
           <button
@@ -62,7 +62,10 @@ export function SiteHeader({ signedIn, appHref, repoUrl }: { signedIn: boolean; 
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
           >
-            {open ? <RiCloseLine size={22} /> : <RiMenuLine size={22} />}
+            <span className="swap swap-icon" data-state={open ? "b" : "a"} aria-hidden="true">
+              <RiMenuLine size={22} className="swap-a" />
+              <RiCloseLine size={22} className="swap-b" />
+            </span>
           </button>
         </div>
       </div>
@@ -84,7 +87,7 @@ export function SiteHeader({ signedIn, appHref, repoUrl }: { signedIn: boolean; 
             </a>
           ))}
           <Link href={appHref} className="btn btn-primary btn-lg mt-6 w-full">
-            {signedIn ? "Open app" : "Sign in"}
+            {signedIn ? "Open app" : "Sign In"}
           </Link>
         </nav>
       </div>

@@ -49,6 +49,7 @@
 
   --animate-reveal: reveal-fade-blur 600ms var(--ease-snap) both;
   --animate-pulse-dot: pulse-dot 1.4s ease-in-out infinite;
+  --animate-caret: caret-blink 1s steps(1) infinite;
 }
 
 :root {
@@ -129,6 +130,12 @@ h4 {
   }
   50% {
     opacity: 0.25;
+  }
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
   }
 }
 
@@ -413,6 +420,36 @@ h4 {
     background: #e9e9e9;
   }
 
+  /* Two-state content (icon or label) stacked in one grid cell, so the
+     element keeps the size of the larger state and animates between them. */
+  .swap {
+    display: inline-grid;
+    place-items: center;
+  }
+  .swap > * {
+    grid-area: 1 / 1;
+    transition:
+      opacity 220ms var(--ease-snap),
+      transform 280ms var(--ease-snap),
+      filter 220ms var(--ease-snap);
+  }
+  .swap[data-state="b"] > .swap-a {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(-75%);
+  }
+  .swap:not([data-state="b"]) > .swap-b {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(75%);
+  }
+  .swap-icon[data-state="b"] > .swap-a {
+    transform: scale(0.4) rotate(-45deg);
+  }
+  .swap-icon:not([data-state="b"]) > .swap-b {
+    transform: scale(0.4) rotate(45deg);
+  }
+
   .link {
     color: var(--color-ui);
     text-decoration: underline;
@@ -527,13 +564,30 @@ h4 {
   }
 }
 
-/* Footer hover pattern: siblings fade while one link is hovered */
-.footer-links:has(a:hover) a:not(:hover) {
-  opacity: 0.4;
-  transition: opacity 300ms ease-out;
+/* Footer links: a dithered signal pixel slides in on hover, matching the wordmark */
+.footer-link {
+  position: relative;
+  display: inline-block;
+  transition:
+    color 200ms,
+    transform 300ms var(--ease-snap);
 }
-.footer-links a {
-  transition: opacity 300ms ease-out 150ms;
+.footer-link::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  background: conic-gradient(var(--color-signal) 25%, transparent 0 50%, var(--color-signal) 0 75%, transparent 0) 0 0 / 3px 3px;
+  transform: translateY(-50%) scale(0);
+  transition: transform 220ms var(--ease-snap);
+}
+.footer-link:hover {
+  transform: translateX(14px);
+}
+.footer-link:hover::before {
+  transform: translateY(-50%) scale(1);
 }
 
 @media (prefers-reduced-motion: reduce) {
