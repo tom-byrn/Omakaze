@@ -142,6 +142,35 @@ export interface MarketStats {
   asOf: string;
 }
 
+export type FinancingType = 'cash' | 'conventional' | 'fha' | 'va';
+
+export type Contingency = 'inspection' | 'appraisal' | 'financing' | 'home_sale';
+
+export type OfferStatus = 'submitted' | 'countered' | 'accepted' | 'rejected' | 'withdrawn';
+
+export interface Offer {
+  id: number;
+  listingId: number;
+  buyerName: string;
+  buyerEmail: string;
+  amount: number;
+  financing: FinancingType;
+  downPaymentPercent: number;
+  contingencies: Contingency[];
+  closingDate: string;
+  message: string | null;
+  status: OfferStatus;
+  /** Set when the seller counters. */
+  counterAmount: number | null;
+  sellerNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OfferWithListing extends Offer {
+  listing: SaleSummary;
+}
+
 export type InquiryKind = 'question' | 'tour';
 
 export interface Inquiry {

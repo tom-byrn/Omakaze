@@ -9,6 +9,7 @@ import { favoritesRouter } from './routes/favorites';
 import { listingsRouter } from './routes/listings';
 import { marketRouter } from './routes/market';
 import { neighborhoodsRouter } from './routes/neighborhoods';
+import { listingOffersRouter, offersRouter } from './routes/offers';
 
 export interface AppOptions {
   db: Database;
@@ -29,9 +30,11 @@ export function createApp({ db, now = () => new Date(), clientDist = null }: App
     res.json({ ok: true });
   });
   app.use('/api/neighborhoods', neighborhoodsRouter(context));
+  app.use('/api/listings/:listingId/offers', listingOffersRouter(context));
   app.use('/api/listings', listingsRouter(context));
   app.use('/api/favorites', favoritesRouter(context));
   app.use('/api/market', marketRouter(context));
+  app.use('/api/offers', offersRouter(context));
   app.use('/api', (_req, _res, next) => next(notFound('No such API endpoint')));
 
   if (clientDist && existsSync(join(clientDist, 'index.html'))) {

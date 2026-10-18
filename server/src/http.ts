@@ -16,6 +16,11 @@ export function notFound(message = 'Not found'): HttpError {
   return new HttpError(404, message);
 }
 
+/** The request is valid but clashes with the current state, e.g. a second open offer. */
+export function conflict(message: string): HttpError {
+  return new HttpError(409, message);
+}
+
 export function validationError(fields: Record<string, string | undefined>): HttpError {
   const clean = Object.fromEntries(
     Object.entries(fields).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),

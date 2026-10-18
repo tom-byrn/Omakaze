@@ -1,6 +1,7 @@
 import { addDays, toIsoDate, type PriceEvent, type SaleStatus } from '@hearth/shared';
 import { transaction, type Database } from '../connection';
 import { AGENTS } from './agents';
+import { DEMO_CLIENT_ID, DEMO_OFFERS } from './demo';
 import { NEIGHBORHOODS } from './neighborhoods';
 import { RENTALS } from './rentals';
 import { SALES, type PriceEventSeed } from './sales';
@@ -170,6 +171,33 @@ export function seed(db: Database, { now = new Date() }: SeedOptions = {}): Seed
       for (const event of state.events) {
         insertPriceEvent.run(lastInsertRowid, event.date, event.event, event.price);
       }
+    }
+
+    const insertOffer = db.prepare(`
+      INSERT INTO offers (listing_id, client_id, buyer_name, buyer_email, amount, financing,
+        down_payment_percent, contingencies, closing_date, message, status, counter_amount,
+        seller_note, created_at, updated_at)
+      VALUES ((SELECT id FROM listings WHERE listing_type = 'sale' AND address = ?),
+        ?, 'Jordan Avery', 'jordan.avery@example.com', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const offer of DEMO_OFFERS) {
+      const createdAt = `${addDays(today, -offer.createdDaysAgo)}T17:30:00.000Z`;
+      const updatedAt = offer.status === 'submitted' ? createdAt : `${addDays(today, 2 - offer.createdDaysAgo)}T19:05:00.000Z`;
+      insertOffer.run(
+        offer.address,
+        DEMO_CLIENT_ID,
+        offer.amount,
+        offer.financing,
+        offer.downPaymentPercent,
+        JSON.stringify(offer.contingencies),
+        addDays(today, offer.closingInDays),
+        offer.message ?? null,
+        offer.status,
+        offer.counterAmount ?? null,
+        offer.sellerNote ?? null,
+        createdAt,
+        updatedAt,
+      );
     }
 
     return { neighborhoods: NEIGHBORHOODS.length, rentals: RENTALS.length, sales: SALES.length };

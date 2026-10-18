@@ -4,3 +4,5 @@ export * from './format';
 export * from './inquiries';
 export * from './mortgage';
 export * from './affordability';
+export * from './validation';
+export * from './offers';

@@ -1,5 +1,16 @@
 import { addDays } from './format';
 import type { InquiryKind } from './types';
+import {
+  asRecord,
+  asTrimmedString,
+  emailError,
+  isValidIsoDate,
+  nameError,
+  phoneError,
+  validationResult,
+  type FieldErrors,
+  type ValidationResult,
+} from './validation';
 
 export interface InquiryInput {
   kind: InquiryKind;
@@ -11,33 +22,16 @@ export interface InquiryInput {
   tourDate: string | null;
 }
 
-export type InquiryErrors = Partial<Record<keyof InquiryInput, string>>;
+export type InquiryErrors = FieldErrors<InquiryInput>;
 
-export type InquiryValidation =
-  | { ok: true; value: InquiryInput }
-  | { ok: false; errors: InquiryErrors };
+export type InquiryValidation = ValidationResult<InquiryInput>;
 
 export const INQUIRY_LIMITS = {
-  nameMax: 80,
   messageMin: 10,
   messageMax: 2000,
   /** How far ahead a tour can be requested. */
   tourWindowDays: 60,
 } as const;
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const PHONE_CHARACTERS = /^[\d\s().+-]+$/;
-
-function asTrimmedString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function isValidIsoDate(value: string): boolean {
-  if (!ISO_DATE_PATTERN.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
-}
 
 /**
  * Validates a contact or tour request for a listing. Used by the contact form
@@ -46,7 +40,7 @@ function isValidIsoDate(value: string): boolean {
  * @param today Calendar date (YYYY-MM-DD) that relative rules are checked against.
  */
 export function validateInquiry(input: unknown, today: string): InquiryValidation {
-  const body = (typeof input === 'object' && input !== null ? input : {}) as Record<string, unknown>;
+  const body = asRecord(input);
   const errors: InquiryErrors = {};
 
   if (body.kind !== undefined && body.kind !== 'question' && body.kind !== 'tour') {
@@ -55,24 +49,13 @@ export function validateInquiry(input: unknown, today: string): InquiryValidatio
   const kind: InquiryKind = body.kind === 'tour' ? 'tour' : 'question';
 
   const name = asTrimmedString(body.name);
-  if (!name) {
-    errors.name = 'Enter your name';
-  } else if (name.length > INQUIRY_LIMITS.nameMax) {
-    errors.name = `Name must be ${INQUIRY_LIMITS.nameMax} characters or fewer`;
-  }
+  errors.name = nameError(name);
 
   const email = asTrimmedString(body.email).toLowerCase();
-  if (!email) {
-    errors.email = 'Enter your email address';
-  } else if (email.length > 254 || !EMAIL_PATTERN.test(email)) {
-    errors.email = 'Enter a valid email address';
-  }
+  errors.email = emailError(email);
 
-  const phoneRaw = asTrimmedString(body.phone);
-  const phoneDigits = phoneRaw.replace(/\D/g, '');
-  if (phoneRaw && (!PHONE_CHARACTERS.test(phoneRaw) || phoneDigits.length < 7 || phoneDigits.length > 15)) {
-    errors.phone = 'Enter a valid phone number';
-  }
+  const phone = asTrimmedString(body.phone);
+  errors.phone = phoneError(phone);
 
   const message = asTrimmedString(body.message);
   if (message.length < INQUIRY_LIMITS.messageMin) {
@@ -103,20 +86,16 @@ export function validateInquiry(input: unknown, today: string): InquiryValidatio
     }
   }
 
-  if (Object.keys(errors).length > 0) {
-    return { ok: false, errors };
-  }
-
-  return {
-    ok: true,
-    value: {
+  return validationResult(
+    {
       kind,
       name,
       email,
-      phone: phoneRaw || null,
+      phone: phone || null,
       message,
       moveInDate: moveInDate || null,
       tourDate: kind === 'tour' ? tourDate : null,
     },
-  };
+    errors,
+  );
 }
