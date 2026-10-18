@@ -1,6 +1,12 @@
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ListingDetail, ListingSearchResult, ListingSummary, Neighborhood } from '@hearth/shared';
+import type {
+  ListingDetail,
+  ListingSearchResult,
+  ListingSummary,
+  Neighborhood,
+  RentalSummary,
+} from '@hearth/shared';
 import { NEIGHBORHOODS } from '../db/seed/neighborhoods';
 import { RENTALS } from '../db/seed/rentals';
 import { asClient, createTestApp } from './helpers';
@@ -16,6 +22,8 @@ async function search(query: string): Promise<ListingSearchResult> {
   const response = await request(app).get(`/api/listings${query}`).expect(200);
   return response.body;
 }
+
+const rentOf = (listing: ListingSummary) => (listing as RentalSummary).rent;
 
 describe('GET /api/listings', () => {
   it('returns the first page of every listing, newest first, with map points for all of them', async () => {
@@ -36,7 +44,7 @@ describe('GET /api/listings', () => {
     );
     expect(body.total).toBe(expected.length);
     expect(body.results.every((l) => l.neighborhood.slug === 'canal-district')).toBe(true);
-    expect(body.results.every((l) => l.rent >= 2000 && l.rent <= 3000)).toBe(true);
+    expect(body.results.every((l) => rentOf(l) >= 2000 && rentOf(l) <= 3000)).toBe(true);
   });
 
   it('filters by bedrooms, bathrooms and pets', async () => {
@@ -70,7 +78,7 @@ describe('GET /api/listings', () => {
 
   it('sorts by price and paginates', async () => {
     const page1 = await search('?sort=price_asc');
-    const rents = page1.results.map((l) => l.rent);
+    const rents = page1.results.map(rentOf);
     expect(rents).toEqual([...rents].sort((a, b) => a - b));
     expect(rents[0]).toBe(Math.min(...RENTALS.map((r) => r.rent)));
 
@@ -91,6 +99,7 @@ describe('GET /api/listings/:id', () => {
     const listing: ListingDetail = response.body;
     expect(listing).toMatchObject({
       id: 1,
+      listingType: 'rent',
       address: RENTALS[0].address,
       rent: RENTALS[0].rent,
       neighborhood: { slug: 'harborview', name: 'Harborview' },
@@ -112,7 +121,8 @@ describe('GET /api/neighborhoods', () => {
     const response = await request(app).get('/api/neighborhoods').expect(200);
     const neighborhoods: Neighborhood[] = response.body;
     expect(neighborhoods).toHaveLength(8);
-    expect(neighborhoods.reduce((sum, n) => sum + n.listingCount, 0)).toBe(RENTALS.length);
+    expect(neighborhoods.reduce((sum, n) => sum + n.rentalCount, 0)).toBe(RENTALS.length);
+    expect(neighborhoods.reduce((sum, n) => sum + n.forSaleCount, 0)).toBe(22);
 
     const saltmarsh = neighborhoods.find((n) => n.slug === 'saltmarsh');
     expect(saltmarsh?.medianRent).toBe(1950);

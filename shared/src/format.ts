@@ -1,4 +1,4 @@
-import type { LaundryType, ParkingType, PetPolicy, PropertyType } from './types';
+import type { LaundryType, ListingSummary, ParkingType, PetPolicy, PropertyType, SaleStatus } from './types';
 
 const currency = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -16,7 +16,36 @@ export function formatRent(amount: number): string {
   return `${currency.format(amount)}/mo`;
 }
 
-/** Short price used on map markers: $950, $2.4K, $13K. */
+/** The headline price: monthly rent, the asking price, or what a sold home went for. */
+export function listingPrice(listing: ListingSummary): number {
+  if (listing.listingType === 'rent') return listing.rent;
+  return listing.soldPrice ?? listing.listPrice;
+}
+
+export function formatListingPrice(listing: ListingSummary): string {
+  return listing.listingType === 'rent' ? formatRent(listing.rent) : formatCurrency(listingPrice(listing));
+}
+
+export function formatPricePerSqft(price: number, sqft: number): string {
+  return `${formatCurrency(price / sqft)}/sqft`;
+}
+
+export function formatPercent(fraction: number, digits = 1): string {
+  return `${(fraction * 100).toFixed(digits).replace(/\.0+$/, '')}%`;
+}
+
+const SQFT_PER_ACRE = 43_560;
+
+/** Small lots in square feet, larger ones (a quarter acre and up) in acres. */
+export function formatLotSize(sqft: number): string {
+  if (sqft >= SQFT_PER_ACRE / 4) {
+    const acres = trimDecimals(sqft / SQFT_PER_ACRE, 2);
+    return `${acres} ${acres === '1' ? 'acre' : 'acres'}`;
+  }
+  return `${integer.format(sqft)} sqft`;
+}
+
+/** Short price used on map markers: $950, $2.4K, $13K, $1.25M. */
 export function formatCompactPrice(amount: number): string {
   if (amount >= 1_000_000) {
     return `$${trimDecimals(amount / 1_000_000, 2)}M`;
@@ -28,8 +57,10 @@ export function formatCompactPrice(amount: number): string {
   return `$${Math.round(amount)}`;
 }
 
+/** Fixed decimals without trailing zeros: 2.50 -> "2.5", 600 -> "600". */
 function trimDecimals(value: number, digits: number): string {
-  return value.toFixed(digits).replace(/\.?0+$/, '');
+  const fixed = value.toFixed(digits);
+  return fixed.includes('.') ? fixed.replace(/\.?0+$/, '') : fixed;
 }
 
 /** "1180 Shore Drive #6C", "200 Millrace Road, Loft 4", or just the street address. */
@@ -105,6 +136,12 @@ export const PROPERTY_TYPE_LABELS: Record<PropertyType, string> = {
   townhouse: 'Townhouse',
   house: 'House',
   loft: 'Loft',
+};
+
+export const SALE_STATUS_LABELS: Record<SaleStatus, string> = {
+  active: 'For sale',
+  pending: 'Pending',
+  sold: 'Sold',
 };
 
 export const PET_POLICY_LABELS: Record<PetPolicy, string> = {

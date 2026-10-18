@@ -6,6 +6,8 @@ import {
   formatAvailability,
   formatCompactPrice,
   formatListedAgo,
+  formatLotSize,
+  formatPercent,
   formatRent,
 } from '../src/format';
 
@@ -19,11 +21,27 @@ describe('price formatting', () => {
     [1000, '$1K'],
     [2450, '$2.5K'],
     [12_500, '$13K'],
+    [20_000, '$20K'],
+    [600_000, '$600K'],
     [825_000, '$825K'],
     [1_250_000, '$1.25M'],
     [2_000_000, '$2M'],
   ])('compacts %d to %s', (amount, expected) => {
     expect(formatCompactPrice(amount)).toBe(expected);
+  });
+});
+
+describe('sale formatting', () => {
+  it('formats lot sizes in square feet up to a quarter acre, then in acres', () => {
+    expect(formatLotSize(5200)).toBe('5,200 sqft');
+    expect(formatLotSize(10_890)).toBe('0.25 acres');
+    expect(formatLotSize(43_560)).toBe('1 acre');
+  });
+
+  it('formats ratios as percentages without trailing zeros', () => {
+    expect(formatPercent(1.0296)).toBe('103%');
+    expect(formatPercent(0.28)).toBe('28%');
+    expect(formatPercent(0.035, 1)).toBe('3.5%');
   });
 });
 

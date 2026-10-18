@@ -1,12 +1,13 @@
-import type { ListingDetail, ListingFilters, ListingSearchResult } from '@hearth/shared';
+import type { ListingDetail, ListingFilters, ListingSearchResult, PriceEvent } from '@hearth/shared';
 import type { Database } from '../../db/connection';
-import { buildListingQuery } from '../lib/listingQuery';
+import { PRICE_COLUMN, buildListingQuery } from '../lib/listingQuery';
 import {
   toListingDetail,
   toListingSummary,
   toMapPoint,
   type ListingRow,
   type MapPointRow,
+  type ViewContext,
 } from '../lib/serializers';
 
 export const LISTING_FROM = 'FROM listings l JOIN neighborhoods n ON n.id = l.neighborhood_id';
@@ -19,13 +20,16 @@ export const LISTING_COLUMNS = `
   l.*,
   n.slug AS neighborhood_slug,
   n.name AS neighborhood_name,
-  EXISTS (SELECT 1 FROM favorites f WHERE f.listing_id = l.id AND f.client_id = ?) AS is_favorite
+  EXISTS (SELECT 1 FROM favorites f WHERE f.listing_id = l.id AND f.client_id = ?) AS is_favorite,
+  (SELECT ph.price FROM price_history ph
+    WHERE ph.listing_id = l.id AND ph.event = 'listed'
+    ORDER BY ph.event_date DESC, ph.id DESC LIMIT 1) AS original_list_price
 `;
 
 export function searchListings(
   db: Database,
   filters: ListingFilters,
-  clientId: string,
+  view: ViewContext,
 ): ListingSearchResult {
   const query = buildListingQuery(filters);
 
@@ -39,14 +43,16 @@ export function searchListings(
        ORDER BY ${query.orderBy}
        LIMIT ? OFFSET ?`,
     )
-    .all(clientId, ...query.params, query.limit, query.offset) as unknown as ListingRow[];
+    .all(view.clientId, ...query.params, query.limit, query.offset) as unknown as ListingRow[];
 
+  // Sold homes are marked with what they sold for.
+  const price = filters.type === 'sale' ? `COALESCE(l.sold_price, ${PRICE_COLUMN.sale})` : PRICE_COLUMN.rent;
   const points = db
-    .prepare(`SELECT l.id, l.lat, l.lng, l.rent ${LISTING_FROM} ${query.where}`)
+    .prepare(`SELECT l.id, l.lat, l.lng, ${price} AS price, l.sale_status ${LISTING_FROM} ${query.where}`)
     .all(...query.params) as unknown as MapPointRow[];
 
   return {
-    results: rows.map(toListingSummary),
+    results: rows.map((row) => toListingSummary(row, view)),
     mapPoints: points.map(toMapPoint),
     total,
     page: filters.page,
@@ -55,13 +61,22 @@ export function searchListings(
   };
 }
 
-export function getListing(db: Database, id: number, clientId: string): ListingDetail | null {
+export function getListing(db: Database, id: number, view: ViewContext): ListingDetail | null {
   const row = db
     .prepare(`SELECT ${LISTING_COLUMNS} ${LISTING_FROM} WHERE l.id = ?`)
-    .get(clientId, id) as unknown as ListingRow | undefined;
-  return row ? toListingDetail(row) : null;
+    .get(view.clientId, id) as unknown as ListingRow | undefined;
+  return row ? toListingDetail(row, view) : null;
 }
 
 export function listingExists(db: Database, id: number): boolean {
   return db.prepare('SELECT 1 FROM listings WHERE id = ?').get(id) !== undefined;
+}
+
+export function getPriceHistory(db: Database, listingId: number): PriceEvent[] {
+  return db
+    .prepare(
+      `SELECT event_date AS date, event, price FROM price_history
+       WHERE listing_id = ? ORDER BY event_date, id`,
+    )
+    .all(listingId) as unknown as PriceEvent[];
 }

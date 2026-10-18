@@ -7,6 +7,7 @@ import { errorHandler, notFound } from './http';
 import { clientId } from './middleware/clientId';
 import { favoritesRouter } from './routes/favorites';
 import { listingsRouter } from './routes/listings';
+import { marketRouter } from './routes/market';
 import { neighborhoodsRouter } from './routes/neighborhoods';
 
 export interface AppOptions {
@@ -30,6 +31,7 @@ export function createApp({ db, now = () => new Date(), clientDist = null }: App
   app.use('/api/neighborhoods', neighborhoodsRouter(context));
   app.use('/api/listings', listingsRouter(context));
   app.use('/api/favorites', favoritesRouter(context));
+  app.use('/api/market', marketRouter(context));
   app.use('/api', (_req, _res, next) => next(notFound('No such API endpoint')));
 
   if (clientDist && existsSync(join(clientDist, 'index.html'))) {

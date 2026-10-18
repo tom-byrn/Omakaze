@@ -19,6 +19,7 @@ describe('parseListingFilters', () => {
       ),
     );
     expect(filters).toEqual({
+      type: 'rent',
       q: 'brick loft',
       neighborhood: 'old-mill',
       minPrice: 1500,
@@ -26,9 +27,23 @@ describe('parseListingFilters', () => {
       beds: 2,
       baths: 1.5,
       pets: 'dogs',
+      status: null,
       sort: 'price_asc',
       page: 3,
     });
+  });
+
+  it('parses homes-for-sale searches and drops rental-only filters', () => {
+    const filters = parseListingFilters({ type: 'sale', pets: 'cats', status: 'sold', sort: 'price_per_sqft' });
+    expect(filters).toMatchObject({ type: 'sale', pets: null, status: 'sold', sort: 'price_per_sqft' });
+  });
+
+  it('only accepts sort options and statuses that fit the listing type', () => {
+    expect(parseListingFilters({ type: 'sale', sort: 'available' }).sort).toBe('newest');
+    expect(parseListingFilters({ sort: 'price_per_sqft' }).sort).toBe('newest');
+    expect(parseListingFilters({ status: 'pending' }).status).toBeNull();
+    expect(parseListingFilters({ type: 'sale', status: 'withdrawn' }).status).toBeNull();
+    expect(parseListingFilters({ type: 'lease' }).type).toBe('rent');
   });
 
   it('accepts Express-style query objects, using the first value of repeated keys', () => {
@@ -80,6 +95,13 @@ describe('filtersToSearchParams', () => {
     expect(filtersToSearchParams({ page: 1, sort: 'newest' }).toString()).toBe('');
   });
 
+  it('includes the listing type and status only for homes for sale', () => {
+    expect(filtersToSearchParams({ type: 'sale', status: 'pending', maxPrice: 900000 }).toString()).toBe(
+      'type=sale&maxPrice=900000&status=pending',
+    );
+    expect(filtersToSearchParams({ type: 'rent' }).toString()).toBe('');
+  });
+
   it('round-trips through parseListingFilters', () => {
     const filters = {
       ...DEFAULT_FILTERS,
@@ -104,5 +126,6 @@ describe('countActiveFilters', () => {
     expect(
       countActiveFilters({ ...DEFAULT_FILTERS, neighborhood: 'saltmarsh', beds: 1, baths: 1, pets: 'dogs' }),
     ).toBe(4);
+    expect(countActiveFilters({ ...DEFAULT_FILTERS, type: 'sale', status: 'sold' })).toBe(1);
   });
 });

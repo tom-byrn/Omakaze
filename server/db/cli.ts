@@ -3,12 +3,16 @@ import { relative } from 'node:path';
 import { config } from '../src/config';
 import { openDatabase } from './connection';
 import { migrate } from './migrate';
-import { seed } from './seed';
+import { seed, type SeedSummary } from './seed';
 
 const USAGE = 'Usage: tsx db/cli.ts <migrate|seed|reset>';
 
 function describe(file: string): string {
   return relative(process.cwd(), file) || file;
+}
+
+function describeSeed({ rentals, sales, neighborhoods }: SeedSummary): string {
+  return `${rentals} rentals and ${sales} homes for sale in ${neighborhoods} neighborhoods`;
 }
 
 function run(command: string | undefined): void {
@@ -28,7 +32,7 @@ function run(command: string | undefined): void {
       const db = openDatabase(file);
       migrate(db);
       const summary = seed(db);
-      console.log(`Seeded ${summary.listings} listings in ${summary.neighborhoods} neighborhoods`);
+      console.log(`Seeded ${describeSeed(summary)}`);
       return;
     }
     case 'reset': {
@@ -39,9 +43,7 @@ function run(command: string | undefined): void {
       const applied = migrate(db);
       const summary = seed(db);
       db.close();
-      console.log(
-        `Reset ${describe(file)}: ${applied.length} migrations, ${summary.listings} listings in ${summary.neighborhoods} neighborhoods`,
-      );
+      console.log(`Reset ${describe(file)}: ${applied.length} migrations, ${describeSeed(summary)}`);
       return;
     }
     default:

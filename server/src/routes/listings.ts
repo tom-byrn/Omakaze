@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { parseListingFilters, validateInquiry, type FilterSource } from '@hearth/shared';
-import { today, type AppContext } from '../context';
+import { today, viewOf, type AppContext } from '../context';
 import { notFound, parseId, validationError } from '../http';
 import { createInquiry } from '../repositories/inquiries';
-import { getListing, listingExists, searchListings } from '../repositories/listings';
+import { getListing, getPriceHistory, listingExists, searchListings } from '../repositories/listings';
 
 export function listingsRouter(context: AppContext): Router {
   const { db } = context;
@@ -11,13 +11,19 @@ export function listingsRouter(context: AppContext): Router {
 
   router.get('/', (req, res) => {
     const filters = parseListingFilters(req.query as FilterSource);
-    res.json(searchListings(db, filters, req.clientId));
+    res.json(searchListings(db, filters, viewOf(context, req)));
   });
 
   router.get('/:id', (req, res) => {
-    const listing = getListing(db, parseId(req.params.id, 'Listing'), req.clientId);
+    const listing = getListing(db, parseId(req.params.id, 'Listing'), viewOf(context, req));
     if (!listing) throw notFound('Listing not found');
     res.json(listing);
+  });
+
+  router.get('/:id/price-history', (req, res) => {
+    const listingId = parseId(req.params.id, 'Listing');
+    if (!listingExists(db, listingId)) throw notFound('Listing not found');
+    res.json({ listingId, events: getPriceHistory(db, listingId) });
   });
 
   router.post('/:id/inquiries', (req, res) => {

@@ -5,7 +5,7 @@ import {
   formatAvailability,
   formatBaths,
   formatBeds,
-  formatRent,
+  formatListingPrice,
   formatSqft,
   type ListingSummary,
 } from '@hearth/shared';
@@ -24,7 +24,7 @@ const NEW_LISTING_DAYS = 3;
 
 export function ListingCard({ listing, today, highlighted = false, onHover, onFavoriteChange }: ListingCardProps) {
   const isNew = daysBetween(listing.listedAt, today) <= NEW_LISTING_DAYS;
-  const availableNow = listing.availableOn <= today;
+  const availableNow = listing.listingType === 'rent' && listing.availableOn <= today;
 
   return (
     <article
@@ -41,7 +41,7 @@ export function ListingCard({ listing, today, highlighted = false, onHover, onFa
           </div>
         </div>
         <div className="listing-card__body">
-          <div className="listing-card__price">{formatRent(listing.rent)}</div>
+          <div className="listing-card__price">{formatListingPrice(listing)}</div>
           <div className="listing-card__facts">
             <span>{formatBeds(listing.beds)}</span>
             <span>{formatBaths(listing.baths)}</span>
@@ -50,7 +50,7 @@ export function ListingCard({ listing, today, highlighted = false, onHover, onFa
           <div className="listing-card__address">{formatAddress(listing.address, listing.unit)}</div>
           <div className="listing-card__meta">
             {listing.neighborhood.name}
-            {!availableNow && <> · {formatAvailability(listing.availableOn, today)}</>}
+            {listing.listingType === 'rent' && !availableNow && <> · {formatAvailability(listing.availableOn, today)}</>}
           </div>
         </div>
       </Link>

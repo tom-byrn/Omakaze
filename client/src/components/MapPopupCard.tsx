@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { formatAddress, formatBaths, formatBeds, formatRent, type ListingSummary } from '@hearth/shared';
+import { formatAddress, formatBaths, formatBeds, formatListingPrice, type ListingSummary } from '@hearth/shared';
 import { api } from '../api';
 import { useAsync } from '../hooks/useAsync';
 import { ListingPhoto } from './illustrations/ListingPhoto';
@@ -24,7 +24,7 @@ export function MapPopupCard({ listingId, listing }: MapPopupCardProps) {
     <Link to={`/homes/${data.id}`} className="map-popup-card">
       <ListingPhoto listingId={data.id} propertyType={data.propertyType} className="map-popup-card__photo" />
       <div className="map-popup-card__body">
-        <strong>{formatRent(data.rent)}</strong>
+        <strong>{formatListingPrice(data)}</strong>
         <span>
           {formatBeds(data.beds)} · {formatBaths(data.baths)}
         </span>

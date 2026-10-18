@@ -1,14 +1,15 @@
 import { Router } from 'express';
-import type { AppContext } from '../context';
+import { viewOf, type AppContext } from '../context';
 import { notFound, parseId } from '../http';
 import { addFavorite, listFavorites, removeFavorite } from '../repositories/favorites';
 import { listingExists } from '../repositories/listings';
 
-export function favoritesRouter({ db }: AppContext): Router {
+export function favoritesRouter(context: AppContext): Router {
+  const { db } = context;
   const router = Router();
 
   router.get('/', (req, res) => {
-    res.json(listFavorites(db, req.clientId));
+    res.json(listFavorites(db, viewOf(context, req)));
   });
 
   router.put('/:listingId', (req, res) => {

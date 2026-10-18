@@ -10,8 +10,9 @@ import {
   formatCurrency,
   formatDate,
   formatListedAgo,
+  formatListingPrice,
   formatNumber,
-  formatRent,
+  type RentalDetail,
 } from '@hearth/shared';
 import { ApiError, api } from '../api';
 import { ContactForm } from '../components/ContactForm';
@@ -54,20 +55,8 @@ export function ListingPage() {
   }
 
   const neighborhood = neighborhoods.find((hood) => hood.slug === listing.neighborhood.slug);
-  const facts = [
-    { label: 'Property type', value: PROPERTY_TYPE_LABELS[listing.propertyType] },
-    { label: 'Available', value: listing.availableOn <= today ? 'Now' : formatDate(listing.availableOn) },
-    { label: 'Lease term', value: `${listing.leaseTermMonths} months` },
-    { label: 'Security deposit', value: formatCurrency(listing.deposit) },
-    { label: 'Size', value: `${formatNumber(listing.sqft)} sqft` },
-    { label: 'Listed', value: formatListedAgo(listing.listedAt, today) },
-  ];
-  const highlights = [
-    { icon: <PawIcon />, label: PET_POLICY_LABELS[listing.pets] },
-    { icon: <WasherIcon />, label: LAUNDRY_LABELS[listing.laundry] },
-    { icon: <CarIcon />, label: PARKING_LABELS[listing.parking] },
-    { icon: <CalendarIcon />, label: formatAvailability(listing.availableOn, today) },
-  ];
+  const facts = listing.listingType === 'rent' ? rentalFacts(listing, today) : [];
+  const highlights = listing.listingType === 'rent' ? rentalHighlights(listing, today) : [];
 
   return (
     <>
@@ -87,7 +76,7 @@ export function ListingPage() {
             <section className="listing-summary">
               <div className="listing-summary__top">
                 <div>
-                  <div className="listing-price">{formatRent(listing.rent)}</div>
+                  <div className="listing-price">{formatListingPrice(listing)}</div>
                   <ul className="key-stats">
                     <li>
                       <BedIcon />
@@ -156,7 +145,7 @@ export function ListingPage() {
               <h2>Location</h2>
               <div className="listing-map">
                 <MapView
-                  markers={[{ id: listing.id, location: listing.location, label: formatRent(listing.rent) }]}
+                  markers={[{ id: listing.id, location: listing.location, label: formatListingPrice(listing) }]}
                   interactive={false}
                   initialCenter={listing.location}
                   initialZoom={2.6}
@@ -182,4 +171,24 @@ export function ListingPage() {
       <Footer />
     </>
   );
+}
+
+function rentalFacts(listing: RentalDetail, today: string) {
+  return [
+    { label: 'Property type', value: PROPERTY_TYPE_LABELS[listing.propertyType] },
+    { label: 'Available', value: listing.availableOn <= today ? 'Now' : formatDate(listing.availableOn) },
+    { label: 'Lease term', value: `${listing.leaseTermMonths} months` },
+    { label: 'Security deposit', value: formatCurrency(listing.deposit) },
+    { label: 'Size', value: `${formatNumber(listing.sqft)} sqft` },
+    { label: 'Listed', value: formatListedAgo(listing.listedAt, today) },
+  ];
+}
+
+function rentalHighlights(listing: RentalDetail, today: string) {
+  return [
+    { icon: <PawIcon />, label: PET_POLICY_LABELS[listing.pets] },
+    { icon: <WasherIcon />, label: LAUNDRY_LABELS[listing.laundry] },
+    { icon: <CarIcon />, label: PARKING_LABELS[listing.parking] },
+    { icon: <CalendarIcon />, label: formatAvailability(listing.availableOn, today) },
+  ];
 }

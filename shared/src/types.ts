@@ -6,6 +6,10 @@ export type LaundryType = 'in_unit' | 'shared' | 'none';
 
 export type ParkingType = 'garage' | 'off_street' | 'street' | 'none';
 
+export type ListingType = 'rent' | 'sale';
+
+export type SaleStatus = 'active' | 'pending' | 'sold';
+
 export interface LatLng {
   lat: number;
   lng: number;
@@ -21,26 +25,48 @@ export interface Neighborhood extends NeighborhoodRef {
   tagline: string;
   description: string;
   center: LatLng;
-  listingCount: number;
+  rentalCount: number;
+  forSaleCount: number;
   medianRent: number | null;
 }
 
-export interface ListingSummary {
+interface ListingBase {
   id: number;
+  listingType: ListingType;
   address: string;
   unit: string | null;
   neighborhood: NeighborhoodRef;
   propertyType: PropertyType;
-  rent: number;
   beds: number;
   baths: number;
   sqft: number;
   location: LatLng;
-  availableOn: string;
   listedAt: string;
-  pets: PetPolicy;
   isFavorite: boolean;
 }
+
+export interface RentalSummary extends ListingBase {
+  listingType: 'rent';
+  rent: number;
+  availableOn: string;
+  pets: PetPolicy;
+}
+
+export interface SaleSummary extends ListingBase {
+  listingType: 'sale';
+  listPrice: number;
+  status: SaleStatus;
+  /** Monthly cost with the default assumptions: 20% down, 30-year fixed at today's rate. */
+  estimatedPayment: number;
+  /** Days since listing, or until the sale for sold homes. */
+  daysOnMarket: number;
+  /** Most recent price change on the current listing; negative for a price cut. */
+  priceChange: number | null;
+  soldPrice: number | null;
+  soldOn: string | null;
+}
+
+export type ListingSummary = RentalSummary | SaleSummary;
 
 export interface Agent {
   name: string;
@@ -48,21 +74,36 @@ export interface Agent {
   phone: string;
 }
 
-export interface ListingDetail extends ListingSummary {
+interface ListingDetails {
   description: string;
-  deposit: number;
-  leaseTermMonths: number;
   laundry: LaundryType;
   parking: ParkingType;
   amenities: string[];
   agent: Agent;
 }
 
+export interface RentalDetail extends RentalSummary, ListingDetails {
+  deposit: number;
+  leaseTermMonths: number;
+}
+
+export interface SaleDetail extends SaleSummary, ListingDetails {
+  hoaMonthly: number;
+  /** Annual property tax as a share of the price. */
+  propertyTaxRate: number;
+  yearBuilt: number | null;
+  lotSqft: number | null;
+}
+
+export type ListingDetail = RentalDetail | SaleDetail;
+
 /** Lightweight marker data for every listing that matches a search. */
 export interface MapPoint {
   id: number;
   location: LatLng;
   price: number;
+  /** Sale status, so pending and sold homes can be drawn muted. */
+  status: SaleStatus | null;
 }
 
 export interface ListingSearchResult {
@@ -72,6 +113,33 @@ export interface ListingSearchResult {
   page: number;
   pageSize: number;
   pageCount: number;
+}
+
+export type PriceEventType = 'listed' | 'price_change' | 'pending' | 'sold';
+
+export interface PriceEvent {
+  date: string;
+  event: PriceEventType;
+  price: number;
+}
+
+export interface MarketMetrics {
+  activeCount: number;
+  pendingCount: number;
+  /** Homes sold in the last 12 months. */
+  soldCount: number;
+  medianListPrice: number | null;
+  medianPricePerSqft: number | null;
+  averageDaysOnMarket: number | null;
+  /** Average sale price as a share of the final list price, e.g. 1.012. */
+  saleToListRatio: number | null;
+}
+
+export interface MarketStats {
+  neighborhood: NeighborhoodRef;
+  metrics: MarketMetrics;
+  city: MarketMetrics;
+  asOf: string;
 }
 
 export type InquiryKind = 'question' | 'tour';

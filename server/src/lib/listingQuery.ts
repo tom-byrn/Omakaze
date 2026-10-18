@@ -1,12 +1,12 @@
 import type { SQLInputValue } from 'node:sqlite';
-import { PAGE_SIZE, type ListingFilters, type SortOption } from '@hearth/shared';
+import { PAGE_SIZE, type ListingFilters, type ListingType, type SortOption } from '@hearth/shared';
 
 /**
  * The pieces of a listing search, ready to be dropped into a statement that
  * selects `FROM listings l JOIN neighborhoods n ON n.id = l.neighborhood_id`.
  */
 export interface ListingQuery {
-  /** Either an empty string or a fragment starting with `WHERE`. */
+  /** A fragment starting with `WHERE`; the listing type is always constrained. */
   where: string;
   params: SQLInputValue[];
   orderBy: string;
@@ -14,13 +14,28 @@ export interface ListingQuery {
   offset: number;
 }
 
-const ORDER_BY: Record<SortOption, string> = {
-  newest: 'l.listed_at DESC, l.id DESC',
-  price_asc: 'l.rent ASC, l.id ASC',
-  price_desc: 'l.rent DESC, l.id ASC',
-  size_desc: 'l.sqft DESC, l.id ASC',
-  available: 'l.available_on ASC, l.rent ASC, l.id ASC',
+/** The column holding a listing's headline price: monthly rent or the asking price. */
+export const PRICE_COLUMN: Record<ListingType, string> = {
+  rent: 'l.rent',
+  sale: 'l.list_price',
 };
+
+function orderBy(sort: SortOption, price: string): string {
+  switch (sort) {
+    case 'newest':
+      return 'l.listed_at DESC, l.id DESC';
+    case 'price_asc':
+      return `${price} ASC, l.id ASC`;
+    case 'price_desc':
+      return `${price} DESC, l.id ASC`;
+    case 'size_desc':
+      return 'l.sqft DESC, l.id ASC';
+    case 'available':
+      return `l.available_on ASC, ${price} ASC, l.id ASC`;
+    case 'price_per_sqft':
+      return `CAST(${price} AS REAL) / l.sqft ASC, l.id ASC`;
+  }
+}
 
 /** Search terms beyond this many are ignored to keep the statement small. */
 const MAX_SEARCH_TERMS = 5;
@@ -31,8 +46,9 @@ export function escapeLike(term: string): string {
 }
 
 export function buildListingQuery(filters: ListingFilters, pageSize: number = PAGE_SIZE): ListingQuery {
-  const clauses: string[] = [];
-  const params: SQLInputValue[] = [];
+  const price = PRICE_COLUMN[filters.type];
+  const clauses: string[] = ['l.listing_type = ?'];
+  const params: SQLInputValue[] = [filters.type];
 
   if (filters.q) {
     // Every word has to match somewhere, so "brick loft" narrows rather than widens the results.
@@ -51,12 +67,12 @@ export function buildListingQuery(filters: ListingFilters, pageSize: number = PA
   }
 
   if (filters.minPrice !== null) {
-    clauses.push('l.rent >= ?');
+    clauses.push(`${price} >= ?`);
     params.push(filters.minPrice);
   }
 
   if (filters.maxPrice !== null) {
-    clauses.push('l.rent <= ?');
+    clauses.push(`${price} <= ?`);
     params.push(filters.maxPrice);
   }
 
@@ -76,10 +92,20 @@ export function buildListingQuery(filters: ListingFilters, pageSize: number = PA
     clauses.push("l.pets IN ('dogs', 'cats_dogs')");
   }
 
+  if (filters.type === 'sale') {
+    // Without a status filter, show what can still be bought (or backed up on).
+    if (filters.status) {
+      clauses.push('l.sale_status = ?');
+      params.push(filters.status);
+    } else {
+      clauses.push("l.sale_status IN ('active', 'pending')");
+    }
+  }
+
   return {
-    where: clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '',
+    where: `WHERE ${clauses.join(' AND ')}`,
     params,
-    orderBy: ORDER_BY[filters.sort],
+    orderBy: orderBy(filters.sort, price),
     limit: pageSize,
     offset: (filters.page - 1) * pageSize,
   };
