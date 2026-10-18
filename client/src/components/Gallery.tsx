@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PropertyType } from '@hearth/shared';
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, PhotosIcon } from './Icons';
 import { ListingPhoto, PHOTO_KINDS, PHOTO_LABELS } from './illustrations/ListingPhoto';
@@ -12,6 +12,18 @@ interface GalleryProps {
 /** Photo collage for the listing page with a full-screen viewer. */
 export function Gallery({ listingId, propertyType, title }: GalleryProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  // The button that opened the viewer gets focus back when it closes.
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  const open = (index: number, opener: HTMLElement) => {
+    openerRef.current = opener;
+    setOpenIndex(index);
+  };
+
+  const close = () => {
+    setOpenIndex(null);
+    openerRef.current?.focus();
+  };
 
   return (
     <>
@@ -21,13 +33,13 @@ export function Gallery({ listingId, propertyType, title }: GalleryProps) {
             key={kind}
             type="button"
             className={`gallery__tile${index === 0 ? ' gallery__tile--main' : ''}`}
-            onClick={() => setOpenIndex(index)}
+            onClick={(event) => open(index, event.currentTarget)}
             aria-label={`Open photo: ${PHOTO_LABELS[kind]}`}
           >
             <ListingPhoto listingId={listingId} propertyType={propertyType} kind={kind} />
           </button>
         ))}
-        <button type="button" className="gallery__all" onClick={() => setOpenIndex(0)}>
+        <button type="button" className="gallery__all" onClick={(event) => open(0, event.currentTarget)}>
           <PhotosIcon size={18} />
           View all {PHOTO_KINDS.length} photos
         </button>
@@ -39,7 +51,7 @@ export function Gallery({ listingId, propertyType, title }: GalleryProps) {
           title={title}
           index={openIndex}
           onIndexChange={setOpenIndex}
-          onClose={() => setOpenIndex(null)}
+          onClose={close}
         />
       )}
     </>
@@ -54,6 +66,13 @@ interface LightboxProps extends GalleryProps {
 
 function Lightbox({ listingId, propertyType, title, index, onIndexChange, onClose }: LightboxProps) {
   const count = PHOTO_KINDS.length;
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Move focus into the dialog so the arrow keys and Escape work right away for screen reader users too.
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, []);
+
   const go = (delta: number) => onIndexChange((index + delta + count) % count);
 
   useEffect(() => {
@@ -78,7 +97,13 @@ function Lightbox({ listingId, propertyType, title, index, onIndexChange, onClos
         <span className="lightbox__count">
           {index + 1} / {count}
         </span>
-        <button type="button" className="icon-button icon-button--dark" onClick={onClose} aria-label="Close photos">
+        <button
+          ref={closeRef}
+          type="button"
+          className="icon-button icon-button--dark"
+          onClick={onClose}
+          aria-label="Close photos"
+        >
           <CloseIcon />
         </button>
       </div>
