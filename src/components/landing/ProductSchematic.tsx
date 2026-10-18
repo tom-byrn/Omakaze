@@ -1,6 +1,7 @@
 "use client";
 
 import { RiArrowRightUpLine, RiCheckLine, RiPlayFill } from "@remixicon/react";
+import Image from "next/image";
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 const K = "#D73A49"; // keyword
@@ -413,20 +414,15 @@ function Recording({ playing }: { playing: boolean }) {
   return (
     <div className="relative mt-4 aspect-[16/8.4] overflow-hidden border border-black/15 bg-white">
       <div className="grid h-full grid-cols-[46%_54%] pb-[26px]">
-        <div className="relative overflow-hidden bg-gradient-to-b from-[#cfe3f2] to-[#eef2f5]">
-          <span className="absolute bottom-0 left-0 h-[22%] w-full bg-[#b9c9a3]" />
-          <span className="absolute bottom-[22%] left-[22%] h-[34%] w-[56%] bg-[#f4efe6] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]" />
-          <span className="absolute bottom-[56%] left-[16%] h-0 w-0 border-x-[50px] border-b-[30px] border-x-transparent border-b-[#8a5a44]" />
-          <span className="absolute bottom-[22%] left-[44%] h-[18%] w-[12%] bg-[#6d4a3a]" />
-          <span className="absolute bottom-[38%] left-[28%] h-[9%] w-[10%] bg-[#bcd6ea]" />
-          <span className="absolute bottom-[38%] left-[62%] h-[9%] w-[10%] bg-[#bcd6ea]" />
+        <div className="relative overflow-hidden bg-mist">
+          <Image src="/landing/listing-house.webp" alt="" fill sizes="200px" className="object-cover" />
         </div>
         <div className="relative flex flex-col px-3 pt-3">
-          <p className="font-serif text-[15px] leading-none text-black">4 Elm Row</p>
-          <p className="mt-1 font-mono text-[8.5px] tracking-[0.06em] text-black/45 uppercase">3 bed · 2 bath</p>
-          <p className="mt-2.5 font-serif text-[18px] leading-none text-black">$515,000</p>
+          <p className="font-serif text-[15px] leading-none text-black">2-14 Kazuemachi</p>
+          <p className="mt-1 font-mono text-[8.5px] tracking-[0.06em] text-black/45">Kanazawa · 3LDK · 112 m²</p>
+          <p className="mt-2.5 font-serif text-[18px] leading-none text-black">¥78,000,000</p>
           <p className="mt-1 text-[10px] text-text">
-            Est. <span className="bg-signal/40 px-0.5 font-mono">$2,912</span>/mo
+            Est. <span className="bg-signal/40 px-0.5 font-mono">¥176,000</span>/mo
           </p>
           <span
             className={`mt-auto mb-3 flex h-[24px] items-center justify-center bg-ink text-[10px] text-white ${anim("motion-safe:animate-[rec-press_6s_var(--ease-io)_infinite]")}`}
