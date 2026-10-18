@@ -1,0 +1,197 @@
+{
+  "title": "Add home buying",
+  "summary": "Hearth listed rentals only. This adds homes for sale end to end: a listing is now either a rental or a home for sale, and buyers can estimate payments, read the price history and market stats, make and withdraw offers, request tours, check what they can afford and save searches.\n\n![Homes for sale in Port Ellis, with pending homes muted on the map]({{media:buy-search.png}})\n\n```mermaid\nflowchart LR\n  subgraph shared[\"shared/ · used by both sides\"]\n    MATH[\"mortgage.ts<br/>affordability.ts\"]\n    RULES[\"offers.ts · tours.ts<br/>savedSearches.ts\"]\n  end\n  subgraph server[\"server/ · Express + node:sqlite\"]\n    API[\"/api/listings?type=sale<br/>/api/offers · /api/mortgage<br/>/api/market · /api/saved-searches\"]\n    DB[(\"listings · price_history<br/>offers · tours<br/>saved_searches\")]\n  end\n  subgraph client[\"client/ · React\"]\n    UI[\"Search · Listing page<br/>Make an offer · My offers<br/>Affordability\"]\n  end\n  MATH --> API\n  MATH --> UI\n  RULES --> API\n  RULES --> UI\n  API --> DB\n  UI -- \"fetch\" --> API\n```\n\n### New endpoints\n\n| Method | Path | Purpose |\n| --- | --- | --- |\n| `GET` | `/api/listings?type=sale` | Search homes for sale; `status` filter, `price_per_sqft` sort |\n| `GET` | `/api/listings/:id/price-history` | Listing, price change, pending and sold events |\n| `GET` | `/api/market/:neighborhood` | Median price, $/sqft, days on market, sale-to-list ratio |\n| `POST` | `/api/listings/:id/offers` | Make an offer |\n| `GET` `PATCH` | `/api/offers`, `/api/offers/:id` | The buyer's offers; withdraw one |\n| `GET` `POST` | `/api/mortgage/rates`, `/api/mortgage/estimate` | Today's rates; payment estimate for a home |\n| `GET` `POST` | `/api/listings/:id/tours/availability`, `/api/listings/:id/tours` | Tour slots; request a tour |\n| `GET` `POST` `DELETE` | `/api/saved-searches` | Saved searches with an alert frequency |\n\n### How to review\n\nThe sections follow the dependencies: schema, then the shared rules (they decide what the API accepts), then the API, then the screens.\n\n> [!NOTE]\n> Rentals behave as before. Existing rows migrate as `listing_type = 'rent'`, and every search defaults to `type=rent`.\n\n`pnpm typecheck`, `pnpm test` (158 tests) and `pnpm build` pass.",
+  "sections": [
+    {
+      "title": "Schema: rentals and homes for sale",
+      "body": "`listings` gets a `listing_type` column (`rent` or `sale`) and the sale columns. SQLite can't drop a `NOT NULL` constraint in place, so [002_buying.sql](diff:server/db/migrations/002_buying.sql#L9-L62) rebuilds the table the [documented way](https://www.sqlite.org/lang_altertable.html#otheralter) and copies the existing rows in as rentals, keeping their ids.\n\nA table-level `CHECK` keeps the columns of each type consistent:\n\n| `listing_type` | Required | Must be `NULL` |\n| --- | --- | --- |\n| `rent` | `rent`, `deposit`, `available_on`, `lease_term_months` | `list_price`, `sale_status` |\n| `sale` | `list_price`, `sale_status`, `hoa_monthly`, `property_tax_rate` | `rent` |\n\nA [second check](diff:server/db/migrations/002_buying.sql#L60) ties `sold_price` and `sold_on` to `sale_status = 'sold'`.\n\n```mermaid\nerDiagram\n  neighborhoods ||--o{ listings : contains\n  listings ||--o{ price_history : \"price events\"\n  listings ||--o{ offers : receives\n  listings ||--o{ tours : \"tour requests\"\n  listings {\n    text listing_type \"rent or sale\"\n    int list_price\n    text sale_status \"active, pending, sold\"\n  }\n  offers {\n    text client_id\n    int amount\n    text status \"submitted ... withdrawn\"\n  }\n  saved_searches {\n    text criteria \"JSON filters\"\n    text alert_frequency\n  }\n```\n\nTwo partial unique indexes back up rules the API also checks:\n\n- [`idx_offers_one_open`](diff:server/db/migrations/002_buying.sql#L118-L120): one open offer per buyer and home.\n- [`idx_tours_slot`](diff:server/db/migrations/003_saved_searches_and_tours.sql#L31): one tour per home and time slot.\n\n**Migration runner.** Dropping `listings` fails while `favorites` and `inquiries` reference it with foreign keys on. [`migrate()`](diff:server/db/migrate.ts#L62-L86) now turns them off for the batch and runs `PRAGMA foreign_key_check` before each migration commits.\n\n> [!IMPORTANT]\n> `PRAGMA foreign_keys` has no effect inside a transaction ([SQLite docs](https://www.sqlite.org/pragma.html#pragma_foreign_keys)), so it is set before `BEGIN`.\n\nThe tests migrate a version-1 database with a rental, a favorite and an inquiry, check that all three survive, and check that a migration leaving a dangling reference is rolled back.",
+      "refs": [
+        "server/db/migrations/002_buying.sql",
+        "server/db/migrations/003_saved_searches_and_tours.sql",
+        "server/db/migrate.ts",
+        "server/db/cli.ts",
+        "server/test/migrate.test.ts"
+      ]
+    },
+    {
+      "title": "Types for two kinds of listing",
+      "body": "`ListingSummary` and `ListingDetail` become unions on `listingType`. Rent-only fields (`rent`, `availableOn`, `pets`, `deposit`, `leaseTermMonths`) move to the rental types; the sale fields live on [`SaleSummary`](diff:shared/src/types.ts#L55-L67) and `SaleDetail`.\n\n```ts\nexport type ListingSummary = RentalSummary | SaleSummary;\nexport type ListingDetail = RentalDetail | SaleDetail;\n```\n\nCode that read `listing.rent` has to narrow first, so the compiler pointed at every place that assumed a rental. [`listingPrice()`](diff:shared/src/format.ts#L20-L23) returns the headline price for either kind: the rent, the asking price, or the sale price of a sold home.\n\n`SaleSummary` carries three computed fields:\n\n| Field | Meaning |\n| --- | --- |\n| `estimatedPayment` | Monthly cost at 20% down, 30-year fixed, today's rate |\n| `priceChange` | Current asking price minus the price the listing started at; negative for a cut |\n| `daysOnMarket` | Days since listing, or until the sale for sold homes |\n\nThe input checks that `inquiries.ts` had inline move to [`validation.ts`](diff:shared/src/validation.ts) so offers, tours and saved searches share them. [`isValidIsoDate`](diff:shared/src/validation.ts#L35-L39) rejects dates such as `2026-02-30` that `Date` would roll over.",
+      "refs": [
+        "shared/src/types.ts",
+        "shared/src/format.ts",
+        "shared/src/validation.ts",
+        "shared/src/inquiries.ts",
+        "shared/src/index.ts",
+        "shared/test/format.test.ts"
+      ]
+    },
+    {
+      "title": "Mortgage math",
+      "body": "[`mortgage.ts`](diff:shared/src/mortgage.ts) holds every payment calculation. The server and the client import the same functions, so the estimate on a search card, the calculator on the listing page and `/api/mortgage/estimate` agree.\n\nPrincipal and interest uses the standard amortization formula, where $P$ is the loan, $r$ the monthly rate and $n$ the number of payments ([code](diff:shared/src/mortgage.ts#L109-L115)):\n\n$$\nM = P \\cdot \\frac{r}{1 - (1 + r)^{-n}}\n$$\n\nAt 0% it falls back to $P / n$.\n\nMortgage insurance depends on the loan program:\n\n| Program | Min. down | Insurance | Ends |\n| --- | --- | --- | --- |\n| Conventional | 3% | PMI by loan-to-value, 0.3–0.9% of the loan a year ([`pmiRate`](diff:shared/src/mortgage.ts#L118-L124)) | When the scheduled balance reaches 78% of the price |\n| FHA | 3.5% | MIP, 0.55% of the loan a year | After 11 years with at least 10% down, otherwise never |\n| VA | 0% | None | |\n\n[`amortizationSchedule`](diff:shared/src/mortgage.ts#L171-L190) applies these rules payment by payment, so an estimate can say when insurance stops. For a $400,000 home with 10% down at 6%, PMI is $150 a month for the first 103 payments; the test pins both numbers.\n\n`firstMonthCosts` skips the schedule. Search results use it because they price every home on the page.\n\nAll amounts are unrounded dollars; the API rounds to cents and the screens round for display.",
+      "refs": [
+        "shared/src/mortgage.ts",
+        "shared/test/mortgage.test.ts"
+      ]
+    },
+    {
+      "title": "Affordability",
+      "body": "[`calculateAffordability`](diff:shared/src/affordability.ts#L67-L99) finds the most expensive home whose monthly cost fits debt-to-income limits:\n\n| Limit | Housing (front-end) | Housing + other debts (back-end) |\n| --- | --- | --- |\n| Comfortable | 25% | 33% |\n| Standard | 28% | 36% |\n| Stretch | 31% | 43% |\n\nThe monthly budget is the tighter of the two. There's no closed form for the price because PMI changes in steps with the loan-to-value ratio, and taxes and insurance scale with the price. Monthly cost only ever rises with price, so the function binary-searches it to within 50 cents:\n\n```ts\nwhile (high - low > 0.5) {\n  const mid = (low + high) / 2;\n  if (costsAt(mid, input).total <= monthlyBudget) low = mid;\n  else high = mid;\n}\n```\n\nThe upper bound is safe: every payment repays at least `loan / payments`, so a price above `downPayment + budget × payments` can't fit.\n\nThe result also reports which ratio was the limit, so the page can say whether income or existing debt is holding the price down.",
+      "refs": [
+        "shared/src/affordability.ts",
+        "shared/test/affordability.test.ts"
+      ]
+    },
+    {
+      "title": "Offer, tour and saved-search rules",
+      "body": "The rules for each form live in `shared/`, so the client shows the same errors the API returns. The API validates again before storing anything.\n\n[`validateOffer`](diff:shared/src/offers.ts#L97-L176) checks:\n\n| Rule | Value |\n| --- | --- |\n| Amount | 70–130% of the asking price, whole dollars |\n| Down payment | Cash 100%; conventional ≥ 3%; FHA ≥ 3.5%; VA ≥ 0% |\n| Contingencies | From the list; no financing contingency on a cash offer |\n| Closing | Cash ≥ 14 days out, loans ≥ 21 days, at most 120 days |\n| Note | Up to 1,000 characters |\n\nOffer states:\n\n```mermaid\nstateDiagram-v2\n  [*] --> submitted\n  submitted --> countered: seller counters\n  submitted --> accepted\n  submitted --> rejected\n  countered --> accepted\n  countered --> rejected\n  submitted --> withdrawn: buyer\n  countered --> withdrawn: buyer\n```\n\nBuyers can only withdraw; the seller side is out of scope and is represented by seed data.\n\n[`tourSlots`](diff:shared/src/tours.ts#L21-L25) offers hourly slots, 10:00–17:00 on weekdays and 11:00–15:00 at weekends, for the next 7 days. A saved search stores the normalized filters without the page; [`describeSearch`](diff:shared/src/savedSearches.ts#L37-L49) names it when the buyer doesn't.",
+      "refs": [
+        "shared/src/offers.ts",
+        "shared/src/tours.ts",
+        "shared/src/savedSearches.ts",
+        "shared/test/offers.test.ts",
+        "shared/test/tours.test.ts",
+        "shared/test/savedSearches.test.ts"
+      ]
+    },
+    {
+      "title": "Searching homes for sale",
+      "body": "The filter model gains `type` (`rent` by default) and, for homes for sale, `status`. Sort options declare which listing types they apply to, so \"Available soonest\" only appears for rentals and \"Price per sqft\" only for homes for sale ([filters.ts](diff:shared/src/filters.ts#L3-L10)).\n\n[`buildListingQuery`](diff:server/src/lib/listingQuery.ts#L48-L112) now always constrains `listing_type`, and price filters and sorts use the type's price column:\n\n```ts\nexport const PRICE_COLUMN: Record<ListingType, string> = {\n  rent: 'l.rent',\n  sale: 'l.list_price',\n};\n```\n\nWithout a status filter, a sale search returns active and pending homes; sold homes appear only when asked for.\n\nSerialization ([serializers.ts](diff:server/src/lib/serializers.ts#L91-L132)) builds the rental or sale shape from one row:\n\n- `estimatedPayment` runs the shared mortgage math with the default assumptions and today's rate from `CURRENT_RATES`.\n- `priceChange` compares the asking price with the latest `listed` event in `price_history`, selected in [`LISTING_COLUMNS`](diff:server/src/repositories/listings.ts#L19-L27).\n- `daysOnMarket` counts to today, or to the sale date for sold homes. Serializers now take a `ViewContext` with the client id and today's date so tests can fix the date.\n\nMap points for sold homes use the sale price, and pending and sold points carry their status so the map can mute them.",
+      "refs": [
+        "shared/src/filters.ts",
+        "shared/test/filters.test.ts",
+        "server/src/lib/listingQuery.ts",
+        "server/test/listingQuery.test.ts",
+        "server/src/lib/serializers.ts",
+        "server/src/repositories/listings.ts",
+        "server/src/routes/listings.ts",
+        "server/src/repositories/favorites.ts",
+        "server/src/routes/favorites.ts",
+        "server/src/repositories/neighborhoods.ts",
+        "server/src/context.ts",
+        "server/test/sales.api.test.ts",
+        "server/test/api.test.ts"
+      ]
+    },
+    {
+      "title": "Market stats",
+      "body": "`GET /api/market/:neighborhood` returns the neighborhood's metrics next to the whole city's, computed by [`computeMarketMetrics`](diff:server/src/services/marketStats.ts#L24-L43):\n\n| Metric | Computed from |\n| --- | --- |\n| Median list price, median $/sqft | Homes currently for sale (active or pending) |\n| Average days on market | Current listings up to today, sold homes up to their sale |\n| Sale-to-list ratio | Sales in the last 12 months, sale price ÷ final asking price |\n| Active / pending / sold | Counts; sold covers the last 12 months |\n\nMetrics with nothing to measure are `null` rather than `0`, and the page shows \"—\" for them instead of a misleading number.\n\nThe function is pure and takes `today` as an argument; [market.test.ts](diff:server/test/market.test.ts) feeds it fixed rows. `mean()` joins `median()` in [stats.ts](diff:server/src/lib/stats.ts).",
+      "refs": [
+        "server/src/services/marketStats.ts",
+        "server/src/routes/market.ts",
+        "server/src/lib/stats.ts",
+        "server/test/market.test.ts"
+      ]
+    },
+    {
+      "title": "Offers API",
+      "body": "[`POST /api/listings/:id/offers`](diff:server/src/routes/offers.ts#L13-L28) checks, in order:\n\n1. The listing exists and is for sale (`404`, `409` for rentals).\n2. The home is still active. Pending and sold homes return `409` with a message the form shows as is.\n3. `validateOffer` passes against the asking price and today's date (`400` with field errors).\n4. The buyer has no open offer on the home (`409`).\n\nThe fourth check is also enforced by `idx_offers_one_open`, so a bug here would surface as a constraint error rather than a duplicate offer.\n\n| Status code | When |\n| --- | --- |\n| `201` | Offer created, returned in full |\n| `400` | Field errors, keyed by input name |\n| `404` | Unknown listing, or someone else's offer |\n| `409` | Rental, pending or sold home, second open offer, withdrawing a closed offer |\n\nBuyers are identified by the anonymous `hearth_cid` cookie, as favorites already were. [`findOffer`](diff:server/src/repositories/offers.ts#L91-L96) filters by client id, so another client's offer id returns `404`, not `403`, and doesn't reveal that it exists.\n\n`PATCH /api/offers/:id` accepts only `{ \"status\": \"withdrawn\" }`.",
+      "refs": [
+        "server/src/routes/offers.ts",
+        "server/src/repositories/offers.ts",
+        "server/src/http.ts",
+        "server/test/offers.api.test.ts"
+      ]
+    },
+    {
+      "title": "Estimates, tours and saved searches API",
+      "body": "**Payment estimates.** [`POST /api/mortgage/estimate`](diff:server/src/routes/mortgage.ts#L77-L96) takes any of price, down payment, term, program and rate. With a `listingId`, the home's asking price, tax rate and HOA dues fill in what the request leaves out. Rates come from [`CURRENT_RATES`](diff:server/src/rates.ts), fixed so estimates are reproducible; a deployment would refresh them daily. `includeSchedule: true` adds the yearly amortization table.\n\n**Tours.** `GET …/tours/availability` returns the next 7 days of slots with booked ones marked unavailable. `POST` re-checks the slot and returns `409` if it is taken; `idx_tours_slot` enforces the same rule in the database.\n\n**Saved searches.** The server normalizes the criteria with the shared filter parser, refuses an exact duplicate and caps a client at 25 searches. Each saved search reports how many homes match now and how many were listed since it was saved ([savedSearches.ts](diff:server/src/repositories/savedSearches.ts#L13-L25)).\n\nThe new routers are mounted in [app.ts](diff:server/src/app.ts#L36-L43).",
+      "refs": [
+        "server/src/routes/mortgage.ts",
+        "server/src/rates.ts",
+        "server/src/routes/tours.ts",
+        "server/src/repositories/tours.ts",
+        "server/src/routes/savedSearches.ts",
+        "server/src/repositories/savedSearches.ts",
+        "server/src/app.ts",
+        "server/test/buying.api.test.ts"
+      ]
+    },
+    {
+      "title": "Sample data",
+      "body": "The seed adds 30 homes for sale across the eight neighborhoods: active, pending and sold in the last year. Each has a price history going back to earlier sales, so price cuts, sale-to-list ratios and days on market have real inputs.\n\n[`SALES`](diff:server/db/seed/sales.ts#L4-L9) describes each home's history as events, dated absolutely or relative to the seed date:\n\n```ts\nhistory: [['2019-08-14', 'sold', 815000], [-21, 'listed', 949000]],\n```\n\nThe seeder derives `list_price`, `sale_status`, `sold_price` and `listed_at` from the events after the last `listed`, so the listing and its history can't disagree.\n\n[demo.ts](diff:server/db/seed/demo.ts) gives the client id `demo-buyer` four offers (countered, accepted, withdrawn, rejected) and two saved searches, so **My offers** and **Saved** have content. The README explains how to use that id.",
+      "refs": [
+        "server/db/seed/sales.ts",
+        "server/db/seed/demo.ts",
+        "server/db/seed/index.ts",
+        "server/db/seed/agents.ts"
+      ]
+    },
+    {
+      "title": "Rent / Buy toggle and search results",
+      "body": "The header gets a **Rent / Buy** toggle and links to **My offers** and **Affordability**. The toggle reflects `?type=` on the search page; on a listing page it follows the listing being viewed, through [`useSyncListingType`](diff:client/src/hooks/useListingType.tsx#L20-L25).\n\n![Rentals, unchanged apart from the toggle]({{media:rent-search.png}})\n\nSearch results switch on `listingType`:\n\n| | Rentals | Homes for sale |\n| --- | --- | --- |\n| Card price | `$2,450/mo` | `$1,295,000` and `Est. $7,963/mo` |\n| Badge | none | Pending, Sold or Price cut |\n| Map marker | Rent | Price; muted when pending or sold |\n| Filters | Pets | Status: for sale & pending, for sale only, pending, recently sold |\n| Extra sort | Available soonest | Price per sqft |\n\n**Clear filters** keeps the listing type, so clearing while buying stays on homes for sale.",
+      "refs": [
+        "client/src/components/Header.tsx",
+        "client/src/hooks/useListingType.tsx",
+        "client/src/pages/SearchPage.tsx",
+        "client/src/components/FilterBar.tsx",
+        "client/src/components/ListingCard.tsx",
+        "client/src/components/MapPopupCard.tsx",
+        "client/src/components/StatusBadge.tsx",
+        "client/src/components/illustrations/exterior.tsx",
+        "client/src/components/Footer.tsx",
+        "client/src/api.ts",
+        "client/src/App.tsx",
+        "client/src/main.tsx"
+      ]
+    },
+    {
+      "title": "Listing page for homes for sale",
+      "body": "[`ListingPage`](diff:client/src/pages/ListingPage.tsx#L82-L84) keeps one layout and swaps the facts, highlights and sidebar by listing type.\n\n![15 Tidewater Drive: price, estimated payment and the recent price cut]({{media:sale-detail.png}})\n\nHomes for sale add three sections:\n\n- **Monthly payment**: [`MortgageCalculator`](diff:client/src/components/buying/MortgageCalculator.tsx) runs `estimateMortgage` in the browser on every change. Changing the loan type raises the down payment to the program's minimum and resets a custom rate.\n- **Price history**: [`PriceHistory`](diff:client/src/components/buying/PriceHistory.tsx) draws the events as an SVG line chart with a hover readout and a table underneath.\n- **Market**: neighborhood numbers next to the city's.\n\n![10% down on a 15-year loan: PMI is added and ends after 3 years]({{media:mortgage-calculator.png}})\n\n![Two earlier sales, the current listing and a price cut]({{media:price-history.png}})\n\nThe sidebar shows **Make an offer** and a tour scheduler instead of the rental contact form's tour option.",
+      "refs": [
+        "client/src/pages/ListingPage.tsx",
+        "client/src/components/buying/MortgageCalculator.tsx",
+        "client/src/components/buying/DonutChart.tsx",
+        "client/src/components/buying/PriceHistory.tsx",
+        "client/src/components/buying/MarketStats.tsx",
+        "client/src/components/buying/TourScheduler.tsx",
+        "client/src/components/buying/OfferCard.tsx",
+        "client/src/components/ContactForm.tsx",
+        "client/src/hooks/useMortgageRates.ts"
+      ]
+    },
+    {
+      "title": "Making and tracking offers",
+      "body": "**Make an offer** is a four-step form: price, financing, terms, review.\n\n<video src=\"{{media:offer-flow.mp4}}\" controls muted playsinline title=\"Making an offer on 15 Tidewater Drive\"></video>\n\nEach step validates only its own fields with the shared [`validateOffer`](diff:client/src/pages/MakeOfferPage.tsx#L113-L118), so the buyer sees the same messages the API would return. Submitting validates every step and jumps back to the first one with an error. If the server still rejects the offer, its field errors are mapped to steps the same way.\n\nChoosing cash sets the down payment to 100% and drops the financing contingency. Switching from cash back to a loan starts again at 20% down, or the program's minimum if that is higher.\n\n**My offers** lists the buyer's offers with their state. A counter-offer shows the seller's price and note, and open offers can be withdrawn.\n\n![My offers: submitted, countered and accepted]({{media:offers-dashboard.png}})",
+      "refs": [
+        "client/src/pages/MakeOfferPage.tsx",
+        "client/src/pages/OffersPage.tsx",
+        "client/src/components/offers/OfferStatusBadge.tsx"
+      ]
+    },
+    {
+      "title": "Affordability and saved searches",
+      "body": "**Affordability** asks for income, monthly debts, down payment, rate and term, runs `calculateAffordability` as the inputs change, marks which ratio is the limit, and links to the homes for sale at or under the result.\n\n![A $180,000 income with $600 of monthly debts and $150,000 down]({{media:affordability.png}})\n\n**Save search** on the search page stores the current filters with an alert frequency. The **Saved** page lists saved searches above saved homes, with how many homes match and how many are new. Alert emails themselves are out of scope; the frequency is stored for when they exist.",
+      "refs": [
+        "client/src/pages/AffordabilityPage.tsx",
+        "client/src/components/SaveSearchButton.tsx",
+        "client/src/components/SavedSearchList.tsx",
+        "client/src/pages/SavedPage.tsx"
+      ]
+    },
+    {
+      "title": "Styles and README",
+      "body": "CSS for the new screens is in two new files, `buying.css` and `offers.css`. They use the existing tokens plus five chart colors added to [tokens.css](diff:client/src/styles/tokens.css). `layout.css` styles the header toggle; on narrow screens the nav moves to its own scrollable row under the logo and toggle.\n\nThe README describes buying, the sample data and the `demo-buyer` client id.",
+      "refs": [
+        "client/src/styles/buying.css",
+        "client/src/styles/offers.css",
+        "client/src/styles/tokens.css",
+        "client/src/styles/layout.css",
+        "client/src/styles/components.css",
+        "client/src/styles/listing.css",
+        "README.md"
+      ]
+    }
+  ],
+  "media": [
+    "buy-search.png",
+    "rent-search.png",
+    "sale-detail.png",
+    "mortgage-calculator.png",
+    "price-history.png",
+    "offer-flow.mp4",
+    "offers-dashboard.png",
+    "affordability.png"
+  ],
+  "lineComment": "This runs two COUNT queries per saved search just to check the limit. A plain COUNT(*) would do.",
+  "reviewComment": "Read through every section. One note on the saved-search limit; the rest looks good."
+}
