@@ -1,6 +1,6 @@
 # Demo recording
 
-These scripts record the product walkthrough in [docs/demo](../../docs/demo). They are not part of the application.
+These scripts record a product walkthrough video. They are not part of the application.
 
 | File | Purpose |
 | --- | --- |
