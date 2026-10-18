@@ -116,10 +116,8 @@ export function selectRows(rows: Row[], refs: SectionRef[]): Uint8Array {
         // A little unchanged context around line ranges.
         const first = picked[0];
         const last = picked[picked.length - 1];
-        for (let k = 1; k <= MARGIN; k++) {
-          if (first - k >= 0 && rows[first - k].kind === "context") visible[first - k] = 1;
-          if (last + k < rows.length && rows[last + k].kind === "context") visible[last + k] = 1;
-        }
+        for (let k = 1; k <= MARGIN && first - k >= 0 && rows[first - k].kind === "context"; k++) visible[first - k] = 1;
+        for (let k = 1; k <= MARGIN && last + k < rows.length && rows[last + k].kind === "context"; k++) visible[last + k] = 1;
       }
     }
     if (ref.expand === "file") visible.fill(1);
@@ -157,48 +155,50 @@ const CLOSER = /^\s*(\}|\)|\]|end\b|<\/|\};|\);|`;?)/;
 
 /**
  * Enclosing block (function, class, object) of rows [s, e], found by indentation.
- * Returns null when the block is already top level or nothing encloses it.
+ * Climbs outwards until the block reaches beyond [s, e]; null when nothing encloses it.
  */
 export function functionRange(rows: Row[], s: number, e: number): [number, number] | null {
-  let minIndent = Infinity;
-  for (let i = s; i <= e; i++) {
-    if (rows[i].kind === "del") continue;
-    const t = rowText(rows[i]);
-    if (t.trim()) minIndent = Math.min(minIndent, indentOf(t));
-  }
-  if (!Number.isFinite(minIndent) || minIndent === 0) return null;
-  let opener = -1;
-  for (let i = s - 1; i >= 0; i--) {
-    if (rows[i].kind === "del") continue;
-    const t = rowText(rows[i]);
-    if (!t.trim()) continue;
-    if (indentOf(t) < minIndent) {
-      opener = i;
-      break;
+  const text = (i: number) => rowText(rows[i]);
+  let anchors: number[] = [];
+  for (let i = s; i <= e; i++) if (rows[i].kind !== "context" && text(i).trim()) anchors.push(i);
+  if (anchors.length === 0) for (let i = s; i <= e; i++) if (text(i).trim()) anchors.push(i);
+  if (anchors.length === 0) return null;
+  let lo = anchors[0];
+  let hi = anchors[anchors.length - 1];
+  let minIndent = Math.min(...anchors.map((i) => indentOf(text(i))));
+  for (let level = 0; level < 12; level++) {
+    if (minIndent === 0) return null;
+    let opener = -1;
+    for (let i = lo - 1; i >= 0; i--) {
+      if (rows[i].kind === "del" || !text(i).trim()) continue;
+      if (indentOf(text(i)) < minIndent) {
+        opener = i;
+        break;
+      }
     }
-  }
-  if (opener === -1) return null;
-  const openerIndent = indentOf(rowText(rows[opener]));
-  // Include decorators / doc comments directly above the opener.
-  let top = opener;
-  for (let i = opener - 1; i >= 0; i--) {
-    const t = rowText(rows[i]);
-    if (rows[i].kind === "del" || !t.trim() || indentOf(t) !== openerIndent) break;
-    if (/^\s*(@|\/\/|\*|\/\*|#)/.test(t)) top = i;
-    else break;
-  }
-  let closer = rows.length - 1;
-  for (let i = e + 1; i < rows.length; i++) {
-    if (rows[i].kind === "del") continue;
-    const t = rowText(rows[i]);
-    if (!t.trim()) continue;
-    if (indentOf(t) <= openerIndent) {
-      closer = CLOSER.test(t) ? i : i - 1;
-      break;
+    if (opener === -1) return null;
+    const openerIndent = indentOf(text(opener));
+    // Include decorators / doc comments directly above the opener.
+    let top = opener;
+    for (let i = opener - 1; i >= 0; i--) {
+      if (rows[i].kind === "del" || !text(i).trim() || indentOf(text(i)) !== openerIndent) break;
+      if (/^\s*(@|\/\/|\*|\/\*|#)/.test(text(i))) top = i;
+      else break;
     }
+    let closer = rows.length - 1;
+    for (let i = hi + 1; i < rows.length; i++) {
+      if (rows[i].kind === "del" || !text(i).trim()) continue;
+      if (indentOf(text(i)) <= openerIndent) {
+        closer = CLOSER.test(text(i)) ? i : i - 1;
+        break;
+      }
+    }
+    if (top < s || closer > e) return [Math.min(top, s), Math.max(closer, e)];
+    lo = top;
+    hi = closer;
+    minIndent = openerIndent;
   }
-  if (top >= s && closer <= e) return null;
-  return [Math.min(top, s), Math.max(closer, e)];
+  return null;
 }
 
 function lastNewBefore(rows: Row[], i: number): number {
