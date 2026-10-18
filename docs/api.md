@@ -12,7 +12,7 @@ Authorization: Bearer gpr_...
 
 - Create tokens in **Settings → API tokens & MCP**. A token acts as the user who created it, in the workspace it was created in. Access tokens issued to MCP clients through OAuth (`gpo_...`) are accepted as well.
 - Browser sessions are not accepted. A request without a token, or with a session cookie only, returns 401.
-- Pull requests must belong to a repository the workspace follows. If an admin's or owner's token names a repository that is not followed yet, Guided PRs adds it with the first GitHub connection that can access it; for members the request returns 404.
+- Pull requests must belong to a repository the workspace follows. If an admin's or owner's token names a repository that is not followed yet, or one that [has no GitHub connection](github-app.md#repositories-without-a-connection), Guided PRs adds or reconnects it with the first GitHub connection that can access it. For members, a repository that is not followed returns 404, and one without a connection returns 409.
 
 ## Pull request references
 
@@ -34,9 +34,10 @@ Lists up to 500 pull requests from the workspace's followed repositories, most r
 | Query parameter | Description |
 | --- | --- |
 | `state` | `open` (default), `closed` (closed without merging), `merged` or `all` |
+| `repo` | Optional. `owner/name` of a followed repository (case does not matter); 404 if the workspace does not follow it. The filter is applied to the 500 most recently updated pull requests of the workspace. |
 
 ```sh
-curl -sS "$GUIDED_PRS_URL/api/v1/pulls?state=open" \
+curl -sS "$GUIDED_PRS_URL/api/v1/pulls?state=open&repo=acme/web" \
   -H "Authorization: Bearer $GUIDED_PRS_TOKEN"
 ```
 
@@ -69,7 +70,7 @@ Reads the latest guide of a pull request, or a specific version.
 | Query parameter | Description |
 | --- | --- |
 | `pr` | Required. Pull request URL or `owner/repo%23number` |
-| `version` | Optional. If it is omitted or no such version exists, the latest version is returned. |
+| `version` | Optional. A positive integer; without it, the latest version is returned. 400 if it is not a positive integer, 404 if the version does not exist. |
 
 ```sh
 curl -sS "$GUIDED_PRS_URL/api/v1/guides?pr=https://github.com/acme/web/pull/412" \
@@ -97,16 +98,24 @@ curl -sS "$GUIDED_PRS_URL/api/v1/guides?pr=https://github.com/acme/web/pull/412"
       "body": "Adds the `orders` table ...",
       "refs": ["db/migrations/0042_orders.sql", "src/db/schema.ts#3"],
       "automatic": false
+    },
+    {
+      "id": "P0uW5sJk2nHc8DyR",
+      "position": 2,
+      "title": "Checkout endpoint",
+      "body": "Validates the request, then reserves stock ...",
+      "refs": [{ "path": "src/api/checkout.ts", "lines": { "start": 10, "end": 88, "side": "new" }, "note": "Validation" }],
+      "automatic": false
     }
   ]
 }
 ```
 
-- `refs` are returned in the string form described in [mcp.md](mcp.md#diff-references). Captions (`note`) and `expand` settings are not included.
+- Each ref is a string in the form described in [mcp.md](mcp.md#diff-references) when that form describes it completely, and an object when it has a caption (`note`) or an `expand` setting.
 - `automatic` is `true` for the automatic "Other changes" section.
 - `url` opens the guide in Guided PRs; it requires signing in as a member of the workspace.
 
-Returns 404 when the pull request has no guide.
+Returns 404 when the pull request has no guide or the requested version does not exist.
 
 ### POST /api/v1/guides
 
@@ -115,7 +124,7 @@ Creates a complete guide and publishes it, like the MCP `create_guide` tool. The
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `pr` | string | Yes | Pull request URL or `owner/repo#number` |
-| `head_sha` | string | No | Head commit the refs were written for. See [head_sha](mcp.md#head_sha-and-changing-pull-requests). |
+| `head_sha` | string | No | Head commit the refs were written for: the full SHA or a prefix of at least 7 characters. If the pull request's head is a different commit, the request fails with 409. See [head_sha](mcp.md#head_sha-and-changing-pull-requests). |
 | `title` | string | No | Defaults to the pull request title |
 | `summary` | string | No | Markdown overview. Default empty. |
 | `sections` | array, at least 1 | Yes | Each section has `title` (required), `body` (markdown, default empty) and `refs` ([diff references](mcp.md#diff-references), default empty) |
@@ -157,7 +166,15 @@ Response, `201 Created`:
   "id": "Xq3v9yQm1kPz0aBc",
   "version": 3,
   "url": "https://guided-prs.example.com/w/acme/acme/web/pull/412?v=3",
-  "coverage": { "changed_lines": 431, "covered": 431, "uncovered": [] },
+  "coverage": {
+    "changed_lines": 431,
+    "covered": 412,
+    "uncovered": [
+      { "path": "package.json", "hunk": 1, "start": 12, "end": 14, "side": "new", "changedLines": 3, "wholeHunk": true },
+      { "path": "src/lib/format.ts", "hunk": 2, "start": 40, "end": 55, "side": "new", "changedLines": 16, "wholeHunk": false }
+    ],
+    "added_to_other_changes": true
+  },
   "warnings": [
     {
       "ref": "src/api/checkout.ts:200-210",
@@ -168,7 +185,7 @@ Response, `201 Created`:
 }
 ```
 
-`coverage` is computed after the automatic section is added, so `uncovered` is normally empty unless `auto_cover` is `false`. Each entry of `uncovered` has `path`, `hunk`, `start`, `end`, `side` (`new` or `old`), `changedLines` and `wholeHunk`.
+`coverage` describes the sections you sent, before the automatic section is added. Each entry of `uncovered` has `path`, `hunk`, `start`, `end`, `side` (`new` or `old`), `changedLines` and `wholeHunk`. `added_to_other_changes` is `true` when uncovered changes were put into the automatic "Other changes" section, and `false` when everything was covered or `auto_cover` was `false`.
 
 ### POST /api/v1/generate
 
@@ -208,10 +225,10 @@ Errors are JSON objects with an `error` message:
 
 | Status | Cause |
 | --- | --- |
-| 400 | The body or query does not match the expected fields, or `pr` is not a pull request reference |
+| 400 | The body is not valid JSON (`The request body must be valid JSON.`), the body or query does not match the expected fields, `version` is not a positive integer, or `pr` is not a pull request reference |
 | 401 | Missing, invalid, expired or revoked token, or a browser session instead of a token (`Use an API token: Authorization: Bearer <token>`) |
-| 404 | The repository is not followed and the token's user cannot add it, no GitHub connection can access it, or the pull request has no guide |
-| 409 | `POST /api/v1/guides`: the pull request has new commits and no snapshot exists for `head_sha`. `POST /api/v1/generate`: no AI provider is configured for the workspace. |
+| 404 | The repository is not followed and the token's user cannot add it, no GitHub connection can access it, the `repo` filter names a repository that is not followed, the pull request has no guide, or the requested version does not exist |
+| 409 | `POST /api/v1/guides`: `head_sha` does not match the pull request's current head. `POST /api/v1/generate`: no AI provider is configured for the workspace. Any request that reads from GitHub: the repository has no usable GitHub connection, for example because the connection was removed or suspended, or its linked account has to sign in again. |
 | 422 | `POST /api/v1/guides`: invalid diff references. The message lists each problem, prefixed with the section number and title. |
 | 500 | Other errors, including errors returned by GitHub. The message contains the cause. |
 

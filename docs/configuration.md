@@ -43,7 +43,8 @@ See [github-app.md](github-app.md) for how these fit together.
 | `AUTH_EMAIL_ENABLED` | `true` | Email and password sign-up and sign-in. When false, neither is available. |
 | `AUTH_GITHUB_TOKEN_ENABLED` | `false` | Sign in with a GitHub personal access token. |
 | `AUTH_SIGNUP_ENABLED` | `true` | Allow new accounts. When false, accounts can only be created through an invite link; the first account on an empty instance can always be created. |
-| `AUTH_ALLOWED_EMAIL_DOMAINS` | none | Comma-separated list of domains allowed for email sign-up, for example `example.com,example.org`. It is not checked for GitHub or token sign-in. |
+| `AUTH_ALLOWED_EMAIL_DOMAINS` | none | Comma-separated list of domains for new accounts, for example `example.com,example.org`. Email sign-up needs an address in one of them; GitHub and token sign-up need a verified GitHub email in one of them. A valid invite link skips the check. Existing accounts are not affected. |
+| `TRUST_PROXY_HOPS` | `1` | Number of reverse proxies in front of the app that append to `X-Forwarded-For`, from 1 to 10. The client address used for rate limits and the session list is the header entry this many places from the right. See [self-hosting.md](self-hosting.md#https-and-reverse-proxies). |
 
 **Sign in with GitHub** is available when a GitHub App with client credentials or an OAuth App is configured; there is no separate switch. If no sign-in method is available, the sign-in page says so.
 
@@ -51,8 +52,8 @@ See [github-app.md](github-app.md) for how these fit together.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `SMTP_URL` | none | SMTP connection URL, for example `smtps://user:password@smtp.example.com:465`. Without it, invites are shared as links only. |
-| `SMTP_FROM` | `Guided PRs <no-reply@localhost>` | Sender address for invite emails. |
+| `SMTP_URL` | none | SMTP connection URL, for example `smtps://user:password@smtp.example.com:465`. Used for invite emails and for links that confirm an address for an email-restricted invite. Without it, invites are shared as links only, and an email-restricted invite can only be accepted with an address that is verified on GitHub. |
+| `SMTP_FROM` | `Guided PRs <no-reply@localhost>` | Sender address for these emails. |
 
 ### Storage
 
@@ -77,9 +78,9 @@ Instance-wide defaults for built-in generation. A workspace that selects its own
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `WORKER_ENABLED` | `true` | Run the job worker in this process. At least one instance must run it for AI generation, summary comments and polling. |
+| `WORKER_ENABLED` | `true` | Run the job worker in this process. At least one instance must run it for AI generation, summary comments, polling and the cleanup of abandoned guides. |
 | `WORKER_CONCURRENCY` | `3` | Number of jobs this process runs at the same time. |
-| `POLL_INTERVAL_SECONDS` | `300` | How often to poll GitHub for pull requests in repositories with automatic guides. `0` turns polling off. The scheduler wakes at most every 300 seconds and at least 30 seconds apart, so values outside 30 to 300 behave like the nearest bound. |
+| `POLL_INTERVAL_SECONDS` | `300` | Seconds between polls of GitHub for pull requests in repositories with automatic guides. A whole number; `0` turns polling off, and values from 1 to 29 are raised to 30. One poll runs per interval across all instances. |
 
 ### Database and runtime
 
@@ -98,7 +99,7 @@ These are read by `docker-compose.yml` itself:
 | Variable | Default | Description |
 | --- | --- | --- |
 | `POSTGRES_PASSWORD` | `guided` | Password of the `db` service, also used in the app's `DATABASE_URL`. The Postgres image applies it only when its data volume is created. |
-| `PORT` | `3000` | Published host port. Set it in the shell rather than in `.env`; see [self-hosting.md](self-hosting.md#docker-compose). |
+| `PORT` | `3000` | Published host port, from `.env` or the shell. The server inside the container always listens on 3000; see [self-hosting.md](self-hosting.md#docker-compose). |
 
 ## Instance settings and workspace settings
 
@@ -113,19 +114,28 @@ These are read by `docker-compose.yml` itself:
 | Page | Contents |
 | --- | --- |
 | **General** | Name and URL (`/w/<slug>`). Leave the workspace. Owners can delete it. |
-| **Members** | Invite links (optionally restricted to one email address, emailed when SMTP is configured, valid for 14 days, usable once), roles, pending invites. |
+| **Members** | Invite links, roles and pending invites. See [Invites](#invites). |
 | **GitHub** | Connections: GitHub App installation, personal access token, linked GitHub account. See [github-app.md](github-app.md). |
-| **AI provider** | Provider, model, API key (encrypted, never shown again), base URL and extra instructions for built-in generation, with **Test connection** and **Remove provider**. The page shows whether the workspace or the instance default is in effect. |
+| **AI provider** | Provider, model, API key (encrypted, never shown again) and base URL for built-in generation, with **Test connection** and **Remove provider**. A separate **Extra instructions** form applies to whichever provider is in effect, including the instance default. The page shows whether the workspace or the instance default is in effect. |
 | **Automation** | The four automation switches below. |
 | **API tokens & MCP** | MCP server URL, client configuration, setup prompt, API tokens and OAuth clients. |
 
-The **Repositories** page lists followed repositories. Admins add and remove them, create repository webhooks for token and account connections, and override automatic guides per repository (**Workspace default**, **On** or **Off**).
+The **Repositories** page lists followed repositories. Admins add and remove them, create repository webhooks for token and account connections, and override automatic guides per repository (**Workspace default**, **On** or **Off**). Repositories whose connection was removed show "No GitHub connection"; see [github-app.md](github-app.md#repositories-without-a-connection).
+
+### Invites
+
+Admins create invite links on **Members** with the member or admin role. Each link is valid for 14 days and can be used once; admins can copy pending links again or revoke them.
+
+- **Without an email address**, anyone with the link can join.
+- **With an email address**, the link is emailed there when SMTP is configured, and only an account with that address can use it. The address must also be confirmed on the account: either it is a verified email of the user's GitHub account (checked when they sign up, sign in or link GitHub), or the user opens a confirmation link that Guided PRs emails to the address when they accept the invite. The confirmation link (`/invite/<token>/confirm`) is valid for 24 hours and must be opened while signed in as the same user. Without SMTP, only a verified GitHub email works.
+- Changing the email address on the **Account** page removes its confirmation.
+- Signing up with a valid invite link is possible even when `AUTH_SIGNUP_ENABLED` is false or the address is outside `AUTH_ALLOWED_EMAIL_DOMAINS`.
 
 ### Automation switches
 
 | Switch | Default | Effect |
 | --- | --- | --- |
-| Create a guide for every new pull request | Off | Generate a guide with the AI provider when a pull request opens. |
+| Create a guide for every new pull request | Off | Generate a guide with the AI provider when a pull request is opened, reopened or marked ready for review, or when polling finds one without a guide. |
 | Create a new version when commits are pushed | Off | When automatic guides are on, generate a new version when the head commit changes. |
 | Skip draft pull requests | On | Do not generate for drafts; generate once the pull request is ready for review. |
 | Post a summary comment on GitHub | Off | Post a comment with the guide summary and section list when a guide is published, and update it for new versions. |
@@ -139,7 +149,7 @@ The exact conditions are in [ai.md](ai.md#automation).
 | See repositories, pull requests and guides; comment, review and mark sections as reviewed | Yes | Yes | Yes |
 | Create and edit guides (MCP, REST API, editor, **Generate with AI**) | Yes | Yes | Yes |
 | Create API tokens and authorize MCP clients; revoke their own tokens | Yes | Yes | Yes |
-| Follow a new repository implicitly by passing its pull request to MCP or the REST API | No | Yes | Yes |
+| Follow a new repository, or reconnect one without a connection, by passing its pull request to MCP or the REST API | No | Yes | Yes |
 | Manage connections, repositories, AI provider, automation, invites and members; rename the workspace; see and revoke all tokens | No | Yes | Yes |
 | Make someone an owner, change or remove owners, delete the workspace | No | No | Yes |
 

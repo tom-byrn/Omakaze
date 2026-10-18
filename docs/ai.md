@@ -17,14 +17,14 @@ OpenRouter is the default selection in the settings form.
 
 A workspace uses its own provider if one is set, and the instance default otherwise:
 
-1. **Workspace.** Admins set the provider, model, API key, base URL and extra instructions in **Settings → AI provider**. The key is encrypted at rest and never shown again. **Test connection** sends a small request with the entered values. **Remove provider** clears the provider, model, base URL and key.
+1. **Workspace.** Admins set the provider, model, API key and base URL in **Settings → AI provider**. The key is encrypted at rest and never shown again. **Test connection** sends a small request with the entered values. **Remove provider** clears the provider, model, base URL and key, but not the [extra instructions](#workspace-instructions).
 2. **Instance.** `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL` set a default for every workspace without its own provider. See [configuration.md](configuration.md#ai-defaults).
 
 A configuration is usable when it has a model (given or the provider's default) and, for providers that require one, an API key. If a workspace selects a provider, the instance default is not used for that workspace. **Settings → AI provider** shows which configuration is in effect.
 
 ## Starting generation
 
-- **Generate with AI** on a pull request without a guide, or **Regenerate** on a pull request with one. Any member can use them. If the latest guide is still being generated, the button opens it instead of starting another.
+- **Generate with AI** on a pull request without a guide, or **Regenerate** on a pull request with one. Any member can use them. If the latest guide is still being generated, the button opens it instead of starting another, unless that guide is [abandoned](#abandoned-guides).
 - [Automation](#automation): a guide for new pull requests and a new version on push.
 - `POST /api/v1/generate` (see [api.md](api.md#post-apiv1generate)).
 
@@ -67,11 +67,17 @@ Output limits per request: 64,000 tokens for the single-request path with Anthro
 | Rate limit (429) or provider error (5xx), empty or malformed responses | The job is retried once after a delay. The Anthropic SDK also retries twice on its own. |
 | Other request errors | The guide fails with the provider's message. |
 
+A retry continues the same guide version. Sections written by the failed attempt are removed first, and the progress log notes "Starting over". If the last attempt fails, the guide is marked as failed. A job that is picked up again after the worker process stopped starts over the same way.
+
 The progress log of a failed guide shows the error, and **Copy agent prompt** on the page offers the MCP route instead.
+
+### Abandoned guides
+
+A guide that stays in the `generating` state with no change (no new section, progress message, title or summary) for 60 minutes is marked as failed with the message "Nothing changed for 60 minutes, so the guide was marked as abandoned. Start a new version." The worker checks every 30 seconds. This covers guides from agents that never call `finish_guide` as well as generation that stopped. Abandoned guides are not treated as being generated: **Generate with AI** and **Regenerate** start a new version, and automation applies its usual rules.
 
 ## Workspace instructions
 
-**Extra instructions** in **Settings → AI provider** are appended to the system prompt as "Additional instructions from this workspace", for example "Always include a section on database migrations." They apply to every generation in the workspace. The field is saved together with the workspace provider.
+**Extra instructions** in **Settings → AI provider** are appended to the system prompt as "Additional instructions from this workspace", for example "Always include a section on database migrations." They apply to every built-in generation in the workspace, with the workspace provider or the instance default. They have their own form (**Save instructions**, up to 4,000 characters) and are not changed by **Remove provider**.
 
 ## Automation
 
@@ -97,20 +103,20 @@ A generation job is queued when all of these are true:
 2. Automatic guides are on for the repository: its own setting, or the workspace switch when the repository uses **Workspace default**.
 3. The pull request is not a draft, or **Skip draft pull requests** is off.
 4. An AI provider is configured.
-5. The pull request has no guide yet, or its latest guide was written for a different head commit, is not being generated, and **Create a new version when commits are pushed** is on.
+5. The pull request has no guide yet, or its latest guide was written for a different head commit, is not being generated (an [abandoned](#abandoned-guides) guide does not count), and **Create a new version when commits are pushed** is on.
 
-At most one job per repository, pull request and head commit is queued or running at a time.
+At most one job per repository, pull request and head commit is queued or running at a time. Review webhooks (`pull_request_review`, `pull_request_review_comment`) do not start generation.
 
 ### Polling
 
-When `POLL_INTERVAL_SECONDS` is greater than 0, the worker regularly syncs every repository that has automatic guides turned on: all open pull requests (up to 300) and the 50 most recently closed ones. It then applies the rules above to open pull requests updated in the last three days. Polling is the fallback when GitHub cannot deliver webhooks; see [self-hosting.md](self-hosting.md#webhooks-and-polling).
+When `POLL_INTERVAL_SECONDS` is greater than 0, the worker syncs every repository that has automatic guides turned on once per interval: all open pull requests (up to 300) and the 50 most recently closed ones. It then applies the rules above to open pull requests updated in the last three days. Polling is the fallback when GitHub cannot deliver webhooks; see [self-hosting.md](self-hosting.md#webhooks-and-polling).
 
 ### Summary comment
 
 With **Post a summary comment on GitHub** on, a job runs every time a guide of the workspace is published, whether it was written by an agent, the built-in AI, the REST API or the editor. It posts one comment in the pull request conversation and updates the same comment for later versions; if that comment was deleted, a new one is created. The comment contains:
 
 - the heading "Guided walkthrough";
-- the first paragraphs of the guide summary (up to about 900 characters), without headings and Mermaid blocks, with `diff:` links reduced to their label;
+- the first paragraphs of the guide summary (up to about 900 characters), without headings, Mermaid blocks, images and videos (uploads need a sign-in and would not load on GitHub), and with `diff:` links reduced to their label;
 - a table of the sections with links to each one and the number of files it references;
 - a link to the guide and the version and short head commit.
 

@@ -81,9 +81,9 @@ The schema is in `src/db/schema.ts`; migrations are in `drizzle/`.
 
 | Area | Tables |
 | --- | --- |
-| Users and sign-in | `users`, `sessions`, `github_accounts` (one linked GitHub identity per user) |
+| Users and sign-in | `users` (including `email_verified_at`, set when the address is confirmed), `sessions`, `github_accounts` (one linked GitHub identity per user) |
 | Workspaces | `workspaces` (including AI and automation settings), `memberships` (role per user), `invites` |
-| GitHub | `github_connections` (app installation, token or linked account), `repositories` (followed per workspace, through one connection), `pull_requests` (cache) |
+| GitHub | `github_connections` (app installation, token or linked account), `repositories` (followed per workspace, through one connection or none), `pull_requests` (cache) |
 | Guides | `diff_snapshots`, `guides` (one row per version), `guide_sections`, `section_reviews`, `guide_views` |
 | Reviews | `comments` (comments and reviews posted through Guided PRs) |
 | API access | `api_tokens` (personal tokens and OAuth access tokens), `oauth_clients`, `oauth_codes`, `oauth_refresh_tokens` |
@@ -111,7 +111,7 @@ erDiagram
 Relations to know about:
 
 - Deleting a workspace deletes everything that belongs to it.
-- Deleting a connection deletes its repositories, and deleting a repository deletes its pull requests, snapshots, guides and comment records.
+- Deleting a connection sets `repositories.connection_id` to null, so the repositories and their guides stay (see [github-app.md](github-app.md#repositories-without-a-connection)). Deleting a repository deletes its pull requests, snapshots, guides and comment records.
 - A guide is identified by repository, pull request number and version. Each new guide for a pull request gets the next version number.
 - Section refs are stored as JSON (`guide_sections.refs`) in the object form described in [mcp.md](mcp.md#diff-references).
 
@@ -123,7 +123,7 @@ A diff snapshot is an immutable copy of a pull request's diff at one head commit
 - the head SHA, the base SHA and the merge base, found with the compare API (the base SHA is used if that call fails). Old-side line numbers refer to the merge base;
 - a `truncated` flag when GitHub reports more changed files than it returned.
 
-Hunk numbers are the 1-based positions of the `@@` hunks in a file's stored patch. Every guide points to the snapshot it was written against, and snapshots are never changed. A ref such as `src/a.ts#2` therefore selects the same lines for as long as the guide exists, even after the pull request receives new commits: the next guide is written against a new snapshot, and the older guide is marked as outdated in the viewer. Agents pass `head_sha` to make sure their guide uses the snapshot they read (see [mcp.md](mcp.md#head_sha-and-changing-pull-requests)).
+Hunk numbers are the 1-based positions of the `@@` hunks in a file's stored patch. Every guide points to the snapshot it was written against, and snapshots are never changed. A ref such as `src/a.ts#2` therefore selects the same lines for as long as the guide exists, even after the pull request receives new commits: the next guide is written against a new snapshot, and the older guide is marked as outdated in the viewer. Agents pass `head_sha` so that a guide is only created while the pull request is still at the commit they read (see [mcp.md](mcp.md#head_sha-and-changing-pull-requests)).
 
 Coverage is computed from the same snapshot (`src/lib/guides/refs.ts`): every added and removed line is checked against the refs of all sections.
 
@@ -137,13 +137,15 @@ The right pane loads one file at a time from `GET /api/guides/<id>/file?path=...
 4. Shiki tokenizes the contents on the server with the `github-light` theme. The response contains compact tokens and a color palette rather than HTML.
 5. If the contents are not available, only the lines of the patch are highlighted, and unchanged lines between hunks cannot be expanded.
 
-With full contents, the viewer can show more context in steps of 20 lines, the enclosing block (found by indentation) or the whole file. Rendered file views are cached in memory (150 per process) and sent with `Cache-Control: private, max-age=3600`. Code blocks in markdown are also highlighted with Shiki on the server.
+With full contents, the viewer can show more context in steps of 20 lines, the enclosing block (found by indentation) or the whole file. Rendered file views are cached in memory (150 per process) and sent with `Cache-Control: private, max-age=3600`. Building a file view needs the repository's GitHub connection; for a repository without one, the request fails with 409. Code blocks in markdown are also highlighted with Shiki on the server.
 
 ## Security model
 
 **Sessions.** Signing in creates a random 32-byte token, stored in the `gpr_session` cookie (`HttpOnly`, `SameSite=Lax`, `Secure` when `APP_URL` uses HTTPS). The database stores only its SHA-256 hash. Sessions expire after 30 days without use. Passwords are hashed with scrypt (N = 2^15, r = 8, p = 1). Changing the password signs out other sessions.
 
-**Tokens.** API tokens, OAuth access and refresh tokens, authorization codes, OAuth client secrets and invite tokens are stored as SHA-256 hashes and looked up by hash. API tokens are shown once, when they are created. API and OAuth tokens are bound to one workspace and stop working when their user leaves it.
+**Tokens.** API tokens, OAuth access and refresh tokens, authorization codes, OAuth client secrets and invite tokens are stored as SHA-256 hashes and looked up by hash. API tokens are shown once, when they are created. API and OAuth tokens are bound to one workspace and stop working when their user leaves it. Revoking an OAuth access token also revokes the refresh token issued with it. The OAuth server only accepts the MCP endpoint (or the instance URL) as a `resource` and only grants the `mcp` scope.
+
+**Invites.** An invite restricted to an email address can only be accepted by an account with that address and a confirmed `email_verified_at`. The address is confirmed when it is one of the user's verified GitHub emails, or through a signed link (HMAC, valid 24 hours) that is emailed to the address and must be opened by the same signed-in user. Changing the address clears the confirmation.
 
 **Secrets at rest.** GitHub access and refresh tokens, connection tokens, workspace AI keys, the GitHub App private key and secrets created on `/admin`, and invite links are encrypted with AES-256-GCM. The key is derived from `APP_SECRET` with HKDF-SHA256. State passed through GitHub sign-in, app creation and app installation is signed with HMAC-SHA256 under keys derived the same way, and expires.
 
@@ -153,11 +155,21 @@ With full contents, the viewer can show more context in steps of 20 lines, the e
 
 **Access checks.** Workspace pages, actions and APIs check membership and role (member, admin, owner; see [configuration.md](configuration.md#roles)). Guides, comments and file views are only served to members of the guide's workspace; a token for another workspace gets 404. `/admin` returns 404 for users who are not instance admins.
 
-**Uploads.** Files are served only to signed-in members of the upload's workspace or to tokens of that workspace, with `X-Content-Type-Options: nosniff`. SVG files get a `Content-Security-Policy` with `sandbox`. Allowed types are fixed (images, videos and PDF). `upload_asset` downloads reject URLs whose host name starts with a loopback or private address prefix.
+**Uploads.** Files are served only to signed-in members of the upload's workspace or to tokens of that workspace, with `X-Content-Type-Options: nosniff`. SVG files get a `Content-Security-Policy` with `sandbox`. Allowed types are fixed (images, videos and PDF). Downloads for `upload_asset` (`src/lib/storage/remote.ts`) resolve the host name, refuse private, loopback, link-local and other reserved IPv4 and IPv6 addresses, connect to the address that was checked, check every redirect again and stop at the size limit; see [mcp.md](mcp.md#downloads-from-a-url).
 
 **Markdown.** Raw HTML in guides is sanitized with `rehype-sanitize`; video, details and a few other tags are allowed.
 
-**Rate limits.** Sign-up (10 per hour per IP), email sign-in (10 per 15 minutes per IP and email), token sign-in (20 per 15 minutes per IP) and OAuth client registration (30 per hour per IP) are limited in memory per process. The client IP is the first address in `X-Forwarded-For`.
+**Rate limits.** These limits are kept in memory per process:
+
+| Action | Limit |
+| --- | --- |
+| Email sign-up | 10 per hour per client address |
+| Email sign-in | 10 per 15 minutes per email address, and 50 per 15 minutes per client address |
+| Token sign-in | 20 per 15 minutes per client address |
+| OAuth client registration | 30 per hour per client address, and 500 per hour in total |
+| Invite confirmation emails | 3 per hour per user and invite |
+
+The client address is the `X-Forwarded-For` entry `TRUST_PROXY_HOPS` places from the right (`src/lib/http.ts`), or `X-Real-IP` when the header is missing. See [self-hosting.md](self-hosting.md#https-and-reverse-proxies).
 
 **GitHub credentials.** Reviews and comments use the reviewer's own GitHub credential when possible, so GitHub attributes them to the reviewer. Approvals and change requests are never posted through a shared connection. See [github-app.md](github-app.md#posting-comments-and-reviews).
 
@@ -172,10 +184,11 @@ Jobs are rows in the `jobs` table (`src/lib/jobs`):
 | `poll_repos` | The scheduler | 1 |
 
 - **Claiming.** Each worker loop claims the next due job with `UPDATE ... WHERE id = (SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1)`, so several loops and several processes can share the queue. A process runs `WORKER_CONCURRENCY` loops (default 3); idle loops check for work about every two seconds.
-- **Retries.** A failed job is queued again after 15 seconds, doubling with each further attempt up to 10 minutes, until it reaches its maximum attempts. Errors marked as permanent are not retried. When a `generate_guide` job for an existing guide gives up, that guide is marked as failed.
-- **De-duplication.** Jobs can carry a key; only one queued or running job per key is allowed. Automatic generation uses one key per repository, pull request and head commit.
-- **Recovery and cleanup.** Jobs that have been running for more than 20 minutes are assumed to belong to a stopped process and are queued again. Finished and failed jobs older than 14 days are deleted from time to time.
-- **Scheduler.** Each process with the worker enabled runs a scheduler loop that recovers stuck jobs and, when `POLL_INTERVAL_SECONDS` is greater than 0, queues a `poll_repos` job. It wakes every `POLL_INTERVAL_SECONDS`, bounded to between 30 and 300 seconds.
+- **Retries.** A failed job is queued again after 15 seconds, doubling with each further attempt up to 10 minutes, until it reaches its maximum attempts. Errors marked as permanent are not retried.
+- **Generation jobs.** A `generate_guide` job from automation creates its guide version when it first runs and stores the guide ID in the job, so a retry continues the same version. Every attempt starts by removing the sections of earlier attempts. When the job gives up, the guide is marked as failed.
+- **De-duplication.** Jobs can carry a key; only one queued or running job per key is allowed. Automatic generation uses one key per repository, pull request and head commit. Polling uses one key per interval window, and a key that has already run is not queued again.
+- **Recovery and cleanup.** Jobs that have been running for more than 20 minutes are assumed to belong to a stopped process and are queued again. Guides left in the `generating` state with no change for 60 minutes are marked as failed (`STALE_GUIDE_MINUTES` in `src/lib/guides/service.ts`). Finished and failed jobs older than 14 days are deleted from time to time.
+- **Scheduler.** Each process with the worker enabled runs a scheduler every 30 seconds. It requeues stuck jobs, fails abandoned guides and, when `POLL_INTERVAL_SECONDS` is greater than 0, queues the `poll_repos` job of the current interval window, so polling runs once per interval across all processes.
 
 ## Caches
 
@@ -187,7 +200,7 @@ These caches are kept in memory per process and are not shared between instances
 | Installation tokens | GitHub App installation tokens until five minutes before they expire |
 | GitHub App configuration | The app created on `/admin`, for 30 seconds |
 | File views | Up to 150 rendered files |
-| Review comments | A pull request's review comments, for 10 seconds |
+| Review comments | A pull request's review comments, for 10 seconds or until a review webhook for the pull request arrives |
 | Rate limits | Counters for the limits above |
 
 The pull request list itself is cached in PostgreSQL (`pull_requests`) and refreshed by webhooks, polling and when members open the workspace.

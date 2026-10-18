@@ -8,19 +8,22 @@ Initial release.
 
 ### Added
 
-- Guided walkthroughs for GitHub pull requests: ordered sections with a markdown explanation and the parts of the diff they cover (whole files, hunks or line ranges).
-- Diff snapshots per head commit, so hunk numbers in a guide stay valid; guide versions; an outdated notice when the pull request has newer commits.
-- Coverage of changed lines and an automatic "Other changes" section for uncovered changes.
+- Guided walkthroughs for GitHub pull requests: ordered sections with a markdown explanation and the parts of the diff they cover (whole files, hunks, line ranges, or line ranges within hunks).
+- Diff snapshots per head commit, so hunk numbers in a guide stay valid; guide versions; an outdated notice when the pull request has newer commits. Guides are only created on the head commit the author read (`head_sha`).
+- Coverage of changed lines and an automatic "Other changes" section for uncovered changes. `create_guide`, `finish_guide` and `POST /api/v1/guides` report what the author's own sections cover.
 - Guide viewer with syntax highlighting, expandable context (20 lines at a time, enclosing block, whole file), an all-files view, line wrapping, `diff:` links, Mermaid diagrams, math, images and videos, and keyboard navigation.
-- Review features: line and multi-line comments, replies, deleting your own comments, approve, request changes and comment, all posted to GitHub; per-section review progress.
-- Guide editor for writing or changing guides by hand, with image and video uploads.
-- MCP server at `/api/mcp` with 17 tools and the `create_guided_pr` prompt, authenticated with OAuth 2.1 (discovery, dynamic client registration, PKCE, refresh token rotation, revocation) or API tokens.
-- Built-in AI generation with OpenRouter, Anthropic, OpenAI and OpenAI-compatible servers, with a separate pipeline for large pull requests.
-- REST API: `GET /api/v1/pulls`, `GET` and `POST /api/v1/guides`, `POST /api/v1/generate`.
-- Automation: guides for new pull requests, new versions on push, skipping drafts, and a summary comment on the pull request.
-- Workspaces with owner, admin and member roles, invite links (optionally by email through SMTP), API tokens and an activity log.
-- GitHub access through a GitHub App (created from `/admin` with the manifest flow), personal access tokens or linked GitHub accounts; GitHub App and repository webhooks; polling; GitHub Enterprise Server support.
+- Review features: line and multi-line comments, replies, deleting your own comments, approve, request changes and comment, all posted to GitHub; per-section review progress. Reviews and comments made on GitHub are picked up through webhooks.
+- Guide editor for writing or changing guides by hand, with uploads of images, videos and PDFs, and a ref syntax that keeps captions and context expansion.
+- MCP server at `/api/mcp` with 17 tools and the `create_guided_pr` prompt, authenticated with OAuth 2.1 (discovery, dynamic client registration, PKCE, resource indicators, refresh token rotation, revocation) or API tokens.
+- `upload_asset` downloads from public URLs only, with address checks on every redirect and a size limit.
+- Built-in AI generation with OpenRouter, Anthropic, OpenAI and OpenAI-compatible servers, with a separate pipeline for large pull requests; retries continue the same guide version; workspace instructions work with the instance default provider.
+- Guides left in the `generating` state for 60 minutes without changes are marked as failed and no longer block new versions.
+- REST API: `GET /api/v1/pulls` (with a `repo` filter), `GET` and `POST /api/v1/guides`, `POST /api/v1/generate`.
+- Automation: guides for new pull requests, new versions on push, skipping drafts, polling at a configurable interval, and a summary comment on the pull request.
+- Workspaces with owner, admin and member roles, invite links (optionally emailed through SMTP, and optionally restricted to an email address that the account has confirmed), API tokens and an activity log.
+- GitHub access through a GitHub App (created from `/admin` with the manifest flow), personal access tokens or linked GitHub accounts; GitHub App and repository webhooks; polling; GitHub Enterprise Server support. Repositories and guides are kept when a connection is removed, and repositories are reconnected when a connection that can access them is added.
 - Sign-in with email and password, GitHub, or a GitHub personal access token; invite-only mode and allowed email domains.
+- Rate limits for sign-in, sign-up and OAuth client registration, with `TRUST_PROXY_HOPS` to select the client address behind reverse proxies.
 - Uploads stored in PostgreSQL or on the file system.
 - Background job queue in PostgreSQL with retries, run inside the app process.
-- Docker image, `docker-compose.yml` with PostgreSQL 16, migrations on start, and a health check endpoint at `/api/health`.
+- Docker image, `docker-compose.yml` with PostgreSQL 16, migrations on start, a health check endpoint at `/api/health`, and a release workflow that publishes the image to GitHub Container Registry.

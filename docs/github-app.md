@@ -165,16 +165,19 @@ A repository is reconnected when:
 **Continue with GitHub** appears on the sign-in page when an OAuth client is available:
 
 - **GitHub App (recommended).** An app created on `/admin` provides its client ID and secret automatically. For an app configured with environment variables, set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to the app's own client credentials. No OAuth scopes are requested; access follows the app's permissions and the user's own access. GitHub App user tokens can expire; Guided PRs stores the refresh token encrypted and refreshes the access token when it is within two minutes of expiry.
-- **OAuth App.** Leave `GITHUB_APP_ID` empty and set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` from an OAuth App whose callback URL is `<APP_URL>/api/auth/github/callback`. Guided PRs requests the scopes `read:user user:email repo`. An OAuth App token cannot pass the [installation ownership check](#installation-ownership-check), so use this only without a GitHub App.
+- **OAuth App.** Leave `GITHUB_APP_ID` empty and set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` from an OAuth App whose callback URL is `<APP_URL>/api/auth/github/callback`. Guided PRs requests the scopes `read:user user:email repo`. With a GitHub App installed as well, the [installation ownership check](#installation-ownership-check) relies on the account and organization checks for these users.
 
 When `GITHUB_APP_ID` is set, `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are treated as the GitHub App's credentials.
 
 Sign-in behavior:
 
-- An existing user is matched by GitHub user ID. Accounts are never merged by email; if the GitHub email already belongs to another user, the new user is created without an email.
+- An existing user is matched by GitHub user ID. Accounts are never merged by email.
 - New users are created only when sign-up is allowed: `AUTH_SIGNUP_ENABLED=true`, a valid invite link, or an instance with no users yet.
+- Guided PRs reads the user's verified GitHub email addresses (`/user/emails`, plus the public profile email). A new user gets one of them, preferring one in `AUTH_ALLOWED_EMAIL_DOMAINS`, and it counts as confirmed. If that address already belongs to another user, the new user is created without an email.
+- When `AUTH_ALLOWED_EMAIL_DOMAINS` is set, a new user without an invite link needs a verified GitHub email in one of the domains.
+- When an existing user signs in with GitHub or links GitHub, their email counts as confirmed if it is one of their verified GitHub addresses. Confirmed addresses are needed for [email-restricted invites](configuration.md#invites).
 - Signed-in users can link GitHub later on the **Account** page, with **Link GitHub account** or with a personal access token.
-- With `AUTH_GITHUB_TOKEN_ENABLED=true`, the sign-in page also accepts a personal access token. The token becomes the user's linked GitHub credential.
+- With `AUTH_GITHUB_TOKEN_ENABLED=true`, the sign-in page also accepts a personal access token. The token becomes the user's linked GitHub credential, and the same email rules apply.
 
 The linked credential is used to post comments and reviews as the user, for **Use your GitHub account** connections, and for the installation ownership check.
 
@@ -190,9 +193,9 @@ The linked credential is used to post comments and reviews as the user, for **Us
 
 Personal access tokens are used for token connections, token sign-in and linking an account with a token.
 
-| Token type | Required | For **Create webhook** on the Repositories page |
-| --- | --- | --- |
-| Fine-grained | Access to the repositories; Contents: Read-only; Metadata: Read-only; Pull requests: Read and write | Webhooks: Read and write |
-| Classic | `repo` | `admin:repo_hook` |
+| Token type | Required | For **Create webhook** on the Repositories page | To read verified email addresses |
+| --- | --- | --- | --- |
+| Fine-grained | Access to the repositories; Contents: Read-only; Metadata: Read-only; Pull requests: Read and write | Webhooks: Read and write | Account permission Email addresses: Read-only |
+| Classic | `repo` | `admin:repo_hook` | `user:email` |
 
-Creating repository webhooks also requires the token's user to be an admin of the repository.
+Creating repository webhooks also requires the token's user to be an admin of the repository. Without permission to read email addresses, token sign-in and linking use only the public email of the GitHub profile.

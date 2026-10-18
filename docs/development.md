@@ -50,7 +50,7 @@ To work with GitHub locally, the simplest option is a personal access token conn
 | `pnpm db:migrate` | Apply pending migrations to `DATABASE_URL` (loads `.env` if present) |
 | `pnpm db:studio` | Drizzle Studio, a browser UI for the database |
 
-CI (`.github/workflows/ci.yml`) runs `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm db:migrate` against PostgreSQL 16 and `pnpm build` on Node.js 22, and then builds the Docker image.
+CI (`.github/workflows/ci.yml`) runs `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm db:migrate` against PostgreSQL 16 and `pnpm build` on Node.js 22, and then builds the Docker image. Pushes to `main` and `v*` tags also run `.github/workflows/release.yml`, which publishes the image to GitHub Container Registry (see [self-hosting.md](self-hosting.md#published-image)).
 
 ## Project structure
 
@@ -62,7 +62,7 @@ src/
     account/              account page
     admin/                instance settings (/admin)
     api/                  route handlers: mcp, oauth, v1, auth, github, guides, assets, health, w
-    invite/               invite links
+    invite/               invite links and email address confirmation
     new/                  create a workspace
     oauth/authorize/      OAuth consent screen
     settings/             redirects /settings/... to the current workspace
@@ -78,7 +78,7 @@ src/
     jobs/                 job queue, worker and handlers
     mcp/                  MCP server: tools, prompt and instructions
     oauth/                OAuth 2.1 authorization server
-    storage/              uploads
+    storage/              uploads and downloads from public URLs
     env.ts                environment variable schema
     *.ts                  shared helpers: crypto, http, workspaces, invites, mail, automation, activity
   instrumentation.ts      runs migrations and starts the worker
@@ -95,9 +95,10 @@ public/                   static files
 Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vitest.config.ts` sets the `@/` path alias and test values for `APP_SECRET` and `DATABASE_URL`; the tests do not connect to a database or to GitHub. They cover:
 
 - unified diff parsing (`src/lib/diff/parse.ts`);
-- ref parsing, validation and coverage (`src/lib/guides/refs.ts`);
+- ref parsing, serialization, validation and coverage (`src/lib/guides/refs.ts`);
 - the viewer's row model: context rows, line selection and enclosing-block expansion (`src/components/guide/diff-model.ts`);
-- encryption, signed payloads, password hashing, webhook signatures, pull request URL parsing, editor ref lines, redirects, slugs and the agent prompt.
+- encryption, signed payloads, password hashing, webhook signatures, pull request URL parsing, editor ref lines, redirects, slugs and the agent prompt;
+- detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments.
 
 Add tests for logic in `src/lib` and other code that can run without a database.
 
@@ -116,9 +117,10 @@ Released migrations are applied to existing installations on start, so do not ed
 - Match the style of the surrounding code. TypeScript runs in strict mode; import from `src` with the `@/` alias.
 - Next.js 16 differs from earlier versions. Check the guides in `node_modules/next/dist/docs/` before using a Next.js API (see `AGENTS.md`).
 - Keep domain logic in `src/lib`; pages, actions and route handlers stay thin.
-- Validate input with zod. Route handlers return errors as `{ "error": "..." }` through `HttpError` and `errorResponse` (`src/lib/http.ts`).
+- Validate input with zod. Read JSON bodies with `readJson`, which turns malformed JSON into a 400. Route handlers return errors as `{ "error": "..." }` through `HttpError` and `errorResponse` (`src/lib/http.ts`).
 - Check access in every entry point: `requireWorkspace` for pages, `assertWorkspaceRole` for actions, `requireGuideAccess` or `apiPrincipal` for route handlers. JSON routes that use the session cookie and change data call `assertSameOrigin`.
 - Store secrets with `encrypt` and tokens as `sha256` hashes (`src/lib/crypto.ts`). Never log tokens or keys.
+- Use `clientIp` (`src/lib/http.ts`) for the client's address, for example in rate limits.
 - Use `env()` from `src/lib/env.ts` for configuration, and add new variables there, to `.env.example` and to [configuration.md](configuration.md).
 - Interface text and documentation are brief and factual.
 - Unused variables and arguments that are intentionally unused start with `_`.
