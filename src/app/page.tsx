@@ -175,7 +175,7 @@ export default async function LandingPage() {
               the diff, write sections, upload screenshots and publish the guide.
             </p>
             <div className="mt-10 grid grid-cols-2 gap-px border border-white/15 bg-white/15 font-mono text-[10px] tracking-[0.09em] text-[#dddddd] uppercase">
-              {["Claude Code", "Codex", "Cursor", "VS Code", "Windsurf", "Any MCP client"].map((c) => (
+              {["Claude Code", "Codex", "Cursor", "VS Code", "OpenCode", "Any MCP client"].map((c) => (
                 <span key={c} className="bg-[#163a6f]/60 px-4 py-3">
                   {c}
                 </span>
