@@ -86,7 +86,7 @@ drizzle/                  SQL migrations and drizzle-kit metadata
 scripts/
   migrate.ts              migration command used by pnpm db:migrate
   subset-landing-font.mjs rebuilds the landing page's Japanese font subset in src/app/fonts
-  demo/                   recording script for the demo video in docs/demo
+  demo/                   recording script for the demo video
 tests/                    Vitest tests
 public/                   static files
 ```
