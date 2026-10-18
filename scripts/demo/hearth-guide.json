@@ -151,7 +151,7 @@
     },
     {
       "title": "Making and tracking offers",
-      "body": "**Make an offer** is a four-step form: price, financing, terms, review.\n\n<video src=\"{{media:offer-flow.mp4}}\" controls muted playsinline title=\"Making an offer on 15 Tidewater Drive\"></video>\n\nEach step validates only its own fields with the shared [`validateOffer`](diff:client/src/pages/MakeOfferPage.tsx#L113-L118), so the buyer sees the same messages the API would return. Submitting validates every step and jumps back to the first one with an error. If the server still rejects the offer, its field errors are mapped to steps the same way.\n\nChoosing cash sets the down payment to 100% and drops the financing contingency. Switching from cash back to a loan starts again at 20% down, or the program's minimum if that is higher.\n\n**My offers** lists the buyer's offers with their state. A counter-offer shows the seller's price and note, and open offers can be withdrawn.\n\n![My offers: submitted, countered and accepted]({{media:offers-dashboard.png}})",
+      "body": "**Make an offer** is a four-step form: price, financing, terms, review.\n\n<video controls muted playsinline preload=\"metadata\"><source src=\"{{media:offer-flow.webm}}\" type=\"video/webm\"><source src=\"{{media:offer-flow.mp4}}\" type=\"video/mp4\"></video>\n\nEach step validates only its own fields with the shared [`validateOffer`](diff:client/src/pages/MakeOfferPage.tsx#L113-L118), so the buyer sees the same messages the API would return. Submitting validates every step and jumps back to the first one with an error. If the server still rejects the offer, its field errors are mapped to steps the same way.\n\nChoosing cash sets the down payment to 100% and drops the financing contingency. Switching from cash back to a loan starts again at 20% down, or the program's minimum if that is higher.\n\n**My offers** lists the buyer's offers with their state. A counter-offer shows the seller's price and note, and open offers can be withdrawn.\n\n![My offers: submitted, countered and accepted]({{media:offers-dashboard.png}})",
       "refs": [
         "client/src/pages/MakeOfferPage.tsx",
         "client/src/pages/OffersPage.tsx",
@@ -189,6 +189,7 @@
     "mortgage-calculator.png",
     "price-history.png",
     "offer-flow.mp4",
+    "offer-flow.webm",
     "offers-dashboard.png",
     "affordability.png"
   ],

@@ -396,7 +396,9 @@ await d.sleep(1000);
 const video = page.locator(`${LEFT} video`).first();
 await d.scrollTo(LEFT, video, { offset: 140, duration: 1200 });
 await d.click(video);
-await page.evaluate((sel) => document.querySelector(`${sel} video`)?.play(), LEFT);
+await page
+  .evaluate((sel) => document.querySelector(`${sel} video`)?.play(), LEFT)
+  .catch((err) => console.warn("video did not play:", err.message));
 await d.sleep(14000);
 await page.evaluate((sel) => document.querySelector(`${sel} video`)?.pause(), LEFT);
 await markReviewed();
@@ -527,3 +529,4 @@ await d.caption(null, null);
 await d.sleep(800);
 
 await finish();
+process.exit(0);
