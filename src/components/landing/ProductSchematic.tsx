@@ -1,8 +1,8 @@
 "use client";
 
-import { RiArrowRightUpLine, RiCheckLine, RiPlayFill } from "@remixicon/react";
+import { RiArrowRightUpLine, RiCheckboxCircleFill, RiCheckLine, RiHeart3Line, RiLock2Line, RiMapPin2Line, RiPlayFill } from "@remixicon/react";
 import Image from "next/image";
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 const K = "#D73A49"; // keyword
 const F = "#6F42C1"; // function
@@ -85,6 +85,8 @@ const SECTIONS = [
 
 // The section the schematic opens on.
 const INITIAL = 1;
+// Sections marked as reviewed in the tab row, as the guide viewer marks them.
+const REVIEWED = new Set([0, 1]);
 
 type CalloutSpec = { label: string; sub: string; side: "left" | "right"; top: number };
 
@@ -112,13 +114,13 @@ const CALLOUTS: CalloutSpec[][] = [
   ],
 ];
 
-function Callout({ label, sub, side, top, visible }: CalloutSpec & { visible: boolean }) {
+function Callout({ label, sub, side, top, reveal }: CalloutSpec & { reveal: boolean }) {
   const left = side === "left";
   return (
     <div
-      className={`pointer-events-none absolute hidden w-[124px] transition-[opacity,translate] duration-500 ease-(--ease-snap) motion-reduce:transition-none min-[1400px]:block ${
-        left ? "-left-[176px]" : "-right-[176px] text-right"
-      } ${visible ? "opacity-100 delay-150" : `opacity-0 ${left ? "-translate-x-2" : "translate-x-2"}`}`}
+      className={`pointer-events-none absolute hidden w-[124px] min-[1400px]:block ${left ? "-left-[176px]" : "-right-[176px] text-right"} ${
+        reveal ? "motion-safe:animate-reveal" : ""
+      }`}
       style={{ top }}
       aria-hidden="true"
     >
@@ -187,14 +189,21 @@ function FileCard({ status, path, add, del, extra, children }: { status: string;
   );
 }
 
+// Whether a panel's explanation should play the reveal: it is the open section and was opened by a click.
+const RevealContext = createContext(false);
+
 function Explanation({ index, children }: { index: number; children: ReactNode }) {
+  const reveal = useContext(RevealContext);
   return (
     <div className="border-r border-dashed border-line bg-paper px-6 py-6 grain md:px-8">
-      <span className="eyebrow">
-        Section {SECTIONS[index].n} / {String(SECTIONS.length).padStart(2, "0")}
-      </span>
-      <p className="mt-4 font-serif text-[28px] leading-none tracking-[-0.03em] text-black">{SECTIONS[index].title}</p>
-      {children}
+      {/* Same as the guide viewer: the explanation fades in from a blur, the diff swaps in place. */}
+      <div className={reveal ? "motion-safe:animate-reveal" : undefined}>
+        <span className="eyebrow">
+          Section {SECTIONS[index].n} / {String(SECTIONS.length).padStart(2, "0")}
+        </span>
+        <p className="mt-4 font-serif text-[28px] leading-none tracking-[-0.03em] text-black">{SECTIONS[index].title}</p>
+        {children}
+      </div>
     </div>
   );
 }
@@ -407,48 +416,209 @@ function OffersApi() {
   );
 }
 
-/** A looping screen recording: the cursor finds "Make an offer", clicks it and the offer is sent. */
-function Recording({ playing }: { playing: boolean }) {
-  // Each part loops on the same 6s clock while the section is open; it rests on its first frame otherwise.
-  const anim = (cls: string) => (playing ? cls : "");
+// The recorded browser viewport, in CSS px. The recording draws Hearth at this width and scales it to fit the frame.
+const APP_W = 680;
+const ACCENT = "#1d4ed8";
+
+/** Scale from APP_W to the frame's current width. */
+function useFitScale() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(350 / APP_W);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setScale(entry.contentRect.width / APP_W));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, scale] as const;
+}
+
+function HearthLogo() {
   return (
-    <div className="relative mt-4 aspect-[16/8.4] overflow-hidden border border-black/15 bg-white">
-      <div className="grid h-full grid-cols-[46%_54%] pb-[26px]">
-        <div className="relative overflow-hidden bg-mist">
-          <Image src="/landing/listing-house.webp" alt="" fill sizes="200px" className="object-cover" />
+    <svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="8" fill={ACCENT} />
+      <path d="M7 15.5 16 8l9 7.5V25a1 1 0 0 1-1 1h-5.5v-6h-5v6H8a1 1 0 0 1-1-1z" fill="#fff" />
+      <path d="M16 12.6c1.7 1.6 2.5 3 2.5 4.2a2.5 2.5 0 0 1-5 0c0-1.2.8-2.6 2.5-4.2z" fill="#f59e0b" />
+    </svg>
+  );
+}
+
+/** The Hearth listing page from the pull request, as it renders on the preview deploy. */
+function HearthListing() {
+  const thumbs = [1, 2, 3, 4];
+  return (
+    <div className="px-6 pb-6 text-[#151c26]">
+      <p className="pt-3 pb-2.5 text-[11px] text-[#556070]">
+        Buy <span className="px-1 text-[#8792a2]">/</span> Higashiyama <span className="px-1 text-[#8792a2]">/</span>
+        <span className="text-[#151c26]"> 2-14 Kazuemachi</span>
+      </p>
+      <div className="grid h-[200px] grid-cols-[2fr_1fr_1fr] grid-rows-2 gap-1 overflow-hidden rounded-[10px]">
+        <div className="relative row-span-2">
+          <Image src="/landing/listing-house.webp" alt="" fill sizes="240px" className="object-cover" />
         </div>
-        <div className="relative flex flex-col px-3 pt-3">
-          <p className="font-serif text-[15px] leading-none text-black">2-14 Kazuemachi</p>
-          <p className="mt-1 font-mono text-[8.5px] tracking-[0.06em] text-black/45">Kanazawa · 3LDK · 112 m²</p>
-          <p className="mt-2.5 font-serif text-[18px] leading-none text-black">¥78,000,000</p>
-          <p className="mt-1 text-[10px] text-text">
-            Est. <span className="bg-signal/40 px-0.5 font-mono">¥176,000</span>/mo
+        {thumbs.map((n) => (
+          <div key={n} className="relative">
+            <Image src={`/landing/listing-house-${n}.webp`} alt="" fill sizes="120px" className="object-cover" />
+            {n === 4 ? (
+              <span className="absolute right-2 bottom-2 rounded-md bg-white px-2 py-1 text-[9.5px] font-medium shadow-sm">View all 5 photos</span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 grid grid-cols-[1fr_210px] gap-5">
+        <div>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[26px] leading-none font-bold tracking-[-0.02em]">¥78,000,000</p>
+              <p className="mt-2 flex gap-3 text-[11px] text-[#556070]">
+                <span>
+                  <b className="text-[#151c26]">3</b> bed
+                </span>
+                <span>
+                  <b className="text-[#151c26]">2</b> bath
+                </span>
+                <span>
+                  <b className="text-[#151c26]">112</b> m²
+                </span>
+              </p>
+            </div>
+            <span className="flex items-center gap-1 rounded-full border border-[#cfd5dd] px-3 py-1.5 text-[11px] font-medium">
+              <RiHeart3Line size={12} /> Save
+            </span>
+          </div>
+          <p className="mt-3 text-[16px] font-semibold">2-14 Kazuemachi</p>
+          <p className="mt-0.5 text-[11px] text-[#556070]">Higashiyama, Kanazawa · Machiya townhouse</p>
+          <div className="mt-3 grid grid-cols-4 gap-1.5 text-[10px]">
+            {["Built 1924", "Restored 2019", "Riverside", "Move in Dec"].map((h) => (
+              <span key={h} className="rounded-lg border border-[#e4e7ec] bg-[#f8f9fb] px-2 py-2 font-medium">
+                {h}
+              </span>
+            ))}
+          </div>
+          <p className="mt-4 border-t border-[#e4e7ec] pt-3 text-[13px] font-semibold">About this home</p>
+          <p className="mt-1.5 text-[11px] leading-[17px] text-[#556070]">
+            A wooden machiya on the Asano river with lattice windows, a tatami room on every floor and a small garden at
+            the back. Ten minutes on foot to Higashi Chaya.
           </p>
-          <span
-            className={`mt-auto mb-3 flex h-[24px] items-center justify-center bg-ink text-[10px] text-white ${anim("motion-safe:animate-[rec-press_6s_var(--ease-io)_infinite]")}`}
-          >
+          <p className="mt-4 border-t border-[#e4e7ec] pt-3 text-[13px] font-semibold">Facts</p>
+          <dl className="mt-2 grid grid-cols-3 overflow-hidden rounded-lg border border-[#e4e7ec] text-[10px]">
+            {[
+              ["Property type", "Townhouse"],
+              ["Floors", "3"],
+              ["Land", "86 m²"],
+              ["Property tax", "¥210,000/yr"],
+              ["Size", "112 m²"],
+              ["Listed", "Yesterday"],
+            ].map(([k, v], i) => (
+              <div key={k} className={`px-2.5 py-2 ${i % 3 ? "border-l" : ""} ${i > 2 ? "border-t" : ""} border-[#e4e7ec]`}>
+                <dt className="text-[#556070]">{k}</dt>
+                <dd className="mt-0.5 font-semibold">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-4 border-t border-[#e4e7ec] pt-3 text-[13px] font-semibold">Location</p>
+          <div className="relative mt-2 h-[120px] overflow-hidden rounded-lg border border-[#e4e7ec] bg-[#f3efe6]">
+            <span className="absolute inset-y-0 left-[38%] w-[18px] -skew-x-12 bg-[#cfe0ec]" />
+            <span className="absolute inset-x-0 top-[42%] h-[6px] bg-white" />
+            <span className="absolute inset-y-0 left-[70%] w-[6px] bg-white" />
+            <span className="absolute top-[12%] right-[8%] h-[50px] w-[70px] rounded-full bg-[#d7e8cf]" />
+            <span className="absolute top-[30%] left-[48%] flex h-[22px] w-[22px] items-center justify-center rounded-full border-[3px] border-white bg-[#1d4ed8] shadow">
+              <span className="h-[6px] w-[6px] rounded-full bg-white" />
+            </span>
+            <span className="absolute top-[64%] left-[52%] text-[9px] font-semibold tracking-[0.14em] text-[#1d4ed8] uppercase">Higashiyama</span>
+          </div>
+        </div>
+        <aside className="self-start rounded-xl border border-[#e4e7ec] p-3.5 shadow-sm">
+          <p className="text-[10px] font-medium text-[#556070]">Estimated monthly payment</p>
+          <p className="mt-1 text-[20px] leading-none font-bold">
+            ¥176,000<span className="text-[11px] font-medium text-[#556070]">/mo</span>
+          </p>
+          <div className="mt-3 space-y-1.5 border-t border-[#e4e7ec] pt-2.5 text-[10.5px]">
+            {[
+              ["Down payment", "20%"],
+              ["Term", "35 years"],
+              ["Rate", "0.9%"],
+            ].map(([k, v]) => (
+              <p key={k} className="flex justify-between">
+                <span className="text-[#556070]">{k}</span>
+                <span className="font-semibold">{v}</span>
+              </p>
+            ))}
+          </div>
+          <span className="motion-safe:group-data-[playing]/rec:animate-[rec-press_8s_var(--ease-io)_infinite] mt-3 flex h-[30px] items-center justify-center rounded-lg bg-[#1d4ed8] text-[11px] font-semibold text-white">
             Make an offer
           </span>
-          <span
-            className={`absolute inset-x-3 bottom-3 flex h-[24px] items-center justify-center gap-1 border border-olive/50 bg-white text-[10px] text-olive opacity-0 ${anim("motion-safe:animate-[rec-toast_6s_var(--ease-io)_infinite]")}`}
-          >
-            <RiCheckLine size={11} /> Offer sent
+          <p className="mt-2 text-center text-[9px] leading-[13px] text-[#8792a2]">Offers go to the seller&apos;s agent, Haruto Mori.</p>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/** A looping screen recording of Hearth: the page scrolls to the estimate, the cursor clicks "Make an offer" and the offer is sent. */
+function Recording({ playing }: { playing: boolean }) {
+  const [ref, scale] = useFitScale();
+  // Every part loops on the same 8s clock while the section is open; it rests on its first frame otherwise.
+  return (
+    <div
+      ref={ref}
+      data-playing={playing || undefined}
+      className="group/rec relative mt-4 aspect-[16/8.4] overflow-hidden border border-black/15 bg-white"
+    >
+      <div
+        className="absolute top-0 left-0 flex origin-top-left flex-col bg-white font-sans"
+        style={{ width: APP_W, height: `${100 / scale}%`, transform: `scale(${scale})` }}
+      >
+        <div className="flex h-[26px] shrink-0 items-center gap-2 border-b border-[#e4e7ec] bg-[#f6f7f9] px-3">
+          <span className="flex gap-1">
+            <span className="h-[7px] w-[7px] rounded-full bg-[#e0e3e8]" />
+            <span className="h-[7px] w-[7px] rounded-full bg-[#e0e3e8]" />
+            <span className="h-[7px] w-[7px] rounded-full bg-[#e0e3e8]" />
+          </span>
+          <span className="mx-auto flex w-[260px] items-center justify-center gap-1 rounded-md bg-white px-2 py-[3px] text-[9.5px] text-[#556070]">
+            <RiLock2Line size={9} /> preview-7.hearth.app/homes/214
           </span>
         </div>
+        <div className="flex h-[44px] shrink-0 items-center gap-4 border-b border-[#e4e7ec] px-4">
+          <span className="flex items-center gap-1.5 text-[15px] font-bold tracking-[-0.01em] text-[#151c26]">
+            <HearthLogo /> Hearth
+          </span>
+          <span className="text-[11px] font-medium text-[#556070]">Rentals</span>
+          <span className="rounded-full bg-[#eaf0fe] px-2.5 py-1 text-[11px] font-semibold text-[#1d4ed8]">Buy</span>
+          <span className="flex items-center gap-1 text-[11px] font-medium text-[#556070]">
+            <RiHeart3Line size={11} /> Saved homes
+          </span>
+          <span className="ml-auto flex items-center gap-1 rounded-full border border-[#e4e7ec] px-2.5 py-1 text-[10px] text-[#556070]">
+            <RiMapPin2Line size={10} /> Kanazawa, Ishikawa
+          </span>
+        </div>
+        <div className="relative flex-1 overflow-hidden">
+          <div className="motion-safe:group-data-[playing]/rec:animate-[rec-scroll_8s_var(--ease-io)_infinite]">
+            <HearthListing />
+          </div>
+          <div className="motion-safe:group-data-[playing]/rec:animate-[rec-toast_8s_var(--ease-io)_infinite] absolute top-3 right-4 flex items-center gap-2 rounded-lg border border-[#e4e7ec] bg-white px-3 py-2 text-[11px] opacity-0 shadow-lg">
+            <RiCheckboxCircleFill size={15} className="text-[#15803d]" />
+            <span>
+              <b className="font-semibold text-[#151c26]">Offer sent</b>
+              <span className="block text-[10px] text-[#556070]">Haruto will reply within a day.</span>
+            </span>
+          </div>
+        </div>
+        <svg
+          className="motion-safe:group-data-[playing]/rec:animate-[rec-cursor_8s_var(--ease-io)_infinite] absolute top-[150px] left-[300px] h-[20px] w-[15px] drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)]"
+          viewBox="0 0 12 16"
+          aria-hidden="true"
+        >
+          <path d="M1 1v12.5l3.2-3 2.2 4.8 2-.9-2.1-4.7H10.5z" fill="#141518" stroke="#fff" strokeWidth="1" />
+        </svg>
       </div>
-      <svg
-        className={`absolute top-[30%] left-[30%] h-[14px] w-[14px] drop-shadow-[0_1px_1px_rgba(0,0,0,0.3)] ${anim("motion-safe:animate-[rec-cursor_6s_var(--ease-io)_infinite]")}`}
-        viewBox="0 0 12 16"
-        aria-hidden="true"
-      >
-        <path d="M1 1v12.5l3.2-3 2.2 4.8 2-.9-2.1-4.7H10.5z" fill="#141518" stroke="#fff" strokeWidth="1" />
-      </svg>
-      <div className="absolute inset-x-0 bottom-0 flex h-[26px] items-center gap-2 bg-ink/90 px-2.5 font-mono text-[8.5px] text-white/70">
+      <div className="absolute inset-x-0 bottom-0 flex h-[20px] items-center gap-2 bg-gradient-to-t from-ink/80 to-ink/40 px-2.5 font-mono text-[8.5px] text-white/80">
         <RiPlayFill size={11} className="text-white" />
-        <span className="relative h-[3px] flex-1 bg-white/20">
-          <span className={`absolute inset-0 origin-left scale-x-[0.4] bg-signal ${playing ? "motion-safe:animate-[rec-progress_6s_linear_infinite]" : ""}`} />
+        <span className="relative h-[3px] flex-1 bg-white/25">
+          <span className="motion-safe:group-data-[playing]/rec:animate-[rec-progress_8s_linear_infinite] absolute inset-0 origin-left scale-x-[0.4] bg-signal" />
         </span>
-        <span>0:06</span>
+        <span>0:08</span>
       </div>
     </div>
   );
@@ -487,6 +657,8 @@ function SaleListing({ playing }: { playing: boolean }) {
 
 export function ProductSchematic() {
   const [active, setActive] = useState(INITIAL);
+  // No reveal on page load; only when a visitor switches sections.
+  const [switched, setSwitched] = useState(false);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
 
   function onKeyDown(e: KeyboardEvent) {
@@ -494,15 +666,23 @@ export function ProductSchematic() {
     if (!step) return;
     e.preventDefault();
     const next = (active + step + SECTIONS.length) % SECTIONS.length;
-    setActive(next);
+    open(next);
     tabs.current[next]?.focus();
+  }
+
+  function open(i: number) {
+    if (i === active) return;
+    setActive(i);
+    setSwitched(true);
   }
 
   const panels = [<DataModel key={0} />, <MortgageMath key={1} />, <OffersApi key={2} />, <SaleListing key={3} playing={active === 3} />];
 
   return (
     <div className="relative mx-auto w-full max-w-[1040px]">
-      {CALLOUTS.flatMap((set, i) => set.map((c) => <Callout key={`${i}-${c.label}`} {...c} visible={i === active} />))}
+      {CALLOUTS[active].map((c) => (
+        <Callout key={`${active}-${c.label}`} {...c} reveal={switched} />
+      ))}
 
       <div className="relative border border-solid border-[#a8a8a8] bg-white text-left">
         {/* PR bar */}
@@ -521,14 +701,9 @@ export function ProductSchematic() {
           aria-label="Sections of an example guided pull request"
           onKeyDown={onKeyDown}
         >
-          <span
-            className="absolute inset-y-0 left-0 bg-ink transition-transform duration-500 ease-(--ease-snap) motion-reduce:transition-none"
-            style={{ width: `${100 / SECTIONS.length}%`, transform: `translateX(${active * 100}%)` }}
-            aria-hidden="true"
-          />
           {SECTIONS.map((s, i) => {
             const on = i === active;
-            const done = i <= active;
+            const done = REVIEWED.has(i);
             return (
               <button
                 key={s.n}
@@ -541,27 +716,27 @@ export function ProductSchematic() {
                 aria-selected={on}
                 aria-controls={`schematic-panel-${i}`}
                 tabIndex={on ? 0 : -1}
-                onClick={() => setActive(i)}
-                className={`group relative flex h-12 min-w-0 flex-1 cursor-pointer flex-col justify-center gap-0.5 border-r border-dashed border-line px-3 text-left outline-none last:border-r-0 focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-inset ${
-                  on ? "" : "hover:bg-black/[0.035]"
-                } transition-colors duration-300`}
+                onClick={() => open(i)}
+                className={`group relative flex h-12 min-w-0 flex-1 cursor-pointer flex-col justify-center gap-0.5 border-r border-dashed border-line px-3 text-left transition-colors outline-none last:border-r-0 focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-inset ${
+                  on ? "bg-ink" : "hover:bg-black/[0.03]"
+                }`}
               >
                 <span
-                  className={`absolute inset-x-0 top-0 h-[2px] transition-colors duration-500 ${done ? (on ? "bg-signal" : "bg-ink") : "bg-transparent"}`}
+                  className={`absolute inset-x-0 top-0 h-[2px] ${done ? (on ? "bg-signal" : "bg-ink") : "bg-transparent"}`}
                 />
                 <span
-                  className={`flex items-center gap-1 font-mono text-[9px] tracking-[0.08em] uppercase transition-colors duration-300 ${on ? "text-white/60" : "text-black/45"}`}
+                  className={`flex items-center gap-1 font-mono text-[9px] tracking-[0.08em] uppercase ${on ? "text-white/60" : "text-black/45"}`}
                 >
-                  <span className={`dot h-[5px] w-[5px] transition-colors duration-300 ${on ? "bg-signal" : done ? "bg-ink" : "bg-black/20"}`} />
+                  <span className={`dot h-[5px] w-[5px] ${on ? "bg-signal" : done ? "bg-ink" : "bg-black/20"}`} />
                   {s.n}
                 </span>
-                <span className={`truncate font-serif text-[13px] transition-colors duration-300 ${on ? "text-white" : "text-black"}`}>{s.title}</span>
+                <span className={`truncate font-serif text-[13px] ${on ? "text-white" : "text-black"}`}>{s.title}</span>
               </button>
             );
           })}
         </div>
-        {/* Panels share one grid cell so the frame keeps the height of the tallest and never jumps. */}
-        <div className="grid overflow-hidden">
+        {/* Panels share one grid cell so the frame keeps the height of the tallest and never jumps; only the open one is visible. */}
+        <div className="grid">
           {panels.map((panel, i) => (
             <div
               key={i}
@@ -569,11 +744,9 @@ export function ProductSchematic() {
               id={`schematic-panel-${i}`}
               aria-labelledby={`schematic-tab-${i}`}
               inert={i !== active}
-              className={`col-start-1 row-start-1 transition-[opacity,translate,filter] duration-500 ease-(--ease-snap) motion-reduce:transition-none ${
-                i === active ? "opacity-100 blur-0" : `pointer-events-none opacity-0 blur-[2px] ${i < active ? "-translate-x-4" : "translate-x-4"}`
-              }`}
+              className={`col-start-1 row-start-1 ${i === active ? "" : "invisible"}`}
             >
-              {panel}
+              <RevealContext value={switched && i === active}>{panel}</RevealContext>
             </div>
           ))}
         </div>
