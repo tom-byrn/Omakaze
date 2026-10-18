@@ -36,7 +36,6 @@
 
 <p align="center">
   <a href="#quick-start-with-docker"><strong>Quick start</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
   <a href="#connect-an-agent"><strong>Connect an agent</strong></a> ·
   <a href="#documentation"><strong>Docs</strong></a> ·
   <a href="CONTRIBUTING.md"><strong>Contributing</strong></a> ·
