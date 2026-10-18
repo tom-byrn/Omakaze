@@ -13,7 +13,7 @@ const LINKS = [
   { href: "#self-host", label: "Self-host" },
 ];
 
-export function SiteHeader({ signedIn, appHref, repoUrl }: { signedIn: boolean; appHref: string; repoUrl: string }) {
+export function SiteHeader({ ctaLabel, appHref, repoUrl }: { ctaLabel: string; appHref: string; repoUrl: string }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -52,7 +52,7 @@ export function SiteHeader({ signedIn, appHref, repoUrl }: { signedIn: boolean; 
               GitHub
             </a>
             <Link href={appHref} className="btn btn-primary btn-sm h-9 px-5">
-              {signedIn ? "Open app" : "Sign In"}
+              {ctaLabel}
             </Link>
           </nav>
           <button
@@ -87,7 +87,7 @@ export function SiteHeader({ signedIn, appHref, repoUrl }: { signedIn: boolean; 
             </a>
           ))}
           <Link href={appHref} className="btn btn-primary btn-lg mt-6 w-full">
-            {signedIn ? "Open app" : "Sign In"}
+            {ctaLabel}
           </Link>
         </nav>
       </div>
