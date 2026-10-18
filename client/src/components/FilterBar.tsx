@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   countActiveFilters,
   formatCompactPrice,
@@ -41,6 +41,21 @@ export function FilterBar({ filters, neighborhoods, onChange, onReset }: FilterB
 
   useEffect(() => setQuery(filters.q), [filters.q]);
 
+  // "/" jumps to the search box, as on most search-heavy sites, unless the visitor is already typing.
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      event.preventDefault();
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const activeCount = countActiveFilters(filters) + (filters.q ? 1 : 0);
 
   return (
@@ -57,10 +72,12 @@ export function FilterBar({ filters, neighborhoods, onChange, onReset }: FilterB
         >
           <SearchIcon size={18} />
           <input
+            ref={inputRef}
             type="search"
             value={query}
             placeholder="Address, neighborhood or keyword"
             aria-label="Search listings"
+            aria-keyshortcuts="/"
             onChange={(event) => {
               setQuery(event.target.value);
               search.call(event.target.value.trim());
