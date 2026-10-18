@@ -1,6 +1,9 @@
 <p align="center">
   <a href="https://github.com/tom-byrn/omakaze">
-    <img src="public/logo.svg" width="96" height="96" alt="Omakaze logo">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="public/logo-white.svg">
+      <img src="public/logo.svg" width="96" height="96" alt="Omakaze logo">
+    </picture>
   </a>
 </p>
 
