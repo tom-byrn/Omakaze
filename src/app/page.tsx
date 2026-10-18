@@ -11,6 +11,7 @@ import { getAuthMethods } from "@/lib/auth/methods";
 import { getCurrentUser } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 import { agentPrompt, setupPrompt } from "@/lib/prompts";
+import { homePathFor } from "@/lib/workspaces";
 
 const REPO = "https://github.com/tom-byrn/guided-prs";
 
@@ -52,11 +53,13 @@ const FEATURES = [
 export default async function LandingPage() {
   const user = await getCurrentUser();
   const methods = await getAuthMethods();
+  // Signed-in visitors go straight to their dashboard; everyone else to sign in.
+  const appHref = user ? await homePathFor(user) : "/login";
   const appUrl = env().APP_URL;
   const prompt = setupPrompt(appUrl);
   return (
     <div id="top" className={`${shipporiMincho.variable} bg-paper`}>
-      <SiteHeader signedIn={Boolean(user)} repoUrl={REPO} />
+      <SiteHeader signedIn={Boolean(user)} appHref={appHref} repoUrl={REPO} />
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-dashed border-black/[0.08] grain">
@@ -78,7 +81,7 @@ export default async function LandingPage() {
               covers.
             </p>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-              <Link href="/login" className="btn btn-primary btn-lg w-[260px]">
+              <Link href={appHref} className="btn btn-primary btn-lg w-[260px]">
                 {user ? "Open the app" : methods.github ? "Sign In with GitHub" : "Sign In"}
               </Link>
               <CopyButton text={prompt} label="Copy Setup Prompt" copiedLabel="Setup Prompt Copied" className="btn btn-secondary btn-lg w-[260px]" />
@@ -251,7 +254,7 @@ export default async function LandingPage() {
             in order.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
-            <Link href="/login" className="btn btn-primary btn-lg w-[260px]">
+            <Link href={appHref} className="btn btn-primary btn-lg w-[260px]">
               {user ? "Open the app" : "Sign In"}
             </Link>
           </div>
@@ -268,7 +271,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <Footer signedIn={Boolean(user)} repoUrl={REPO} />
+      <Footer signedIn={Boolean(user)} appHref={appHref} repoUrl={REPO} />
     </div>
   );
 }
