@@ -49,6 +49,7 @@
 
   --animate-reveal: reveal-fade-blur 600ms var(--ease-snap) both;
   --animate-pulse-dot: pulse-dot 1.4s ease-in-out infinite;
+  --animate-caret: caret-blink 1s steps(1) infinite;
 }
 
 :root {
@@ -129,6 +130,12 @@ h4 {
   }
   50% {
     opacity: 0.25;
+  }
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
   }
 }
 

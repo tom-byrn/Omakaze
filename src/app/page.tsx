@@ -5,6 +5,7 @@ import { ProductSchematic } from "@/components/landing/ProductSchematic";
 import { SideNote } from "@/components/landing/SideNote";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { Steps } from "@/components/landing/Steps";
+import { TerminalTyping, type TerminalLine } from "@/components/landing/TerminalTyping";
 import { shipporiMincho } from "@/app/landing-font";
 import { getAuthMethods } from "@/lib/auth/methods";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -12,6 +13,14 @@ import { env } from "@/lib/env";
 import { agentPrompt, setupPrompt } from "@/lib/prompts";
 
 const REPO = "https://github.com/tom-byrn/guided-prs";
+
+const TERMINAL_LINES: TerminalLine[] = [
+  { text: `git clone ${REPO}.git`, command: true },
+  { text: "cd guided-prs", command: true },
+  { text: "cp .env.example .env", command: true },
+  { text: "docker compose up -d", command: true },
+  { text: "# open http://localhost:3000", command: false },
+];
 
 const FEATURES = [
   {
@@ -220,18 +229,14 @@ export default async function LandingPage() {
             <div className="flex items-center justify-between border-b border-dashed border-line px-4 py-2.5">
               <span className="mono-label">Terminal</span>
               <CopyButton
-                text={`git clone ${REPO}.git\ncd guided-prs\ncp .env.example .env\ndocker compose up -d`}
+                text={TERMINAL_LINES.filter((l) => l.command)
+                  .map((l) => l.text)
+                  .join("\n")}
                 label="Copy"
                 className="btn btn-secondary btn-xs"
               />
             </div>
-            <pre className="overflow-auto p-5 font-mono text-[13px] leading-[24px] text-ink">
-              <span className="text-black/35">$ </span>git clone {REPO}.git{"\n"}
-              <span className="text-black/35">$ </span>cd guided-prs{"\n"}
-              <span className="text-black/35">$ </span>cp .env.example .env{"\n"}
-              <span className="text-black/35">$ </span>docker compose up -d{"\n"}
-              <span className="text-black/40"># open http://localhost:3000</span>
-            </pre>
+            <TerminalTyping lines={TERMINAL_LINES} className="overflow-auto p-5 font-mono text-[13px] leading-[24px] text-ink" />
           </div>
         </div>
       </section>
