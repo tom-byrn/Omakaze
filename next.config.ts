@@ -13,10 +13,10 @@ const nextConfig: NextConfig = {
     },
   },
   async redirects() {
-    // LANDING_ONLY=true (see src/lib/landing-only.ts): only / is served. Build output, Vercel's own
-    // paths and files with an extension (icons, robots.txt) are left alone.
+    // LANDING_ONLY=true (see src/lib/landing-only.ts): only / and /branding are served. Build output,
+    // Vercel's own paths and files with an extension (icons, robots.txt) are left alone.
     if (!["1", "true", "yes", "on"].includes((process.env.LANDING_ONLY ?? "").toLowerCase())) return [];
-    return [{ source: "/:path((?!_next/|_vercel/)(?!.*\\.[a-z0-9]+$).+)", destination: "/", permanent: false }];
+    return [{ source: "/:path((?!_next/|_vercel/|branding$)(?!.*\\.[a-z0-9]+$).+)", destination: "/", permanent: false }];
   },
   async headers() {
     return [
