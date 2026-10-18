@@ -1,0 +1,16 @@
+{
+  "title": "Press / to jump to the search box",
+  "summary": "Pressing `/` anywhere on the search page focuses the search box and selects its text, the way GitHub, YouTube and most search-heavy sites behave. Nothing happens while focus is already in a form field, so typing a `/` into an address or a message still works.\n\n| Key | Focus | Result |\n| --- | --- | --- |\n| `/` | Page | Search box focused, text selected |\n| `/` | Input, textarea, select | Types a `/` as usual |\n| `Ctrl`/`⌘`/`Alt` + `/` | Anywhere | Left to the browser |\n\nOne file changes: [FilterBar.tsx](diff:client/src/components/FilterBar.tsx).",
+  "sections": [
+    {
+      "title": "The keyboard listener",
+      "body": "A document-level `keydown` listener is added once, when the filter bar mounts, and removed when it unmounts ([FilterBar.tsx](diff:client/src/components/FilterBar.tsx#L44-L57)).\n\nIt returns early when:\n\n- the key is not `/`, or a modifier is held, so browser shortcuts keep working;\n- the event comes from an `input`, `textarea`, `select` or `contenteditable` element, checked with `closest` so nested elements count too.\n\nOtherwise it calls `preventDefault()` (Firefox would open quick find), focuses the input and selects its text, so a new search replaces the old one.\n\n> [!TIP]\n> The input is reached through a ref rather than a DOM query, so a second filter bar on the page could not steal focus.",
+      "refs": ["client/src/components/FilterBar.tsx"]
+    },
+    {
+      "title": "Announcing the shortcut",
+      "body": "The search input gets the ref and `aria-keyshortcuts=\"/\"` ([FilterBar.tsx](diff:client/src/components/FilterBar.tsx#L75-L80)). Screen readers read the shortcut out with the field's label, so keyboard and screen reader users can find it without a visible hint.\n\nChecked in Chrome, Firefox and Safari: `/` from the page, from the map and from a result card; typing `/` into the search box itself and into the contact form.",
+      "refs": ["client/src/components/FilterBar.tsx"]
+    }
+  ]
+}

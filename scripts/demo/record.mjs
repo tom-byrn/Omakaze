@@ -4,6 +4,7 @@
 //
 // Env: BASE_URL (default http://localhost:3000), GITHUB_TOKEN (used for token sign-in),
 //      DEMO_REPO (owner/name), DEMO_PR (number), GUIDE_FILE (JSON written for the agent step),
+//      DEMO_SMALL_PR, SMALL_GUIDE_FILE (a second pull request guided off camera),
 //      MEDIA_DIR (screenshots/videos the agent uploads), OUT_DIR.
 //
 // The "agent" in this recording is a script using the official MCP client SDK. It connects through
@@ -17,7 +18,7 @@ import path from "node:path";
 import { chromium } from "@playwright/test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { CURSOR_AND_CAPTIONS, makeDemo } from "./helpers.mjs";
+import { CURSOR, makeDemo } from "./helpers.mjs";
 import { Recorder } from "./recorder.mjs";
 import { execFileSync } from "node:child_process";
 
@@ -26,6 +27,9 @@ const REPO = process.env.DEMO_REPO ?? "tom-byrn/tester-renting-app";
 const PR = Number(process.env.DEMO_PR ?? 1);
 const PR_URL = `https://github.com/${REPO}/pull/${PR}`;
 const GUIDE = JSON.parse(readFileSync(process.env.GUIDE_FILE ?? "scripts/demo/hearth-guide.json", "utf8"));
+// A second, small pull request gets a guide off camera, so the dashboard shows more than one.
+const SMALL_PR = Number(process.env.DEMO_SMALL_PR ?? 4);
+const SMALL_GUIDE = JSON.parse(readFileSync(process.env.SMALL_GUIDE_FILE ?? "scripts/demo/hearth-shortcut-guide.json", "utf8"));
 const MEDIA_DIR = process.env.MEDIA_DIR ?? "demo-media";
 const OUT_DIR = process.env.OUT_DIR ?? "demo-output";
 const W = 1440;
@@ -106,22 +110,22 @@ async function call(client, name, args) {
 }
 
 /** Upload media, then write the guide section by section (the page updates live). */
-async function runAgent(client, { pause, beforeWrite }) {
+async function runAgent(client, { pause, beforeWrite, guide = GUIDE, prUrl = PR_URL }) {
   await call(client, "whoami", {});
-  const info = await call(client, "get_pull_request", { pr: PR_URL });
+  const info = await call(client, "get_pull_request", { pr: prUrl });
   const headSha = /head_sha: (\w+)/.exec(info)[1];
-  await call(client, "get_diff", { pr: PR_URL, max_chars: 200000 });
+  await call(client, "get_diff", { pr: prUrl, max_chars: 200000 });
   const uploads = {};
-  for (const file of GUIDE.media ?? []) {
+  for (const file of guide.media ?? []) {
     const data = readFileSync(path.join(MEDIA_DIR, file)).toString("base64");
     const out = await call(client, "upload_asset", { filename: file, content_base64: data });
     uploads[file] = /URL: (\S+)/.exec(out)[1];
   }
   const fill = (s) => s.replace(/\{\{media:([^}]+)\}\}/g, (_, f) => uploads[f] ?? f);
   await beforeWrite?.();
-  const started = await call(client, "start_guide", { pr: PR_URL, head_sha: headSha, title: GUIDE.title, summary: fill(GUIDE.summary) });
+  const started = await call(client, "start_guide", { pr: prUrl, head_sha: headSha, title: guide.title, summary: fill(guide.summary) });
   const guideId = /guide_id: (\S+)/.exec(started)[1];
-  for (const s of GUIDE.sections) {
+  for (const s of guide.sections) {
     await pause();
     await call(client, "add_section", { guide_id: guideId, title: s.title, body: fill(s.body), refs: s.refs });
   }
@@ -137,7 +141,7 @@ const browser = await chromium.launch();
 const newContext = () =>
   browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: SCALE, permissions: ["clipboard-read", "clipboard-write"] });
 const context = await newContext();
-await context.addInitScript(CURSOR_AND_CAPTIONS);
+await context.addInitScript(CURSOR);
 const page = await context.newPage();
 page.setDefaultTimeout(60_000);
 const d = makeDemo(page);
@@ -169,124 +173,162 @@ async function goto(url) {
   await d.moveTo(d.mouse.x, d.mouse.y, 1);
 }
 
+/** Moves the cursor over each element in turn. */
+async function hoverEach(locators, ms = 900) {
+  for (const locator of locators) {
+    await d.hover(locator);
+    await d.sleep(ms);
+  }
+}
+
 rec = new Recorder(path.join(OUT_DIR, "raw.mp4"), { width: Math.round(W * SCALE), height: Math.round(H * SCALE) });
 
-// 1. Landing page
+// 1. Landing page, top to bottom
 await mark("landing");
 await goto("/");
 await rec.use(page);
-await d.sleep(1200);
-await d.caption("Omakaze", "Open-source, self-hosted guided walkthroughs for pull requests.");
-await d.sleep(3500);
-await d.scroll(860, { duration: 2200 });
-await d.caption("Omakaze", "Sections in review order. Explanation on the left, the code it covers on the right.");
-await d.sleep(3000);
-await d.scroll(820, { duration: 1800 });
 await d.sleep(1500);
-await d.scrollTo(null, page.locator("#how-it-works"), { offset: 20, duration: 1800 });
-await d.caption("How it works", "Connect GitHub, let an agent write the guide, review in sections, comment on GitHub.");
-await d.sleep(6500);
-await d.scrollTo(null, page.locator("#features"), { offset: 20, duration: 2000 });
-await d.caption("Features", "Markdown with Mermaid, tables and video. Expandable context. Workspaces and invites.");
-await d.sleep(3500);
-await d.scrollTo(null, page.locator("#agents"), { offset: 20, duration: 2000 });
-await d.caption("Agents", "One prompt sets up the MCP server in Claude Code, Codex, Cursor or VS Code.");
+await d.moveTo(560, 250);
+await d.sleep(1800);
+await d.hover(page.getByRole("button", { name: "Copy agent setup prompt" }));
+await d.sleep(1200);
+await d.scroll(520, { duration: 2600 });
+await d.sleep(1500);
+// The product schematic: tabs, explanation and code.
+await d.moveTo(420, 300);
+await d.sleep(900);
+await d.moveTo(900, 420);
+await d.sleep(1400);
+await d.scroll(460, { duration: 2200 });
+await d.sleep(1800);
+await d.scroll(380, { duration: 1800 });
+await d.sleep(2200);
+await d.scroll(420, { duration: 1800 });
+await d.sleep(2600);
+
+await mark("how it works");
+await d.scrollTo(null, page.locator("#how-it-works"), { offset: 64, duration: 2000 });
+await d.sleep(1500);
+const steps = page.locator("#how-it-works button");
+for (let i = 0; i < 4; i++) {
+  await d.click(steps.nth(i));
+  await d.sleep(3200);
+}
+
+await mark("features");
+await d.scrollTo(null, page.locator("#features"), { offset: 64, duration: 2000 });
+await d.sleep(1200);
+await hoverEach(
+  ["Sections, not files.", "Markdown that does more.", "Context when you need it.", "Comments go to GitHub.", "Shared by the team.", "Automatic when you want it."].map(
+    (title) => page.locator("#features").getByText(title, { exact: true }),
+  ),
+  1300,
+);
+
+await mark("agents");
+await d.scrollTo(null, page.locator("#agents"), { offset: 64, duration: 2000 });
+await d.sleep(1500);
+await d.moveTo(300, 560);
 await d.sleep(1200);
 await d.click(page.locator("#agents").getByRole("button", { name: "Copy" }).first());
+await d.sleep(1800);
+await d.click(page.locator("#agents").getByRole("button", { name: "Copy" }).nth(1));
+await d.sleep(1800);
+
+await mark("self-host");
+await d.scrollTo(null, page.locator("#self-host"), { offset: 64, duration: 2000 });
+await d.sleep(1500);
+await d.click(page.locator("#self-host").getByRole("button", { name: "Copy" }).first());
+await d.sleep(1800);
+await d.hover(page.locator("#self-host").getByRole("link", { name: "Self-hosting guide" }));
+await d.sleep(1200);
+await d.scroll(560, { duration: 2000 });
 await d.sleep(2200);
-await d.scrollTo(null, page.locator("#self-host"), { offset: 20, duration: 1800 });
-await d.caption("Self-host", "One container and Postgres. MIT licensed.");
-await d.sleep(3000);
-await d.scroll(2400, { duration: 2400 });
-await d.caption(null, null);
-await d.sleep(2500);
-await d.scroll("top", { duration: 2600 });
-await d.caption(null, null);
-await d.sleep(600);
+await d.scroll(1400, { duration: 2600 });
+await d.sleep(1200);
+await hoverEach(
+  ["HOW IT WORKS", "AGENTS AND MCP", "DOCKER COMPOSE", "MCP TOOLS", "REST API"].map((name) => page.locator("footer").getByRole("link", { name, exact: true })),
+  700,
+);
+await d.sleep(800);
+await d.click(page.locator("footer").getByRole("link", { name: /BACK TO TOP/ }));
+await d.sleep(2600);
 
 // 2. Sign in
 await mark("sign in");
 await d.click(page.getByRole("link", { name: /^Sign in/ }).first());
 await page.waitForURL(/\/login/);
-await d.sleep(1200);
-await d.caption("Sign in", "Sign in with GitHub. This instance has no OAuth app, so it uses a GitHub token instead.");
-await d.sleep(2500);
+await d.sleep(2000);
 await d.click(page.getByText("Sign in with a GitHub token"));
 await d.type(page.locator("#token"), process.env.GITHUB_TOKEN, { delay: 4 });
 await d.sleep(400);
 await d.click(page.getByRole("button", { name: "Sign in with token" }));
 await page.waitForURL(/\/w\//);
-await d.sleep(1500);
+await d.sleep(2200);
 
 // 3. Connect GitHub and add the repository
 await mark("connect");
-await d.caption("Workspace", "A personal workspace is created on first sign-in. Connect GitHub to see pull requests.");
-await d.sleep(3000);
 await d.click(page.getByRole("link", { name: "Connect GitHub" }));
 await page.waitForURL(/settings\/github/);
-await d.sleep(1200);
-await d.caption("GitHub", "Install the GitHub App on an organization, use your own account, or add a token.");
-await d.scroll(520, { duration: 1400 });
+await d.sleep(1800);
+await d.scroll(520, { duration: 1600 });
 await d.sleep(1500);
 await d.click(page.getByRole("button", { name: /Connect @/ }));
-await d.sleep(1800);
+await d.sleep(2000);
 await d.scroll("top", { duration: 1000 });
-await d.sleep(1500);
+await d.sleep(1200);
 await d.click(page.getByRole("link", { name: "Repositories" }));
 await page.waitForURL(/\/repos/);
-await d.sleep(1500);
-await d.caption("Repositories", "Choose the repositories this workspace follows.");
+await d.sleep(1800);
 await d.type(page.locator("#manual"), REPO, { delay: 45 });
 await d.click(page.getByRole("button", { name: "Add", exact: true }).first());
 await page.getByText(`Added ${REPO}`).waitFor();
-await d.sleep(2200);
+await d.sleep(2400);
 
 // 4. Pull requests dashboard
 await mark("dashboard");
 await d.click(page.getByRole("link", { name: "Pull requests" }));
 await page.waitForURL(new RegExp(`/w/[^/]+$`));
-await d.sleep(1500);
-await d.caption("Pull requests", "Open, merged and closed pull requests, grouped by repository. Data comes from GitHub.");
-await d.sleep(3200);
+await d.sleep(2500);
 const tabs = page.getByRole("navigation", { name: "Filter by state" });
+await d.click(tabs.getByRole("link", { name: /^Merged/ }));
+await page.waitForURL(/state=merged/);
+await d.sleep(1800);
 await d.click(tabs.getByRole("link", { name: /^Closed/ }));
 await page.waitForURL(/state=closed/);
-await d.sleep(1600);
+await d.sleep(1800);
 await d.click(tabs.getByRole("link", { name: /^All/ }));
 await page.waitForURL(/state=all/);
-await d.sleep(1800);
+await d.sleep(2200);
 await d.click(tabs.getByRole("link", { name: /^Open/ }));
 await page.waitForURL((u) => !u.search.includes("state="));
-await d.sleep(1200);
-const row = page.locator("li").filter({ has: page.getByText(`#${PR}`, { exact: true }) }).first();
+await d.sleep(1400);
+const prRow = (n) => page.locator("li").filter({ has: page.getByText(`#${n}`, { exact: true }) }).first();
+const row = prRow(PR);
 await d.hover(row.getByRole("button", { name: "Copy prompt" }));
-await d.caption("Agent prompt", `"Create a guided PR for <link> using the Omakaze MCP."`);
 await d.sleep(800);
 await d.click(row.getByRole("button", { name: "Copy prompt" }));
-await d.sleep(2200);
+await d.sleep(1800);
 
 // 5. PR without a guide
 await mark("no guide");
 await d.click(row.getByRole("link").first());
 await page.waitForURL(/\/pull\//);
-await d.sleep(1500);
-await d.caption("No guide yet", "Use your agent, the built-in AI provider, or write the guide yourself.");
-await d.sleep(4000);
+await d.sleep(4500);
 
 // 6. Agent connects over OAuth and writes the guide
 await mark("agent oauth");
 const oauth = await oauthBegin();
 const prPage = page.url();
-await d.caption("Agent", "The agent adds the MCP server and opens the consent screen.");
 await goto(oauth.authorizeUrl);
-await d.sleep(2500);
+await d.sleep(3000);
 await d.click(page.getByRole("button", { name: "Allow" }));
+// The redirect lands on the agent's local callback page, which is not part of Omakaze.
+rec.pause();
 await page.waitForURL(/127\.0\.0\.1:53682/);
-await d.sleep(2000);
 const client = await oauth.finish();
 await goto(prPage);
-await d.caption("Agent", "Claude Code reads the diff over MCP and writes the guide. Sections appear as they are added.");
-rec.pause();
+await d.sleep(500);
 let resumed;
 const writing = new Promise((r) => (resumed = r));
 const agentRun = runAgent(client, {
@@ -301,8 +343,11 @@ await page.locator("text=Writing this guide").waitFor({ timeout: 120_000 });
 await mark("writing");
 await agentRun;
 await d.sleep(4500);
+rec.pause();
+await runAgent(client, { pause: async () => {}, guide: SMALL_GUIDE, prUrl: `https://github.com/${REPO}/pull/${SMALL_PR}` });
 await client.close();
 await page.reload({ waitUntil: "networkidle" });
+rec.resume();
 await d.sleep(1500);
 
 // 7. Overview
@@ -312,67 +357,94 @@ const tab = (n) => page.locator('nav[aria-label="Guide sections"] button').nth(n
 const markReviewed = () => d.click(page.getByRole("button", { name: /Mark reviewed and continue/ }));
 
 await mark("overview");
-await d.caption("Overview", "The summary, with a diagram and tables, next to every changed file and the section that covers it.");
 await d.sleep(3000);
-await d.scroll(760, { container: LEFT, duration: 2400 });
-await d.sleep(2600);
-await d.scroll(820, { container: LEFT, duration: 2200 });
+await d.scroll(760, { container: LEFT, duration: 2600 });
+await d.sleep(3000);
+await d.scroll(820, { container: LEFT, duration: 2400 });
+await d.sleep(2800);
+await d.scroll(800, { container: LEFT, duration: 2200 });
 await d.sleep(2200);
 await d.scroll(700, { container: RIGHT, duration: 2000 });
 await d.sleep(2200);
+await d.scroll(900, { container: RIGHT, duration: 2000 });
+await d.sleep(1800);
 
 // 8. Sections
-async function openSection(n, text) {
+async function openSection(n) {
   await mark(`section ${n}`);
   await d.click(tab(n));
-  await d.sleep(1200);
-  if (text) await d.caption(`Section ${String(n).padStart(2, "0")}`, text);
+  await d.sleep(1400);
 }
 
-await openSection(1, "Each section explains one part of the change, next to the code it covers.");
+await openSection(1);
 await d.sleep(3200);
 await d.scroll(560, { container: LEFT, duration: 2200 });
 await d.sleep(3000);
 await d.scroll(640, { container: LEFT, duration: 2000 });
 await d.sleep(1200);
-await d.caption("Code links", "Links in the explanation jump to the lines they describe.");
 await d.click(page.locator(`${LEFT} .code-ref`, { hasText: "idx_offers_one_open" }));
 await d.sleep(3600);
 await markReviewed();
 await d.sleep(2600);
 
-await openSection(3, "Explanations are GitHub-flavored markdown: tables, math, Mermaid diagrams, alerts.");
-await d.sleep(3000);
+// Section 2 opens from "Mark reviewed and continue".
+await d.scroll(600, { container: LEFT, duration: 2200 });
+await d.sleep(2400);
+await d.scroll(800, { container: RIGHT, duration: 2200 });
+await d.sleep(2000);
+await markReviewed();
+await d.sleep(2400);
+
+// Section 3: tables, math and the code they describe.
+await d.sleep(2600);
 await d.scroll(620, { container: LEFT, duration: 2200 });
 await d.sleep(3000);
 await d.click(page.locator(`${LEFT} .code-ref`, { hasText: "pmiRate" }));
 await d.sleep(3000);
+await d.scroll(700, { container: LEFT, duration: 2200 });
+await d.sleep(2400);
 await markReviewed();
 await d.sleep(2200);
 
-await openSection(5, null);
+// Section 4.
+await d.scroll(600, { container: LEFT, duration: 2200 });
+await d.sleep(2600);
+await markReviewed();
+await d.sleep(2000);
+
+await openSection(5);
 await d.sleep(1200);
 await d.scroll(700, { container: LEFT, duration: 2200 });
 await d.sleep(3200);
 
-await openSection(6, null);
+await openSection(6);
 const queryFile = page.locator('[data-path="server/src/lib/listingQuery.ts"]');
 const enclosingGap = queryFile.locator("tr.diff-gap").filter({ has: page.getByRole("button", { name: /Enclosing block/ }) }).first();
 const enclosing = enclosingGap.getByRole("button", { name: /Enclosing block/ });
 await d.scrollTo(RIGHT, enclosingGap, { offset: 300, duration: 1800 });
-await d.caption("Context", "Unchanged lines stay folded. Expand 20 lines at a time, to the enclosing function, or to the whole file.");
 await d.sleep(2600);
 await d.click(enclosing);
 await d.sleep(2200);
 await d.scroll(-260, { container: RIGHT, duration: 1600 });
 await d.sleep(3000);
 
+await openSection(7);
+await d.sleep(2400);
+await d.scroll(600, { container: LEFT, duration: 2200 });
+await d.sleep(2600);
+
+await openSection(8);
+await d.sleep(2400);
+await d.scroll(700, { container: LEFT, duration: 2200 });
+await d.sleep(2400);
+await d.scroll(900, { container: RIGHT, duration: 2200 });
+await d.sleep(2000);
+
 // SKIP_GITHUB_WRITES=1 leaves out the steps that post to the pull request (for trying out the script).
 const WRITE = process.env.SKIP_GITHUB_WRITES !== "1";
 
-await openSection(9, "Comment on any line, or shift-click to select a range.");
+await openSection(9);
 const savedRoute = page.locator('[data-path="server/src/routes/savedSearches.ts"]');
-// An earlier recording left a comment on the limit check (line 33); this one comments on the duplicate check.
 const duplicateLine = savedRoute.locator("tr.row-add", { hasText: "already saved this search" });
 await d.scrollTo(RIGHT, duplicateLine, { offset: 260, duration: 1800 });
 await d.sleep(800);
@@ -385,17 +457,30 @@ if (WRITE) {
   await d.click(savedRoute.getByRole("button", { name: "Comment on GitHub" }).first());
   await page.getByText("Comment posted to GitHub").waitFor();
 }
-await d.caption("Comments", "The comment is posted to the pull request on GitHub, and replies from GitHub show up here.");
 await d.sleep(4500);
 
-await openSection(12, "Screenshots and recordings sit next to the code that produced them.");
+await openSection(10);
+await d.sleep(2200);
+await d.scroll(700, { container: LEFT, duration: 2200 });
+await d.sleep(2200);
+
+await openSection(11);
+await d.sleep(2500);
+await d.scroll(700, { container: LEFT, duration: 2400 });
+await d.sleep(3000);
+await d.scroll(700, { container: LEFT, duration: 2200 });
+await d.sleep(2200);
+
+await openSection(12);
 await d.sleep(2500);
 await d.scroll(640, { container: LEFT, duration: 2400 });
 await d.sleep(2800);
 await d.scroll(900, { container: LEFT, duration: 2400 });
+await d.sleep(2600);
+await d.scroll(900, { container: LEFT, duration: 2400 });
 await d.sleep(2400);
 
-await openSection(13, null);
+await openSection(13);
 await d.sleep(1000);
 const video = page.locator(`${LEFT} video`).first();
 await d.scrollTo(LEFT, video, { offset: 140, duration: 1200 });
@@ -403,17 +488,29 @@ await d.click(video);
 await page
   .evaluate((sel) => document.querySelector(`${sel} video`)?.play(), LEFT)
   .catch((err) => console.warn("video did not play:", err.message));
-await d.sleep(14000);
+await d.sleep(20000);
 await page.evaluate((sel) => document.querySelector(`${sel} video`)?.pause(), LEFT);
+await d.scroll(900, { container: LEFT, duration: 2200 });
+await d.sleep(2600);
 await markReviewed();
 await d.sleep(1500);
+
+// Section 14 opens from "Mark reviewed and continue".
+await d.sleep(1500);
+await d.scroll(700, { container: LEFT, duration: 2400 });
+await d.sleep(3000);
+await markReviewed();
+await d.sleep(2200);
+await d.scroll(600, { container: LEFT, duration: 2000 });
+await d.sleep(2000);
 
 // 9. All files view
 await mark("all files");
 await d.click(page.getByRole("button", { name: "All files" }));
-await d.caption("All files", "The full diff without the guide, loaded file by file.");
 await d.sleep(2500);
-await d.scroll(1600, { container: ".bg-wash.overflow-y-auto", duration: 2600 });
+await d.scroll(1600, { container: RIGHT, duration: 2600 });
+await d.sleep(1200);
+await d.scroll(2400, { container: RIGHT, duration: 3000 });
 await d.sleep(1200);
 await d.click(page.getByRole("button", { name: "All files" }));
 await d.sleep(800);
@@ -421,7 +518,6 @@ await d.sleep(800);
 // 10. Finish review
 await mark("finish review");
 await d.click(page.locator('nav[aria-label="Guide sections"] button', { hasText: "Finish review" }));
-await d.caption("Finish", "Submit a review to GitHub: approve, request changes or comment.");
 await d.sleep(2200);
 await d.type(page.locator("#review-body"), GUIDE.reviewComment, { delay: 18 });
 if (WRITE) {
@@ -430,15 +526,31 @@ if (WRITE) {
 }
 await d.sleep(3000);
 
-// 11. Invite a teammate
-await mark("invite");
+// 11. The second pull request
+await mark("second pr");
 const workspaceNav = page.getByRole("navigation", { name: "Workspace" });
+await d.click(workspaceNav.getByRole("link", { name: "Pull requests", exact: true }));
+await page.waitForURL(new RegExp(`/w/[^/]+$`));
+await d.sleep(2500);
+await d.click(prRow(SMALL_PR).getByRole("link").first());
+await page.waitForURL(/\/pull\//);
+await d.sleep(3500);
+await d.scroll(500, { container: LEFT, duration: 2000 });
+await d.sleep(1800);
+await d.click(tab(1));
+await d.sleep(3500);
+await d.scroll(400, { container: LEFT, duration: 1800 });
+await d.sleep(1800);
+await markReviewed();
+await d.sleep(3500);
+
+// 12. Invite a teammate
+await mark("invite");
 const settingsNav = page.getByRole("navigation", { name: "Settings" });
 await d.click(workspaceNav.getByRole("link", { name: "Settings", exact: true }));
-await d.sleep(1200);
-await d.click(settingsNav.getByRole("link", { name: "Members", exact: true }));
-await d.caption("Members", "Invite teammates with a link. Everyone sees the same repositories and guides.");
 await d.sleep(1500);
+await d.click(settingsNav.getByRole("link", { name: "Members", exact: true }));
+await d.sleep(1800);
 await d.click(page.getByRole("button", { name: "Create invite link" }));
 const inviteCode = page.locator("code", { hasText: "/invite/" }).first();
 await inviteCode.waitFor();
@@ -450,7 +562,7 @@ await d.sleep(1200);
 // Second person opens the link in another browser.
 await mark("teammate");
 const ctx2 = await newContext();
-await ctx2.addInitScript(CURSOR_AND_CAPTIONS);
+await ctx2.addInitScript(CURSOR);
 const page2 = await ctx2.newPage();
 page2.setDefaultTimeout(60_000);
 const d2 = makeDemo(page2);
@@ -458,7 +570,6 @@ rec.pause();
 await page2.goto(inviteUrl, { waitUntil: "networkidle" });
 await rec.use(page2);
 rec.resume();
-await d2.caption("Teammate", "Alex opens the invite link in their own browser.");
 await d2.sleep(2500);
 await d2.click(page2.getByRole("link", { name: "Create account" }));
 await d2.type(page2.locator("#name"), "Alex Rivera", { delay: 30 });
@@ -466,71 +577,64 @@ await d2.type(page2.locator("#email"), "alex@example.com", { delay: 25 });
 await d2.type(page2.locator("#password"), "correct-horse-battery", { delay: 15 });
 await d2.click(page2.getByRole("button", { name: "Create account" }));
 await page2.waitForURL(/\/w\//);
-await d2.sleep(1500);
-await d2.caption("Teammate", "Alex sees the same pull requests and guides.");
-await d2.sleep(2500);
+await d2.sleep(3000);
 await d2.click(page2.getByRole("link", { name: "Open guide" }).first());
 await page2.waitForURL(/\/pull\//);
 await d2.sleep(2200);
 await d2.click(page2.locator('nav[aria-label="Guide sections"] button').nth(9));
-await d2.caption("Teammate", "Review progress and comments are shared with everyone in the workspace.");
-await d2.sleep(3000);
+await d2.sleep(3500);
 rec.pause();
 await rec.use(page);
 await page.reload({ waitUntil: "networkidle" });
 rec.resume();
 await ctx2.close();
+await d.sleep(1200);
 
-// 12. Settings tour
+// 13. Settings tour
 await mark("settings");
-await d.caption("Settings", "AI provider for built-in generation: OpenRouter, Anthropic, OpenAI or a local model.");
 await d.click(settingsNav.getByRole("link", { name: "AI provider", exact: true }));
 await d.sleep(2200);
 await d.click(page.locator("#provider"));
-await d.sleep(1200);
+await d.sleep(1500);
 await page.keyboard.press("Escape");
 await d.sleep(800);
 await d.click(settingsNav.getByRole("link", { name: "Automation", exact: true }));
-await d.caption("Automation", "Create a guide for every new pull request and a new version on every push.");
 await d.sleep(3200);
 await d.click(settingsNav.getByRole("link", { name: "API tokens & MCP", exact: true }));
-await d.caption("Agents", "MCP server URL, client setup and API tokens. OAuth clients appear here too.");
 await d.sleep(2000);
-for (const tab of ["Codex", "Cursor", "VS Code", "Claude Code"]) {
-  await d.click(page.getByRole("button", { name: tab, exact: true }));
-  await d.sleep(700);
+for (const name of ["Codex", "Cursor", "VS Code", "Claude Code"]) {
+  await d.click(page.getByRole("button", { name, exact: true }));
+  await d.sleep(900);
 }
 await d.scroll(700, { duration: 1600 });
 await d.sleep(2200);
 await d.click(workspaceNav.getByRole("link", { name: "Activity", exact: true }));
-await d.caption("Activity", "Every guide, comment, review and membership change in the workspace.");
 await d.sleep(3500);
+await d.scroll(500, { duration: 1600 });
+await d.sleep(1500);
 
-// 13. Editor
+// 14. Editor
 await mark("editor");
 await goto(prPage);
 await d.sleep(1200);
 await d.click(page.getByRole("link", { name: "Edit", exact: true }));
-await d.caption("Editor", "Guides can also be written or adjusted by hand: sections, diff references, images and video.");
 await d.sleep(2500);
 await d.scroll(900, { duration: 2200 });
 await d.sleep(1800);
+await d.scroll(900, { duration: 2200 });
+await d.sleep(1800);
 
-// 14. Instance settings
+// 15. Instance settings
 await mark("admin");
 await goto("/admin");
-await d.caption("Self-hosting", "Instance settings create the GitHub App in one step and show webhooks and background jobs.");
 await d.sleep(3500);
 await d.scroll(700, { duration: 1800 });
-await d.sleep(1500);
+await d.sleep(2000);
 
 // End on the guide overview
 await mark("end");
 await goto(prPage);
-await d.caption("Omakaze", "github.com/tom-byrn/guided-prs");
-await d.sleep(3500);
-await d.caption(null, null);
-await d.sleep(800);
+await d.sleep(4500);
 
 await finish();
 process.exit(0);

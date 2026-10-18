@@ -1,7 +1,7 @@
 // Helpers for recording the product walkthrough with Playwright.
-// They add a visible cursor and a caption bar; neither is part of the app.
+// They add a visible cursor and click ripples; neither is part of the app.
 
-export const CURSOR_AND_CAPTIONS = `
+export const CURSOR = `
 (() => {
   if (window.__demoOverlay) return;
   window.__demoOverlay = true;
@@ -10,14 +10,6 @@ export const CURSOR_AND_CAPTIONS = `
     #demo-cursor { position: fixed; z-index: 2147483647; width: 22px; height: 22px; pointer-events: none;
       transform: translate(-3px, -2px); transition: transform 60ms linear; }
     #demo-cursor.down svg { transform: scale(0.88); }
-    #demo-caption { position: fixed; z-index: 2147483646; left: 50%; bottom: 28px; transform: translateX(-50%);
-      display: flex; align-items: center; gap: 12px; max-width: 980px; padding: 12px 18px;
-      background: #141518; color: #f2f2f2; border: 1px solid #141518; pointer-events: none;
-      font: 400 16px/1.35 var(--font-newsreader), Georgia, serif; letter-spacing: -0.01em;
-      opacity: 0; transition: opacity 250ms ease; }
-    #demo-caption.show { opacity: 1; }
-    #demo-caption span { font: 400 10px/15px var(--font-geist-mono), ui-monospace, monospace; letter-spacing: .08em;
-      text-transform: uppercase; color: rgba(255,255,255,.6); border: 1px dashed rgba(255,255,255,.3); padding: 2px 6px; white-space: nowrap; }
     #demo-ripple { position: fixed; z-index: 2147483645; width: 28px; height: 28px; margin: -14px 0 0 -14px;
       border: 2px solid #25fff9; border-radius: 9999px; pointer-events: none; opacity: 0; }
     #demo-ripple.go { animation: demo-ripple 450ms ease-out; }
@@ -31,11 +23,9 @@ export const CURSOR_AND_CAPTIONS = `
   cursor.style.top = pos.y + 'px';
   const ripple = document.createElement('div');
   ripple.id = 'demo-ripple';
-  const caption = document.createElement('div');
-  caption.id = 'demo-caption';
   const mount = () => {
     document.head.appendChild(style);
-    document.body.appendChild(cursor); document.body.appendChild(ripple); document.body.appendChild(caption);
+    document.body.appendChild(cursor); document.body.appendChild(ripple);
   };
   if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
   document.addEventListener('mousemove', (e) => {
@@ -50,25 +40,12 @@ export const CURSOR_AND_CAPTIONS = `
     ripple.classList.remove('go'); void ripple.offsetWidth; ripple.classList.add('go');
   }, true);
   document.addEventListener('mouseup', () => cursor.classList.remove('down'), true);
-  window.__demoCaption = (label, text) => {
-    const el = document.getElementById('demo-caption');
-    if (!el) return;
-    if (!text) { el.classList.remove('show'); return; }
-    el.innerHTML = '';
-    if (label) { const s = document.createElement('span'); s.textContent = label; el.appendChild(s); }
-    el.appendChild(document.createTextNode(text));
-    el.classList.add('show');
-  };
 })();
 `;
 
 export function makeDemo(page) {
   const sleep = (ms) => page.waitForTimeout(ms);
   let mouse = { x: 720, y: 450 };
-
-  async function caption(label, text) {
-    await page.evaluate(([l, t]) => window.__demoCaption?.(l, t), [label, text]).catch(() => {});
-  }
 
   async function moveTo(x, y, steps) {
     const dist = Math.hypot(x - mouse.x, y - mouse.y);
@@ -155,5 +132,5 @@ export function makeDemo(page) {
     await sleep(150);
   }
 
-  return { sleep, caption, moveTo, hover, click, type, scroll, scrollTo, get mouse() { return mouse; } };
+  return { sleep, moveTo, hover, click, type, scroll, scrollTo, get mouse() { return mouse; } };
 }
