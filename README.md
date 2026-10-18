@@ -82,16 +82,10 @@ Requirements: Docker with Docker Compose.
 ```sh
 git clone https://github.com/tom-byrn/guided-prs.git
 cd guided-prs
-cp .env.example .env
+sed "s/^APP_SECRET=.*/APP_SECRET=$(openssl rand -hex 32)/" .env.example > .env
 ```
 
-Generate a secret and set it as `APP_SECRET` in `.env`:
-
-```sh
-openssl rand -hex 32
-```
-
-If the instance will not be served at `http://localhost:3000`, also set `APP_URL` to its public URL. Then start the app and its database; Compose builds the image from your checkout:
+The last command creates `.env` from `.env.example` with a newly generated `APP_SECRET`. If the instance will not be served at `http://localhost:3000`, also set `APP_URL` to its public URL. Then start the app and its database; Compose builds the image from your checkout:
 
 ```sh
 docker compose up -d
@@ -174,7 +168,7 @@ pnpm install
 docker run -d --name omakaze-db -p 5432:5432 \
   -e POSTGRES_USER=omakaze -e POSTGRES_PASSWORD=omakaze -e POSTGRES_DB=omakaze \
   postgres:16-alpine
-cp .env.example .env   # then set APP_SECRET
+sed "s/^APP_SECRET=.*/APP_SECRET=$(openssl rand -hex 32)/" .env.example > .env
 pnpm dev
 ```
 

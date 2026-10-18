@@ -24,8 +24,8 @@ For the app, Compose sets `DATABASE_URL` to `postgres://omakaze:${POSTGRES_PASSW
 ```sh
 git clone https://github.com/tom-byrn/guided-prs.git
 cd guided-prs
-cp .env.example .env
-# Edit .env: set APP_SECRET (openssl rand -hex 32) and APP_URL.
+# Create .env with a generated APP_SECRET, then set APP_URL in it.
+sed "s/^APP_SECRET=.*/APP_SECRET=$(openssl rand -hex 32)/" .env.example > .env
 docker compose up -d --build
 docker compose logs -f app
 ```
@@ -58,8 +58,8 @@ git clone https://github.com/tom-byrn/guided-prs.git
 cd guided-prs
 corepack enable
 pnpm install --frozen-lockfile
-cp .env.example .env
-# Edit .env: set APP_SECRET, APP_URL and DATABASE_URL.
+# Create .env with a generated APP_SECRET, then set APP_URL and DATABASE_URL in it.
+sed "s/^APP_SECRET=.*/APP_SECRET=$(openssl rand -hex 32)/" .env.example > .env
 pnpm build
 pnpm start
 ```

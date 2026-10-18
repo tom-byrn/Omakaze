@@ -22,10 +22,10 @@ Install dependencies and create `.env`:
 ```sh
 corepack enable
 pnpm install
-cp .env.example .env
+sed "s/^APP_SECRET=.*/APP_SECRET=$(openssl rand -hex 32)/" .env.example > .env
 ```
 
-Set `APP_SECRET` in `.env` to the output of `openssl rand -hex 32`. Then start the development server:
+The last command creates `.env` from `.env.example` with a newly generated `APP_SECRET` (it overwrites an existing `.env`). Then start the development server:
 
 ```sh
 pnpm dev
