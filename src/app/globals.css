@@ -139,6 +139,64 @@ h4 {
   }
 }
 
+/* Screen recording in the landing page schematic (section 04). */
+@keyframes rec-cursor {
+  0%,
+  10% {
+    left: 30%;
+    top: 30%;
+  }
+  45%,
+  62% {
+    left: 70%;
+    top: 74%;
+  }
+  92%,
+  100% {
+    left: 30%;
+    top: 30%;
+  }
+}
+
+@keyframes rec-press {
+  0%,
+  46%,
+  56%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: scale(0.94);
+  }
+}
+
+@keyframes rec-toast {
+  0%,
+  52% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  58%,
+  86% {
+    opacity: 1;
+    transform: none;
+  }
+  94%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+@keyframes rec-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);
