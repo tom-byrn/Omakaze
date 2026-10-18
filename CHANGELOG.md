@@ -16,7 +16,7 @@ Initial release.
 - Guide editor for writing or changing guides by hand, with uploads of images, videos and PDFs, and a ref syntax that keeps captions and context expansion.
 - MCP server at `/api/mcp` with 17 tools and the `create_guided_pr` prompt, authenticated with OAuth 2.1 (discovery, dynamic client registration, PKCE, resource indicators, refresh token rotation, revocation) or API tokens.
 - `upload_asset` downloads from public URLs only, with address checks on every redirect and a size limit.
-- Built-in AI generation with OpenRouter, Anthropic, OpenAI and OpenAI-compatible servers, with a separate pipeline for large pull requests; retries continue the same guide version; workspace instructions work with the instance default provider.
+- Optional built-in AI generation through the Vercel AI SDK with Anthropic, OpenAI, Google, OpenRouter, Ollama, LM Studio and OpenAI-compatible servers, a provider picker and model lists loaded from the provider, with a separate pipeline for large pull requests; retries continue the same guide version; workspace instructions work with the instance default provider.
 - Guides left in the `generating` state for 60 minutes without changes are marked as failed and no longer block new versions.
 - REST API: `GET /api/v1/pulls` (with a `repo` filter), `GET` and `POST /api/v1/guides`, `POST /api/v1/generate`.
 - Automation: guides for new pull requests, new versions on push, skipping drafts, polling at a configurable interval, and a summary comment on the pull request.

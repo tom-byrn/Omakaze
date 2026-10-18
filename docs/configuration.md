@@ -69,10 +69,10 @@ Instance-wide defaults for built-in generation. A workspace that selects its own
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `AI_PROVIDER` | none | `openrouter`, `anthropic`, `openai` or `openai-compatible`. Without it, workspaces must configure their own provider. |
-| `AI_MODEL` | the provider's default | `anthropic/claude-opus-5.5` for OpenRouter and `claude-opus-5-5` for Anthropic. Required for `openai` and `openai-compatible`. |
-| `AI_API_KEY` | none | Required for `openrouter`, `anthropic` and `openai`; optional for `openai-compatible`. |
-| `AI_BASE_URL` | the provider's default | API base URL, for example `http://ollama:11434/v1` for an OpenAI-compatible server. |
+| `AI_PROVIDER` | none | `anthropic`, `openai`, `google`, `openrouter`, `ollama`, `lmstudio` or `openai-compatible`. Without it, built-in generation is off unless a workspace configures its own provider. Guides from agents over MCP, the REST API and the editor work either way. |
+| `AI_MODEL` | the provider's default | `claude-opus-5-5` for Anthropic and `anthropic/claude-opus-5.5` for OpenRouter. Required for the other providers. |
+| `AI_API_KEY` | none | Required for `anthropic`, `openai`, `google` and `openrouter`; optional for `ollama`, `lmstudio` and `openai-compatible`. |
+| `AI_BASE_URL` | the provider's default | API base URL, for example `http://ollama:11434/v1` for Ollama in Docker Compose. |
 
 ### Background worker
 

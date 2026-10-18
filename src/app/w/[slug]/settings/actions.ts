@@ -15,11 +15,12 @@ import {
   type Role,
 } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
-import { providerInfo, resolveAiConfig } from "@/lib/ai/config";
+import { PROVIDERS, providerInfo, resolveAiConfig } from "@/lib/ai/config";
+import { listModels, ModelListError, type ModelOption } from "@/lib/ai/models";
 import { testAiConfig } from "@/lib/ai/providers";
 import { requireUser } from "@/lib/auth/session";
 import { getGitHubAccount, verifyGitHubToken, AuthError } from "@/lib/auth/users";
-import { encrypt, sha256 } from "@/lib/crypto";
+import { decrypt, encrypt, sha256 } from "@/lib/crypto";
 import { newToken } from "@/lib/ids";
 import { createInvite, revokeInvite } from "@/lib/invites";
 import {
@@ -353,7 +354,7 @@ export async function saveAiSettingsAction(slug: string, _prev: FormState, form:
         .where(eq(workspaces.id, ws.id));
       return done(ws, "/settings/ai", "AI provider removed.");
     }
-    if (!provider) return { error: "Choose a provider" };
+    if (!provider || !PROVIDERS.some((p) => p.id === provider)) return { error: "Choose a provider" };
     const info = providerInfo(provider);
     const model = String(form.get("model") ?? "").trim() || info.defaultModel;
     const baseUrl = String(form.get("baseUrl") ?? "").trim();
@@ -379,6 +380,27 @@ export async function saveAiSettingsAction(slug: string, _prev: FormState, form:
     return done(ws, "/settings/ai", "Saved.");
   } catch (err) {
     return fail(err);
+  }
+}
+
+/** Models for the settings form. A blank key falls back to the key saved for the same provider. */
+export async function listAiModelsAction(
+  slug: string,
+  input: { provider: string; baseUrl: string; apiKey: string },
+): Promise<{ models: ModelOption[] } | { error: string }> {
+  try {
+    const { ws } = await ctx(slug, "admin");
+    const provider = PROVIDERS.find((p) => p.id === input.provider)?.id;
+    if (!provider) return { error: "Choose a provider" };
+    const baseUrl = input.baseUrl.trim();
+    if (baseUrl && !/^https?:\/\//.test(baseUrl)) return { error: "Base URL must start with http:// or https://" };
+    const savedKey = ws.aiProvider === provider && ws.aiApiKeyEnc ? decrypt(ws.aiApiKeyEnc) : null;
+    const apiKey = input.apiKey.trim() || savedKey;
+    if (!apiKey && !providerInfo(provider).publicModels) return { error: "Enter an API key to load models" };
+    return { models: await listModels(provider, baseUrl, apiKey) };
+  } catch (err) {
+    if (err instanceof ModelListError) return { error: err.message };
+    return { error: err instanceof Error ? err.message : "Could not load models" };
   }
 }
 

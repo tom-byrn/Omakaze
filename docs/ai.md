@@ -1,23 +1,34 @@
 # AI generation
 
-Besides agents connected over [MCP](mcp.md), Guided PRs can write guides itself with a model you configure. The code is in `src/lib/ai/`: `config.ts` (providers and defaults), `providers.ts` (API calls) and `generate.ts` (the pipeline).
+Built-in generation is optional. Agents connected over [MCP](mcp.md) write guides with their own model, and a workspace without a provider works normally: **Generate with AI** and automation are simply unavailable. To have Guided PRs write guides itself, configure a model.
+
+The code is in `src/lib/ai/`: `config.ts` (providers and defaults), `providers.ts` (model calls through the [Vercel AI SDK](https://ai-sdk.dev)), `models.ts` (model lists) and `generate.ts` (the pipeline).
 
 ## Providers
 
-| Provider | Value | Default model | Default base URL | API key |
-| --- | --- | --- | --- | --- |
-| OpenRouter | `openrouter` | `anthropic/claude-opus-5.5` | `https://openrouter.ai/api/v1` | Required |
-| Anthropic | `anthropic` | `claude-opus-5-5` | `https://api.anthropic.com` | Required |
-| OpenAI | `openai` | none, set a model | `https://api.openai.com/v1` | Required |
-| OpenAI-compatible (Ollama, vLLM, LM Studio and others) | `openai-compatible` | none, set a model | `http://localhost:11434/v1` | Optional |
+| Provider | Value | AI SDK package | Default model | Default base URL | API key |
+| --- | --- | --- | --- | --- | --- |
+| Anthropic | `anthropic` | `@ai-sdk/anthropic` | `claude-opus-5-5` | `https://api.anthropic.com` | Required |
+| OpenAI | `openai` | `@ai-sdk/openai` (Responses API) | none, set a model | `https://api.openai.com/v1` | Required |
+| Google | `google` | `@ai-sdk/google` | none, set a model | `https://generativelanguage.googleapis.com/v1beta` | Required |
+| OpenRouter | `openrouter` | `@ai-sdk/openai-compatible` | `anthropic/claude-opus-5.5` | `https://openrouter.ai/api/v1` | Required |
+| Ollama | `ollama` | `@ai-sdk/openai-compatible` | none, set a model | `http://localhost:11434/v1` | Optional |
+| LM Studio | `lmstudio` | `@ai-sdk/openai-compatible` | none, set a model | `http://localhost:1234/v1` | Optional |
+| OpenAI-compatible (vLLM, LiteLLM, gateways and others) | `openai-compatible` | `@ai-sdk/openai-compatible` | none, set a model | `http://localhost:11434/v1` | Optional |
 
-OpenRouter is the default selection in the settings form.
+For Anthropic, a base URL without `/v1` gets it appended, so `https://proxy.example.com` and `https://proxy.example.com/v1` both work.
+
+### Local models
+
+The base URL is the address as seen from the Guided PRs server. When Guided PRs runs in Docker, `localhost` is the container itself: use `http://host.docker.internal:11434/v1` for Ollama on the host, or the Compose service name, for example `http://ollama:11434/v1`.
+
+Guides need a long context. Ollama runs models with a small context window by default and drops the start of longer prompts without an error, so raise it (for example `OLLAMA_CONTEXT_LENGTH=65536`) or expect weaker guides for large pull requests. The diff budget for models other than Claude and Gemini is 240,000 characters per request, roughly 60,000 tokens.
 
 ## Configuration
 
 A workspace uses its own provider if one is set, and the instance default otherwise:
 
-1. **Workspace.** Admins set the provider, model, API key and base URL in **Settings → AI provider**. The key is encrypted at rest and never shown again. **Test connection** sends a small request with the entered values. **Remove provider** clears the provider, model, base URL and key, but not the [extra instructions](#workspace-instructions).
+1. **Workspace.** Admins pick a provider in **Settings → AI provider** (nothing is selected until they do), then set the API key, base URL and model. The key is encrypted at rest and never shown again. **Load models** (also triggered by focusing the model field) asks the provider for its model list with the entered key, or the saved key for the same provider, and offers the models as suggestions; any model name can still be typed. It uses `GET <base URL>/models` (`/v1/models` for Anthropic); OpenAI's embedding, audio and image models and Gemini models without text generation are left out. OpenRouter, Ollama, LM Studio and OpenAI-compatible lists load without a key. **Test connection** sends a small request with the entered values. **Remove provider** clears the provider, model, base URL and key, but not the [extra instructions](#workspace-instructions).
 2. **Instance.** `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL` set a default for every workspace without its own provider. See [configuration.md](configuration.md#ai-defaults).
 
 A configuration is usable when it has a model (given or the provider's default) and, for providers that require one, an API key. If a workspace selects a provider, the instance default is not used for that workspace. **Settings → AI provider** shows which configuration is in effect.
@@ -34,7 +45,7 @@ Generation runs in the background worker. Each run creates a new guide version i
 
 The generator works from the stored diff snapshot, the pull request title, branch names and description (first 8,000 characters). It does not read other files of the repository.
 
-1. **Budget.** The diff is rendered as text with line and hunk numbers (the same format as the MCP [`get_diff`](mcp.md#diff-format) tool). The budget is 600,000 characters for the Anthropic provider and for model names that contain `claude` or `gemini`, and 240,000 characters for other models.
+1. **Budget.** The diff is rendered as text with line and hunk numbers (the same format as the MCP [`get_diff`](mcp.md#diff-format) tool). The budget is 600,000 characters for the Anthropic and Google providers and for model names that contain `claude` or `gemini`, and 240,000 characters for other models.
 2. **Small and medium pull requests.** If the rendered diff fits the budget, one request returns the title, summary and all sections with their refs.
 3. **Large pull requests.** Otherwise:
    1. Files are grouped into batches of up to a third of the budget. For each batch, the model writes a one-sentence summary of every hunk; up to three batches run at the same time.
@@ -49,14 +60,18 @@ The system prompt contains the same authoring guidelines that MCP agents receive
 
 ## Structured output and fallbacks
 
-Every request asks for JSON that matches a schema. The response is validated; if it is not valid JSON or does not match, the request is repeated once with the validation error appended.
+Every request is streamed with the AI SDK's `streamText` and asks for JSON that matches a schema, passed as the provider's structured output format. The JSON is taken from the response text (a code fence or text around the object is tolerated) and validated; if it is not valid JSON or does not match, the request is repeated once with the validation error appended.
 
-| Provider | How JSON is requested |
+If the provider rejects the structured output format with a 400, 404 or 422 error that mentions the response format or schema, the request is sent again without it and the JSON is taken from the text.
+
+| Provider | Details |
 | --- | --- |
-| Anthropic | Messages API, streamed. For models that support these options, the JSON schema is passed as structured output and effort is set to `high`; otherwise the JSON is taken from the response text. For `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5-5` and `claude-fable-5-1` on `https://api.anthropic.com`, the request opts in to Anthropic's server-side fallback (beta `server-side-fallback-2026-07-01`), which retries a declined request on Anthropic's recommended fallback model. |
-| OpenRouter, OpenAI, OpenAI-compatible | `POST <base URL>/chat/completions`. The first attempt uses `response_format` with a strict JSON schema, then `json_object`, then no `response_format`. The next format is tried only when the provider rejects the request with an error that mentions the response format or schema. OpenRouter requests also send `HTTP-Referer: <APP_URL>` and `X-Title: Guided PRs`. |
+| Anthropic | Messages API. Models with native structured outputs get the schema as `output_config.format`; others use the AI SDK's JSON tool. Effort is set to `high` for models that accept it. For `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5-5` and `claude-fable-5-1` on `https://api.anthropic.com`, the request sets `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`), which retries a declined request on Anthropic's recommended fallback model. |
+| OpenAI | Responses API with a strict JSON schema. |
+| Google | Gemini API with a response schema. |
+| OpenRouter, Ollama, LM Studio, OpenAI-compatible | `POST <base URL>/chat/completions` with `response_format` set to a strict JSON schema. OpenRouter requests also send `HTTP-Referer: <APP_URL>` and `X-Title: Guided PRs`. |
 
-Output limits per request: 64,000 tokens for the single-request path with Anthropic and 32,000 tokens otherwise (`max_completion_tokens` for OpenAI, `max_tokens` for the others). Requests time out after 20 minutes.
+Output limits per request: 64,000 tokens for the single-request path with Anthropic and 32,000 tokens otherwise. Requests time out after 20 minutes.
 
 ## Errors and retries
 
@@ -64,7 +79,7 @@ Output limits per request: 64,000 tokens for the single-request path with Anthro
 | --- | --- |
 | API key rejected | The guide fails with the error message. |
 | The model declines, or the response is cut off at the token limit | The guide fails. Try a model with a larger output limit for cut-off responses. |
-| Rate limit (429) or provider error (5xx), empty or malformed responses | The job is retried once after a delay. The Anthropic SDK also retries twice on its own. |
+| Rate limit (429) or provider error (5xx), server not reachable, empty or malformed responses | The job is retried once after a delay. The AI SDK also retries failed requests twice on its own. |
 | Other request errors | The guide fails with the provider's message. |
 
 A retry continues the same guide version. Sections written by the failed attempt are removed first, and the progress log notes "Starting over". If the last attempt fails, the guide is marked as failed. A job that is picked up again after the worker process stopped starts over the same way.
@@ -125,7 +140,7 @@ It is posted with the workspace's GitHub connection. The links open Guided PRs, 
 ## Cost and privacy
 
 - The diff, the pull request title, description and branch names, and file paths are sent to the configured provider. Do not configure a third-party provider for code that must not leave your network.
-- A local model through the `openai-compatible` provider (for example Ollama at `http://ollama:11434/v1`) keeps the data on your network.
+- A local model through Ollama, LM Studio or another OpenAI-compatible server on your network (for example Ollama at `http://ollama:11434/v1`) keeps the data there.
 - Large pull requests use several requests: one per batch of hunk summaries, one for the plan and one per section. Automation can create a new version on every push, and each version is a full generation.
 - Workspace API keys are stored encrypted with a key derived from `APP_SECRET`.
 - Agents connected over MCP use their own model and their own provider account. Guided PRs makes no model requests for guides written through MCP, `POST /api/v1/guides` or the editor.

@@ -76,7 +76,7 @@ Guided PRs is an open-source, self-hostable web app that turns GitHub pull reque
 - **Review progress.** Mark sections as reviewed and see which other members reviewed them.
 - **Versions.** Every new guide for a pull request is a new version; older versions stay available. A guide written for an older head commit is marked as outdated.
 - **MCP server.** 17 tools and one prompt over Streamable HTTP at `/api/mcp`. Clients authenticate with OAuth 2.1 (dynamic client registration and PKCE) or an API token.
-- **Built-in AI generation.** OpenRouter (default), Anthropic, OpenAI or an OpenAI-compatible server such as Ollama, vLLM or LM Studio.
+- **Optional built-in AI generation.** Anthropic, OpenAI, Google, OpenRouter, local models with Ollama or LM Studio, or any OpenAI-compatible server such as vLLM or LiteLLM. Not needed if you write guides with your own agent over MCP.
 - **REST API.** List pull requests, read and create guides, and start AI generation.
 - **Automation.** Generate a guide when a pull request opens, create a new version when commits are pushed, skip drafts, and post a summary comment on the pull request.
 - **Workspaces.** Members with owner, admin and member roles, invite links (optionally limited to one confirmed email address) and an activity log.
@@ -164,7 +164,7 @@ Create a guided PR for <PR URL> using the Guided PRs MCP.
 
 ## Built-in AI
 
-Guided PRs can write guides itself with OpenRouter (default), Anthropic, OpenAI or an OpenAI-compatible server. Configure a provider per workspace in **Settings → AI provider**, or set instance defaults with `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL`. Then use **Generate with AI** on a pull request, turn on automation in **Settings → Automation**, or call `POST /api/v1/generate`. The diff is sent to the provider you configure; a local model through the OpenAI-compatible provider keeps it on your network. See [docs/ai.md](docs/ai.md).
+Built-in generation is optional: agents connected over MCP use their own model. To have Guided PRs write guides itself, pick a provider per workspace in **Settings → AI provider** (Anthropic, OpenAI, Google, OpenRouter, Ollama, LM Studio or any OpenAI-compatible server; the model list is loaded from the provider), or set instance defaults with `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL`. Then use **Generate with AI** on a pull request, turn on automation in **Settings → Automation**, or call `POST /api/v1/generate`. The diff is sent to the provider you configure; a local model through Ollama, LM Studio or another OpenAI-compatible server keeps it on your network. See [docs/ai.md](docs/ai.md).
 
 ## Documentation
 
