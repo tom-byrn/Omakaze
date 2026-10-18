@@ -51,7 +51,7 @@ export function NoGuide({
               <p className="mt-2 text-[14px] leading-[22px] text-body">
                 {canGenerate
                   ? "Generate the guide with the AI provider configured for this workspace."
-                  : "Configure OpenRouter, Anthropic, OpenAI or a local model to generate guides here."}
+                  : "Optional. Connect Anthropic, OpenAI, Google, OpenRouter or a local model (Ollama, LM Studio) to generate guides here."}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3 px-5 py-4">

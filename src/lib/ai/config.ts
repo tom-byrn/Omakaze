@@ -11,28 +11,91 @@ export type AiConfig = {
   source: "workspace" | "instance";
 };
 
-export const PROVIDERS: { id: AiProvider; label: string; defaultModel: string; baseUrl: string; keyRequired: boolean }[] = [
-  {
-    id: "openrouter",
-    label: "OpenRouter",
-    defaultModel: "anthropic/claude-opus-5.5",
-    baseUrl: "https://openrouter.ai/api/v1",
-    keyRequired: true,
-  },
+export type ProviderInfo = {
+  id: AiProvider;
+  label: string;
+  /** One line for the provider picker. */
+  description: string;
+  defaultModel: string;
+  baseUrl: string;
+  keyRequired: boolean;
+  /** Runs on your own machine or network. */
+  local: boolean;
+  /** The model list can be loaded without an API key. */
+  publicModels: boolean;
+};
+
+export const PROVIDERS: ProviderInfo[] = [
   {
     id: "anthropic",
     label: "Anthropic",
+    description: "Claude models with your Anthropic API key.",
     defaultModel: "claude-opus-5-5",
     baseUrl: "https://api.anthropic.com",
     keyRequired: true,
+    local: false,
+    publicModels: false,
   },
-  { id: "openai", label: "OpenAI", defaultModel: "", baseUrl: "https://api.openai.com/v1", keyRequired: true },
   {
-    id: "openai-compatible",
-    label: "OpenAI-compatible (Ollama, vLLM, LM Studio, …)",
+    id: "openai",
+    label: "OpenAI",
+    description: "GPT models with your OpenAI API key.",
+    defaultModel: "",
+    baseUrl: "https://api.openai.com/v1",
+    keyRequired: true,
+    local: false,
+    publicModels: false,
+  },
+  {
+    id: "google",
+    label: "Google",
+    description: "Gemini models with a Google AI Studio API key.",
+    defaultModel: "",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    keyRequired: true,
+    local: false,
+    publicModels: false,
+  },
+  {
+    id: "openrouter",
+    label: "OpenRouter",
+    description: "One key for models from many providers.",
+    defaultModel: "anthropic/claude-opus-5.5",
+    baseUrl: "https://openrouter.ai/api/v1",
+    keyRequired: true,
+    local: false,
+    publicModels: true,
+  },
+  {
+    id: "ollama",
+    label: "Ollama",
+    description: "Local models. The diff never leaves your network.",
     defaultModel: "",
     baseUrl: "http://localhost:11434/v1",
     keyRequired: false,
+    local: true,
+    publicModels: true,
+  },
+  {
+    id: "lmstudio",
+    label: "LM Studio",
+    description: "Local models served by LM Studio.",
+    defaultModel: "",
+    baseUrl: "http://localhost:1234/v1",
+    keyRequired: false,
+    local: true,
+    publicModels: true,
+  },
+  {
+    id: "openai-compatible",
+    label: "OpenAI-compatible",
+    description: "vLLM, LiteLLM, a company gateway or any server with /chat/completions.",
+    defaultModel: "",
+    // Kept from before the Ollama preset existed, so saved configurations without a base URL still work.
+    baseUrl: "http://localhost:11434/v1",
+    keyRequired: false,
+    local: false,
+    publicModels: true,
   },
 ];
 

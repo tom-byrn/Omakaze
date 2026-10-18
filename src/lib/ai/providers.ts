@@ -1,7 +1,22 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { createAnthropic, type AnthropicLanguageModelOptions } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import {
+  APICallError,
+  jsonSchema,
+  Output,
+  RetryError,
+  StreamProviderError,
+  streamText,
+  type FinishReason,
+  type JSONSchema7,
+  type LanguageModel,
+  type ProviderMetadata,
+} from "ai";
 import type { z } from "zod";
 import { env } from "@/lib/env";
-import type { AiConfig } from "./config";
+import { providerInfo, type AiConfig } from "./config";
 
 export class AiError extends Error {
   constructor(
@@ -26,19 +41,50 @@ export type JsonRequest<T> = {
 
 const ANTHROPIC_DEFAULT_URL = "https://api.anthropic.com";
 
-/** Models that accept `output_config.effort`. */
+/** Models that accept `effort`. */
 function supportsEffort(model: string): boolean {
   return /^claude-(opus|sonnet|fable|haiku|mythos)-5/.test(model) || /^claude-(opus-4-[678]|sonnet-4-6)/.test(model);
-}
-
-/** Models that accept structured outputs via `output_config.format`. */
-function supportsStructuredOutput(model: string): boolean {
-  return /^claude-(opus|sonnet|fable|haiku|mythos)-5/.test(model) || /^claude-(opus-4-[5-8]|haiku-4-5|opus-4-1)/.test(model);
 }
 
 /** Models that support server-side refusal fallbacks with `fallbacks: "default"`. */
 function supportsServerFallback(model: string): boolean {
   return ["claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5", "claude-fable-5-1"].includes(model);
+}
+
+/** Anthropic base URLs are stored without the `/v1` that the AI SDK expects. */
+export function anthropicApiBase(baseUrl: string): string {
+  return /\/v1$/.test(baseUrl) ? baseUrl : `${baseUrl}/v1`;
+}
+
+export function languageModel(cfg: AiConfig): LanguageModel {
+  const apiKey = cfg.apiKey ?? undefined;
+  switch (cfg.provider) {
+    case "anthropic":
+      return createAnthropic({ apiKey, baseURL: anthropicApiBase(cfg.baseUrl) })(cfg.model);
+    case "openai":
+      return createOpenAI({ apiKey, baseURL: cfg.baseUrl })(cfg.model);
+    case "google":
+      return createGoogleGenerativeAI({ apiKey, baseURL: cfg.baseUrl })(cfg.model);
+    default:
+      // OpenRouter, Ollama, LM Studio and other servers that speak the Chat Completions API.
+      return createOpenAICompatible({
+        name: cfg.provider,
+        baseURL: cfg.baseUrl,
+        apiKey,
+        supportsStructuredOutputs: true,
+        headers: cfg.provider === "openrouter" ? { "HTTP-Referer": env().APP_URL, "X-Title": "Guided PRs" } : undefined,
+      }).chatModel(cfg.model);
+  }
+}
+
+function providerOptions(cfg: AiConfig) {
+  if (cfg.provider !== "anthropic") return undefined;
+  const anthropic = {
+    ...(supportsEffort(cfg.model) ? { effort: "high" as const } : {}),
+    // Retry policy declines on Anthropic's recommended fallback model.
+    ...(supportsServerFallback(cfg.model) && cfg.baseUrl === ANTHROPIC_DEFAULT_URL ? { fallbacks: "default" as const } : {}),
+  } satisfies AnthropicLanguageModelOptions;
+  return { anthropic };
 }
 
 export function extractJson(text: string): unknown {
@@ -67,116 +113,88 @@ function validate<T>(value: unknown, schema: z.ZodType<T>): T {
   return parsed.data;
 }
 
-async function anthropicJson<T>(cfg: AiConfig, req: JsonRequest<T>): Promise<string> {
-  const baseURL = cfg.baseUrl || ANTHROPIC_DEFAULT_URL;
-  const client = new Anthropic({
-    apiKey: cfg.apiKey ?? undefined,
-    baseURL,
-    timeout: 20 * 60 * 1000,
+/** One streamed request. With `structured`, the JSON schema is sent as the provider's structured output format. */
+async function streamJson<T>(cfg: AiConfig, req: JsonRequest<T>, structured: boolean): Promise<string> {
+  const result = streamText({
+    model: languageModel(cfg),
+    system: req.system,
+    prompt: req.user,
+    maxOutputTokens: req.maxTokens ?? (cfg.provider === "anthropic" ? 64000 : 32000),
+    ...(structured
+      ? { output: Output.object({ schema: jsonSchema(req.jsonSchema as JSONSchema7), name: req.schemaName }) }
+      : {}),
+    providerOptions: providerOptions(cfg),
     maxRetries: 2,
+    timeout: { totalMs: 20 * 60 * 1000 },
+    // Errors are thrown from the loop below instead of logged.
+    onError: () => {},
   });
-  const fallback = supportsServerFallback(cfg.model) && baseURL === ANTHROPIC_DEFAULT_URL;
-  try {
-    const stream = client.beta.messages.stream({
-      model: cfg.model,
-      max_tokens: req.maxTokens ?? 64000,
-      system: req.system,
-      messages: [{ role: "user", content: req.user }],
-      ...(supportsEffort(cfg.model) || supportsStructuredOutput(cfg.model)
-        ? {
-            output_config: {
-              ...(supportsEffort(cfg.model) ? { effort: "high" as const } : {}),
-              ...(supportsStructuredOutput(cfg.model)
-                ? { format: { type: "json_schema" as const, schema: req.jsonSchema } }
-                : {}),
-            },
-          }
-        : {}),
-      // Retry policy declines on Anthropic's recommended fallback model.
-      ...(fallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
-    });
-    const message = await stream.finalMessage();
-    if (message.stop_reason === "refusal") {
-      throw new AiError(`The model declined to generate this guide (${message.stop_details?.category ?? "no category"}).`);
-    }
-    if (message.stop_reason === "max_tokens") {
-      throw new AiError("The response was cut off at the token limit. Try a model with a larger output limit.");
-    }
-    return message.content
-      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("");
-  } catch (err) {
-    if (err instanceof AiError) throw err;
-    if (err instanceof Anthropic.AuthenticationError) throw new AiError("The Anthropic API key was rejected.");
-    if (err instanceof Anthropic.RateLimitError) throw new AiError("Rate limited by Anthropic. Try again later.", true);
-    if (err instanceof Anthropic.APIError) throw new AiError(`Anthropic API error ${err.status ?? ""}: ${err.message}`, (err.status ?? 500) >= 500);
-    throw err;
+  let text = "";
+  let finishReason: FinishReason | undefined;
+  let metadata: ProviderMetadata | undefined;
+  for await (const part of result.fullStream) {
+    if (part.type === "text-delta") text += part.text;
+    else if (part.type === "finish-step") metadata = part.providerMetadata;
+    else if (part.type === "finish") finishReason = part.finishReason;
+    else if (part.type === "error") throw part.error;
+    else if (part.type === "abort") throw new AiError("The request was aborted.", true);
   }
+  if (finishReason === "content-filter") {
+    const details = metadata?.anthropic?.stopDetails as { category?: string } | undefined;
+    throw new AiError(`The model declined to generate this guide (${details?.category ?? "no category"}).`);
+  }
+  if (finishReason === "length") {
+    throw new AiError("The response was cut off at the token limit. Try a model with a larger output limit.");
+  }
+  if (!text.trim()) throw new AiError("The provider returned an empty response.", true);
+  return text;
 }
 
-async function openAiCompatibleJson<T>(cfg: AiConfig, req: JsonRequest<T>): Promise<string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
-  if (cfg.provider === "openrouter") {
-    headers["HTTP-Referer"] = env().APP_URL;
-    headers["X-Title"] = "Guided PRs";
+function unwrap(err: unknown): unknown {
+  return RetryError.isInstance(err) ? (err.lastError ?? err) : err;
+}
+
+/** A 4xx that names the response format: the server does not support structured outputs. */
+export function rejectsResponseFormat(err: unknown): boolean {
+  const e = unwrap(err);
+  if (!APICallError.isInstance(e) || ![400, 404, 422].includes(e.statusCode ?? 0)) return false;
+  return /response_format|json_schema|json_object|structured|schema/i.test(`${e.message} ${e.responseBody ?? ""}`);
+}
+
+export function toAiError(err: unknown, cfg: AiConfig): unknown {
+  if (err instanceof AiError) return err;
+  const label = providerInfo(cfg.provider).label;
+  const e = unwrap(err);
+  if (APICallError.isInstance(e)) {
+    const status = e.statusCode;
+    if (status === 401 || status === 403) return new AiError(`The ${label} API key was rejected.`);
+    if (status === 429) return new AiError(`Rate limited by ${label}. Try again later.`, true);
+    if (status == null) return new AiError(`Could not reach ${label} at ${cfg.baseUrl}: ${e.message}`, true);
+    return new AiError(`${label} API error ${status}: ${e.message}`, status >= 500);
   }
-  const tokenField = cfg.provider === "openai" ? "max_completion_tokens" : "max_tokens";
-  const formats: (Record<string, unknown> | null)[] = [
-    { type: "json_schema", json_schema: { name: req.schemaName, strict: true, schema: req.jsonSchema } },
-    { type: "json_object" },
-    null,
-  ];
-  let lastError = "";
-  for (const format of formats) {
-    const body: Record<string, unknown> = {
-      model: cfg.model,
-      messages: [
-        { role: "system", content: req.system },
-        { role: "user", content: req.user },
-      ],
-      [tokenField]: req.maxTokens ?? 32000,
-    };
-    if (format) body.response_format = format;
-    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(20 * 60 * 1000),
-    });
-    const text = await res.text();
-    if (res.ok) {
-      let data: { choices?: { message?: { content?: string | null; refusal?: string | null }; finish_reason?: string }[]; error?: { message?: string } };
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new AiError("The provider returned an invalid response.", true);
-      }
-      if (data.error?.message) throw new AiError(`Provider error: ${data.error.message}`, true);
-      const choice = data.choices?.[0];
-      if (choice?.message?.refusal) throw new AiError(`The model declined: ${choice.message.refusal}`);
-      if (choice?.finish_reason === "length") throw new AiError("The response was cut off at the token limit.");
-      const content = choice?.message?.content;
-      if (!content) throw new AiError("The provider returned an empty response.", true);
-      return content;
-    }
-    lastError = `${res.status}: ${text.slice(0, 400)}`;
-    if (res.status === 401 || res.status === 403) throw new AiError("The API key was rejected by the provider.");
-    if (res.status === 429) throw new AiError("Rate limited by the provider. Try again later.", true);
-    if (res.status >= 500) throw new AiError(`Provider error ${lastError}`, true);
-    // 400/404/422: an unsupported response_format is retried without it; anything else is final.
-    if (!/response_format|json_schema|json_object|structured|schema/i.test(text)) break;
+  if (StreamProviderError.isInstance(e)) return new AiError(`${label} error: ${e.message}`, e.isRetryable);
+  return err;
+}
+
+async function requestJson<T>(cfg: AiConfig, req: JsonRequest<T>): Promise<string> {
+  try {
+    return await streamJson(cfg, req, true);
+  } catch (err) {
+    if (!rejectsResponseFormat(err)) throw toAiError(err, cfg);
   }
-  throw new AiError(`Provider request failed (${lastError})`);
+  // The server rejected the structured output format: ask for JSON in the prompt only.
+  try {
+    return await streamJson(cfg, req, false);
+  } catch (err) {
+    throw toAiError(err, cfg);
+  }
 }
 
 /** Ask the model for JSON matching `schema`. Retries once with the validation error on bad output. */
 export async function generateJson<T>(cfg: AiConfig, req: JsonRequest<T>): Promise<T> {
   let user = req.user;
   for (let attempt = 1; attempt <= 2; attempt++) {
-    const raw =
-      cfg.provider === "anthropic" ? await anthropicJson(cfg, { ...req, user }) : await openAiCompatibleJson(cfg, { ...req, user });
+    const raw = await requestJson(cfg, { ...req, user });
     try {
       return validate(extractJson(raw), req.schema);
     } catch (err) {
