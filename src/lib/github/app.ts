@@ -189,13 +189,34 @@ export function installUrl(app: GitHubAppConfig, state: string): string {
   return `${base}/installations/new?state=${encodeURIComponent(state)}`;
 }
 
+/** Whether GitHub could reach this URL; it rejects a manifest whose webhook URL is local. */
+export function isPublicUrl(url: string): boolean {
+  const host = new URL(url).hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) return false;
+  if (host.includes(":") && (host === "::1" || /^(fc|fd|fe80:)/.test(host))) return false;
+  const ip = host.split(".").map(Number);
+  if (ip.length === 4 && ip.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) {
+    const [a, b] = ip;
+    if (a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)) return false;
+  }
+  return host.includes(".") || host.includes(":");
+}
+
 /** Manifest used by the setup page to create a GitHub App in one step. */
 export function buildAppManifest(name: string) {
   const url = env().APP_URL;
+  // GitHub refuses the whole manifest when the webhook URL isn't public, so a local instance gets an app
+  // without webhooks (polling covers it); the webhook can be added in the app's settings later.
+  const webhooks = isPublicUrl(url)
+    ? {
+        hook_attributes: { url: `${url}/api/github/webhook`, active: true },
+        default_events: ["pull_request", "pull_request_review", "pull_request_review_comment"],
+      }
+    : {};
   return {
     name,
     url,
-    hook_attributes: { url: `${url}/api/github/webhook`, active: true },
+    ...webhooks,
     redirect_url: `${url}/api/github/manifest`,
     callback_urls: [`${url}/api/auth/github/callback`],
     setup_url: `${url}/api/github/setup`,
@@ -208,9 +229,8 @@ export function buildAppManifest(name: string) {
       metadata: "read",
       pull_requests: "write",
       issues: "write",
-      // Lets "Sign in with GitHub" read the user's verified email address.
-      email_addresses: "read",
+      // Account permissions such as email_addresses can't be requested here: GitHub rejects the manifest
+      // ("Default permission records resource is not included in the list"). /admin links to adding it after.
     },
-    default_events: ["pull_request", "pull_request_review", "pull_request_review_comment"],
   };
 }

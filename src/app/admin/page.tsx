@@ -10,7 +10,7 @@ import { requireUser } from "@/lib/auth/session";
 import { signPayload } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { formatInterval, timeAgo } from "@/lib/format";
-import { buildAppManifest, getAppGrant, getGitHubApp } from "@/lib/github/app";
+import { buildAppManifest, getAppGrant, getGitHubApp, isPublicUrl } from "@/lib/github/app";
 import { listUserWorkspaces } from "@/lib/workspaces";
 import { removeStoredAppAction } from "./actions";
 import { OrgSubmit } from "./OrgSubmit";
@@ -107,9 +107,10 @@ export default async function AdminPage(props: PageProps<"/admin">) {
                 <input type="hidden" name="manifest" value={manifest} />
                 <OrgField />
               </form>
-              {!e.APP_URL.startsWith("https://") ? (
+              {!isPublicUrl(e.APP_URL) ? (
                 <p className="text-[12px] text-muted">
-                  APP_URL is {e.APP_URL}. GitHub can only deliver webhooks to a public URL; polling covers new pull requests until then.
+                  APP_URL is {e.APP_URL}. GitHub only accepts a public webhook URL, so the app is created without webhooks; polling
+                  covers new pull requests until you add one in the app&apos;s settings on GitHub.
                 </p>
               ) : null}
             </div>
