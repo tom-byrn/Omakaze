@@ -5,7 +5,7 @@ These scripts record the product walkthrough in [docs/demo](../../docs/demo). Th
 | File | Purpose |
 | --- | --- |
 | `record.mjs` | Drives Chromium with Playwright through the walkthrough: landing page, sign-in, GitHub connection, pull requests, an agent writing a guide over MCP, reviewing it, commenting on GitHub, inviting a teammate, settings. |
-| `hearth-guide.json` | The guide the agent writes: a summary and 15 sections for [tom-byrn/Guided-PRs#1](https://github.com/tom-byrn/Guided-PRs/pull/1), the "Hearth: add home buying" demo pull request. Claude Code wrote it after reading that diff. |
+| `hearth-guide.json` | The guide the agent writes: a summary and 15 sections for [tom-byrn/tester-renting-app#1](https://github.com/tom-byrn/tester-renting-app/pull/1), the "Hearth: add home buying" demo pull request. Claude Code wrote it after reading that diff. |
 | `recorder.mjs` | Captures frames with the Chrome DevTools screencast and encodes H.264 with ffmpeg at a constant frame rate. It can switch between browser pages, so the invited teammate's browser appears in the same video. |
 | `helpers.mjs` | A visible cursor, click ripples and the caption bar, injected into every page. |
 
@@ -26,7 +26,7 @@ GITHUB_TOKEN=… MEDIA_DIR=path/to/media OUT_DIR=demo-output node scripts/demo/r
 | --- | --- | --- |
 | `BASE_URL` | `http://localhost:3000` | Instance to record |
 | `GITHUB_TOKEN` | | Token used for "Sign in with a GitHub token" |
-| `DEMO_REPO`, `DEMO_PR` | `tom-byrn/Guided-PRs`, `1` | Pull request to guide |
+| `DEMO_REPO`, `DEMO_PR` | `tom-byrn/tester-renting-app`, `1` | Pull request to guide |
 | `GUIDE_FILE` | `scripts/demo/hearth-guide.json` | Guide content |
 | `MEDIA_DIR` | `demo-media` | Images and videos uploaded with `upload_asset` |
 | `OUT_DIR` | `demo-output` | `raw.mp4` and the final `guided-prs-demo.mp4` |

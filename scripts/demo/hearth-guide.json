@@ -127,7 +127,6 @@
         "client/src/components/ListingCard.tsx",
         "client/src/components/MapPopupCard.tsx",
         "client/src/components/StatusBadge.tsx",
-        "client/src/components/illustrations/exterior.tsx",
         "client/src/components/Footer.tsx",
         "client/src/api.ts",
         "client/src/App.tsx",

@@ -22,7 +22,7 @@ import { Recorder } from "./recorder.mjs";
 import { execFileSync } from "node:child_process";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const REPO = process.env.DEMO_REPO ?? "tom-byrn/Guided-PRs";
+const REPO = process.env.DEMO_REPO ?? "tom-byrn/tester-renting-app";
 const PR = Number(process.env.DEMO_PR ?? 1);
 const PR_URL = `https://github.com/${REPO}/pull/${PR}`;
 const GUIDE = JSON.parse(readFileSync(process.env.GUIDE_FILE ?? "scripts/demo/hearth-guide.json", "utf8"));
