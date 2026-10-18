@@ -31,10 +31,24 @@ export function CopyButton({
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
   }
+  const state = copied ? "b" : "a";
   return (
     <button type="button" onClick={copy} className={className} data-copied={copied || undefined}>
-      {icon ? copied ? <RiCheckLine size={14} /> : <RiFileCopyLine size={14} /> : null}
-      <span>{copied ? copiedLabel : label}</span>
+      {icon ? (
+        <span className="swap swap-icon" data-state={state} aria-hidden="true">
+          <RiFileCopyLine size={14} className="swap-a" />
+          <RiCheckLine size={14} className="swap-b" />
+        </span>
+      ) : null}
+      {/* Both labels share one grid cell, so the button is always as wide as the longer one. */}
+      <span className="swap" data-state={state}>
+        <span className="swap-a" aria-hidden={copied || undefined}>
+          {label}
+        </span>
+        <span className="swap-b" aria-hidden={!copied || undefined}>
+          {copiedLabel}
+        </span>
+      </span>
     </button>
   );
 }
