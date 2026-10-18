@@ -37,6 +37,9 @@ export function Header() {
             <HeartIcon size={17} />
             Saved homes
           </NavLink>
+          <NavLink to="/offers" className="site-nav__link">
+            My offers
+          </NavLink>
         </nav>
 
         <div className="site-header__city">

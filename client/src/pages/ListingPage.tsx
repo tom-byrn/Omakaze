@@ -20,6 +20,7 @@ import {
 } from '@hearth/shared';
 import { ApiError, api } from '../api';
 import { MarketStats } from '../components/buying/MarketStats';
+import { OfferCard } from '../components/buying/OfferCard';
 import { MortgageCalculator } from '../components/buying/MortgageCalculator';
 import { PriceHistory } from '../components/buying/PriceHistory';
 import { TourScheduler } from '../components/buying/TourScheduler';
@@ -217,6 +218,7 @@ export function ListingPage() {
           </div>
 
           <aside className={`listing-aside${sale ? ' listing-aside--stacked' : ''}`}>
+            {sale && <OfferCard listing={sale} />}
             <ContactForm listing={listing} allowTour={!sale} />
             {sale && sale.status !== 'sold' && <TourScheduler listing={sale} />}
           </aside>
