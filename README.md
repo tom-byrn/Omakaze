@@ -1,8 +1,66 @@
-# Guided PRs
+<p align="center">
+  <a href="https://github.com/tom-byrn/Guided-PRs">
+    <img src="public/icon.svg" width="96" height="96" alt="Guided PRs logo">
+  </a>
+</p>
+
+<h1 align="center">Guided PRs</h1>
+
+<p align="center">
+  <strong>Turn GitHub pull requests into guided, section-by-section walkthroughs.</strong><br>
+  Open source and self-hosted. Guides are written by your coding agent over MCP, by the built-in AI, or by hand.
+</p>
+
+<p align="center">
+  <a href="https://github.com/tom-byrn/Guided-PRs/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/tom-byrn/Guided-PRs/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
+  <a href="https://github.com/tom-byrn/Guided-PRs/pkgs/container/guided-prs"><img src="https://img.shields.io/github/actions/workflow/status/tom-byrn/Guided-PRs/release.yml?branch=main&style=flat-square&label=image" alt="Release image"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/github/package-json/v/tom-byrn/Guided-PRs?style=flat-square&label=version" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/tom-byrn/Guided-PRs?style=flat-square" alt="License"></a>
+  <a href="https://github.com/tom-byrn/Guided-PRs/stargazers"><img src="https://img.shields.io/github/stars/tom-byrn/Guided-PRs?style=flat-square" alt="GitHub stars"></a>
+  <a href="https://github.com/tom-byrn/Guided-PRs/network/members"><img src="https://img.shields.io/github/forks/tom-byrn/Guided-PRs?style=flat-square" alt="GitHub forks"></a>
+  <a href="https://github.com/tom-byrn/Guided-PRs/issues"><img src="https://img.shields.io/github/issues/tom-byrn/Guided-PRs?style=flat-square" alt="Open issues"></a>
+  <a href="https://github.com/tom-byrn/Guided-PRs/pulls"><img src="https://img.shields.io/github/issues-pr/tom-byrn/Guided-PRs?style=flat-square" alt="Open pull requests"></a>
+  <a href="https://github.com/tom-byrn/Guided-PRs/commits/main"><img src="https://img.shields.io/github/last-commit/tom-byrn/Guided-PRs?style=flat-square" alt="Last commit"></a>
+  <a href="https://github.com/tom-byrn/Guided-PRs/graphs/contributors"><img src="https://img.shields.io/github/contributors/tom-byrn/Guided-PRs?style=flat-square" alt="Contributors"></a>
+</p>
+
+<p align="center">
+  <a href="docs/mcp.md"><img src="https://img.shields.io/badge/MCP-17_tools-25fff9?style=flat-square&logo=modelcontextprotocol&logoColor=white&labelColor=141518" alt="MCP: 17 tools"></a>
+  <a href="docs/development.md"><img src="https://img.shields.io/badge/Next.js-16-141518?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
+  <a href="docs/development.md"><img src="https://img.shields.io/badge/React-19-141518?style=flat-square&logo=react&logoColor=61dafb" alt="React 19"></a>
+  <a href="docs/development.md"><img src="https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"></a>
+  <a href="docs/self-hosting.md"><img src="https://img.shields.io/badge/PostgreSQL-16-4169e1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL 16"></a>
+  <a href="docs/self-hosting.md"><img src="https://img.shields.io/badge/Docker-ghcr.io-2496ed?style=flat-square&logo=docker&logoColor=white" alt="Docker image on GitHub Container Registry"></a>
+  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs welcome"></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start-with-docker"><strong>Quick start</strong></a> ·
+  <a href="#demo"><strong>Demo</strong></a> ·
+  <a href="#connect-an-agent"><strong>Connect an agent</strong></a> ·
+  <a href="#documentation"><strong>Docs</strong></a> ·
+  <a href="CONTRIBUTING.md"><strong>Contributing</strong></a> ·
+  <a href="CHANGELOG.md"><strong>Changelog</strong></a>
+</p>
+
+<p align="center">
+  <img src="docs/images/guide.png" alt="A guided pull request: explanation on the left, code on the right">
+</p>
+
+## What it is
 
 Guided PRs is an open-source, self-hostable web app that turns GitHub pull requests into guided walkthroughs. A guide splits a pull request into ordered sections. Each section has a markdown explanation on the left and the parts of the diff it covers on the right, so reviewers read the change in a planned order instead of file by file. Guides are written by coding agents through the built-in MCP server, by the built-in AI generator, through the REST API, or by hand in the editor. Comments and reviews made in Guided PRs are posted to the pull request on GitHub.
 
-![A guided pull request: explanation on the left, code on the right](docs/images/guide.png)
+<table align="center">
+  <tr>
+    <td align="center"><strong>17</strong><br><sub>MCP tools</sub></td>
+    <td align="center"><strong>4</strong><br><sub>AI providers</sub></td>
+    <td align="center"><strong>4</strong><br><sub>REST endpoints</sub></td>
+    <td align="center"><strong>3</strong><br><sub>ways to connect GitHub</sub></td>
+    <td align="center"><strong>1</strong><br><sub>container + PostgreSQL</sub></td>
+    <td align="center"><strong>MIT</strong><br><sub>license</sub></td>
+  </tr>
+</table>
 
 ## Demo
 
@@ -137,6 +195,23 @@ pnpm dev
 
 The app runs at http://localhost:3000 and applies migrations on start. See [docs/development.md](docs/development.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
+## Contributors
+
+<a href="https://github.com/tom-byrn/Guided-PRs/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=tom-byrn/Guided-PRs" alt="Contributors">
+</a>
+
+## Star history
+
+<a href="https://star-history.com/#tom-byrn/Guided-PRs&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=tom-byrn/Guided-PRs&type=Date&theme=dark">
+    <img src="https://api.star-history.com/svg?repos=tom-byrn/Guided-PRs&type=Date" alt="Star history chart">
+  </picture>
+</a>
+
 ## License
 
-[MIT](LICENSE)
+Guided PRs is released under the [MIT License](LICENSE).
+
+<p align="right"><a href="#readme">Back to top ↑</a></p>
