@@ -201,15 +201,6 @@ The app runs at http://localhost:3000 and applies migrations on start. See [docs
   <img src="https://contrib.rocks/image?repo=tom-byrn/Guided-PRs" alt="Contributors">
 </a>
 
-## Star history
-
-<a href="https://star-history.com/#tom-byrn/Guided-PRs&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=tom-byrn/Guided-PRs&type=Date&theme=dark">
-    <img src="https://api.star-history.com/svg?repos=tom-byrn/Guided-PRs&type=Date" alt="Star history chart">
-  </picture>
-</a>
-
 ## License
 
 Guided PRs is released under the [MIT License](LICENSE).
