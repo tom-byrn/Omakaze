@@ -13,7 +13,7 @@ const LINKS = [
   { href: "#self-host", label: "Self-host" },
 ];
 
-export function SiteHeader({ signedIn, repoUrl }: { signedIn: boolean; repoUrl: string }) {
+export function SiteHeader({ signedIn, appHref, repoUrl }: { signedIn: boolean; appHref: string; repoUrl: string }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -51,7 +51,7 @@ export function SiteHeader({ signedIn, repoUrl }: { signedIn: boolean; repoUrl: 
             <a href={repoUrl} target="_blank" rel="noreferrer" className="nav-link">
               GitHub
             </a>
-            <Link href={signedIn ? "/login" : "/login"} className="btn btn-primary btn-sm h-9 px-5">
+            <Link href={appHref} className="btn btn-primary btn-sm h-9 px-5">
               {signedIn ? "Open app" : "Sign in"}
             </Link>
           </nav>
@@ -83,7 +83,7 @@ export function SiteHeader({ signedIn, repoUrl }: { signedIn: boolean; repoUrl: 
               {l.label}
             </a>
           ))}
-          <Link href="/login" className="btn btn-primary btn-lg mt-6 w-full">
+          <Link href={appHref} className="btn btn-primary btn-lg mt-6 w-full">
             {signedIn ? "Open app" : "Sign in"}
           </Link>
         </nav>
