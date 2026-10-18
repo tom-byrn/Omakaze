@@ -73,6 +73,7 @@ Instance-wide defaults for built-in generation. A workspace that selects its own
 | `AI_MODEL` | the provider's default | `claude-opus-5-5` for Anthropic and `anthropic/claude-opus-5.5` for OpenRouter. Required for the other providers. |
 | `AI_API_KEY` | none | Required for `anthropic`, `openai`, `google` and `openrouter`; optional for `ollama`, `lmstudio` and `openai-compatible`. |
 | `AI_BASE_URL` | the provider's default | API base URL, for example `http://ollama:11434/v1` for Ollama in Docker Compose. |
+| `CHATGPT_PLAN_ENABLED` | `true` | Lets users connect their own ChatGPT plan with Sign in with ChatGPT, in workspaces that allow it. See [ai.md](ai.md#chatgpt-plans). Turn it off, or request access from OpenAI, if you offer Omakaze as a paid or hosted service. |
 
 ### Background worker
 

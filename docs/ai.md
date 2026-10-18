@@ -31,7 +31,30 @@ A workspace uses its own provider if one is set, and the instance default otherw
 1. **Workspace.** Admins pick a provider in **Settings → AI provider** (nothing is selected until they do), then set the API key, base URL and model. The key is encrypted at rest and never shown again. **Load models** (also triggered by focusing the model field) asks the provider for its model list with the entered key, or the saved key for the same provider, and offers the models as suggestions; any model name can still be typed. It uses `GET <base URL>/models` (`/v1/models` for Anthropic); OpenAI's embedding, audio and image models and Gemini models without text generation are left out. OpenRouter, Ollama, LM Studio and OpenAI-compatible lists load without a key. **Test connection** sends a small request with the entered values. **Remove provider** clears the provider, model, base URL and key, but not the [extra instructions](#workspace-instructions).
 2. **Instance.** `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL` set a default for every workspace without its own provider. See [configuration.md](configuration.md#ai-defaults).
 
+Members can also use [their own ChatGPT plan](#chatgpt-plans) for guides they start, if the workspace allows it.
+
 A configuration is usable when it has a model (given or the provider's default) and, for providers that require one, an API key. If a workspace selects a provider, the instance default is not used for that workspace. **Settings → AI provider** shows which configuration is in effect.
+
+## ChatGPT plans
+
+Members with a ChatGPT Plus or Pro plan can generate guides on that plan instead of the workspace provider. It uses [Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source), OpenAI's supported way for open-source apps to send requests on a user's ChatGPT plan. It does not use the Codex CLI's login, and it never calls ChatGPT's own backend.
+
+- **Off by default per workspace.** An admin turns on **Allow members to use their own ChatGPT plan** in **Settings → AI provider**. Guides on a ChatGPT plan go to OpenAI under the member's account, even when the workspace provider is a local model.
+- **Per user.** Each member connects their own account in **Account → ChatGPT plan** and picks a model from the models their plan includes. **Use my ChatGPT plan for guides I generate** switches it off without signing out.
+- **Only for guides the member starts.** **Generate with AI**, **Regenerate** and `POST /api/v1/generate` with the member's token use their plan. [Automation](#automation) has no user and always uses the workspace provider, so a member's plan never pays for other people's guides.
+- **Usage.** Requests count toward the plan's usage limits, which ChatGPT shares across the apps where the member uses it. Each member can see and cap Omakaze's usage at [chatgpt.com/settings/usage](https://chatgpt.com/settings/usage). When the limit is reached, the guide fails with a link there; it is not retried and does not fall back to the workspace provider.
+
+### Signing in
+
+Sign in with ChatGPT only redirects to a loopback address, and the Omakaze server is usually on another machine. **Continue with ChatGPT** opens OpenAI's sign-in in a new tab. After the member allows Omakaze to use their plan, the browser goes to `http://127.0.0.1:1456/auth/callback?...`, which does not load. The member pastes that address into Omakaze, which checks the `state`, exchanges the code with PKCE, and verifies the ID token against OpenAI's keys. The pending sign-in is kept in an encrypted cookie for 15 minutes.
+
+The first sign-in registers Omakaze for that ChatGPT account (`dynamic_agent_client`), and later sign-ins reuse the issued client ID. The instance has one host ID (`ext_agent_host_id`, a random `urn:uuid:` kept in `instance_settings`). Access, refresh and ID tokens are encrypted at rest like other secrets. Access tokens are refreshed shortly before they expire, one refresh at a time per connection. **Sign out** revokes the refresh token and clears the tokens but keeps the registration. Deleting the Omakaze account revokes it too.
+
+### Requests
+
+Requests go to `POST https://api.openai.com/v1/responses` with the member's access token. They set `store: false` and `stream: true`, send no output limit, and pass instructions as developer messages. Fields that plan requests reject are removed. Errors such as `subscription_sharing_usage_limit_exceeded` are shown with what to do next. Temporary unavailability is retried like other server errors.
+
+Set `CHATGPT_PLAN_ENABLED=false` to hide the feature on an instance. OpenAI allows plan usage for open-source and self-hosted apps without an application. If you offer Omakaze as a paid or hosted service to other people, [request access](https://openai.com/form/sign-in-with-chatgpt-interest/) from OpenAI first, or turn the feature off.
 
 ## Starting generation
 
@@ -68,10 +91,11 @@ If the provider rejects the structured output format with a 400, 404 or 422 erro
 | --- | --- |
 | Anthropic | Messages API. Models with native structured outputs get the schema as `output_config.format`; others use the AI SDK's JSON tool. Effort is set to `high` for models that accept it. For `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5-5` and `claude-fable-5-1` on `https://api.anthropic.com`, the request sets `fallbacks: "default"` (beta `server-side-fallback-2026-07-01`), which retries a declined request on Anthropic's recommended fallback model. |
 | OpenAI | Responses API with a strict JSON schema. |
+| ChatGPT plan | Responses API at `https://api.openai.com/v1` with the member's OAuth token and a strict JSON schema; see [ChatGPT plans](#requests). |
 | Google | Gemini API with a response schema. |
 | OpenRouter, Ollama, LM Studio, OpenAI-compatible | `POST <base URL>/chat/completions` with `response_format` set to a strict JSON schema. OpenRouter requests also send `HTTP-Referer: <APP_URL>` and `X-Title: Omakaze`. |
 
-Output limits per request: 64,000 tokens for the single-request path with Anthropic and 32,000 tokens otherwise. Requests time out after 20 minutes.
+Output limits per request: 64,000 tokens for the single-request path with Anthropic, none for ChatGPT plans, and 32,000 tokens otherwise. Requests time out after 20 minutes.
 
 ## Errors and retries
 
@@ -141,6 +165,7 @@ It is posted with the workspace's GitHub connection. The links open Omakaze, whi
 
 - The diff, the pull request title, description and branch names, and file paths are sent to the configured provider. Do not configure a third-party provider for code that must not leave your network.
 - A local model through Ollama, LM Studio or another OpenAI-compatible server on your network (for example Ollama at `http://ollama:11434/v1`) keeps the data there.
+- In workspaces that allow [ChatGPT plans](#chatgpt-plans), guides that members start on their plan are sent to OpenAI under their own account, whatever the workspace provider is. Leave the setting off for code that must stay on your network.
 - Large pull requests use several requests: one per batch of hunk summaries, one for the plan and one per section. Automation can create a new version on every push, and each version is a full generation.
 - Workspace API keys are stored encrypted with a key derived from `APP_SECRET`.
 - Agents connected over MCP use their own model and their own provider account. Omakaze makes no model requests for guides written through MCP, `POST /api/v1/guides` or the editor.

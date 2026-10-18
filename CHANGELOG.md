@@ -17,6 +17,7 @@ Initial release.
 - MCP server at `/api/mcp` with 17 tools and the `create_guided_pr` prompt, authenticated with OAuth 2.1 (discovery, dynamic client registration, PKCE, resource indicators, refresh token rotation, revocation) or API tokens.
 - `upload_asset` downloads from public URLs only, with address checks on every redirect and a size limit.
 - Optional built-in AI generation through the Vercel AI SDK with Anthropic, OpenAI, Google, OpenRouter, Ollama, LM Studio and OpenAI-compatible servers, a provider picker and model lists loaded from the provider, with a separate pipeline for large pull requests; retries continue the same guide version; workspace instructions work with the instance default provider.
+- ChatGPT plans: members can generate guides on their own ChatGPT Plus or Pro plan through Sign in with ChatGPT, in workspaces whose admins allow it. Only guides a member starts use their plan; automation uses the workspace provider. `CHATGPT_PLAN_ENABLED` turns the feature off per instance.
 - Guides left in the `generating` state for 60 minutes without changes are marked as failed and no longer block new versions.
 - REST API: `GET /api/v1/pulls` (with a `repo` filter), `GET` and `POST /api/v1/guides`, `POST /api/v1/generate`.
 - Automation: guides for new pull requests, new versions on push, skipping drafts, polling at a configurable interval, and a summary comment on the pull request.

@@ -2,17 +2,22 @@ import type { AiProvider } from "@/db/schema";
 import { decrypt } from "@/lib/crypto";
 import { env } from "@/lib/env";
 
+/** "chatgpt" is a user's own ChatGPT plan (see chatgpt.ts), never a workspace provider. */
+export type AiConfigProvider = AiProvider | "chatgpt";
+
 export type AiConfig = {
-  provider: AiProvider;
+  provider: AiConfigProvider;
   model: string;
   apiKey: string | null;
   baseUrl: string;
   instructions: string | null;
-  source: "workspace" | "instance";
+  source: "workspace" | "instance" | "chatgpt";
+  /** For "chatgpt": the connection whose token signs each request. */
+  chatgptConnectionId?: string;
 };
 
 export type ProviderInfo = {
-  id: AiProvider;
+  id: AiConfigProvider;
   label: string;
   /** One line for the provider picker. */
   description: string;
@@ -25,7 +30,7 @@ export type ProviderInfo = {
   publicModels: boolean;
 };
 
-export const PROVIDERS: ProviderInfo[] = [
+export const PROVIDERS: (ProviderInfo & { id: AiProvider })[] = [
   {
     id: "anthropic",
     label: "Anthropic",
@@ -99,11 +104,23 @@ export const PROVIDERS: ProviderInfo[] = [
   },
 ];
 
-export function providerInfo(id: AiProvider) {
+export const CHATGPT_PROVIDER: ProviderInfo = {
+  id: "chatgpt",
+  label: "ChatGPT plan",
+  description: "Your own ChatGPT Plus or Pro plan, connected with Sign in with ChatGPT.",
+  defaultModel: "",
+  baseUrl: "https://api.openai.com/v1",
+  keyRequired: false,
+  local: false,
+  publicModels: false,
+};
+
+export function providerInfo(id: AiConfigProvider): ProviderInfo {
+  if (id === "chatgpt") return CHATGPT_PROVIDER;
   return PROVIDERS.find((p) => p.id === id) ?? PROVIDERS[0];
 }
 
-type WorkspaceAiFields = {
+export type WorkspaceAiFields = {
   aiProvider: AiProvider | null;
   aiModel: string | null;
   aiBaseUrl: string | null;

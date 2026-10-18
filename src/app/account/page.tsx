@@ -1,10 +1,13 @@
 import { RiGithubFill } from "@remixicon/react";
 import { AppHeader } from "@/components/app/AppHeader";
+import { ChatgptPlanPanel } from "@/components/settings/ChatgptPlanPanel";
 import { Panel } from "@/components/settings/Panel";
 import { ActionForm } from "@/components/ui/ActionForm";
 import { Avatar } from "@/components/ui/Avatar";
 import { ConfirmButton } from "@/components/ui/ConfirmButton";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { CHATGPT_REDIRECT_URI, chatgptPlansEnabled, getChatgptConnection, grantsPlanUsage } from "@/lib/ai/chatgpt";
+import { CHATGPT_PLAN_HELP_URL } from "@/lib/ai/chatgpt-links";
 import { getAuthMethods } from "@/lib/auth/methods";
 import { currentSessionId, listSessions, requireUser } from "@/lib/auth/session";
 import { getGitHubAccount } from "@/lib/auth/users";
@@ -13,8 +16,13 @@ import { listUserWorkspaces } from "@/lib/workspaces";
 import {
   changePasswordAction,
   deleteAccountAction,
+  finishChatgptSignInAction,
   linkGitHubTokenAction,
+  listChatgptModelsAction,
   revokeSessionAction,
+  saveChatgptPrefsAction,
+  signOutChatgptAction,
+  startChatgptSignInAction,
   unlinkGitHubAction,
   updateProfileAction,
 } from "./actions";
@@ -30,13 +38,16 @@ function describeAgent(ua: string | null): string {
 
 export default async function AccountPage() {
   const user = await requireUser("/account");
-  const [list, account, methods, sessions, sid] = await Promise.all([
+  const chatgptOn = chatgptPlansEnabled();
+  const [list, account, methods, sessions, sid, chatgpt] = await Promise.all([
     listUserWorkspaces(user.id),
     getGitHubAccount(user.id),
     getAuthMethods(),
     listSessions(user.id),
     currentSessionId(),
+    chatgptOn ? getChatgptConnection(user.id) : null,
   ]);
+  const chatgptWorkspaces = list.filter((w) => w.workspace.allowChatgptPlans).map((w) => w.workspace.name);
   const current = list.find((w) => w.workspace.id === user.lastWorkspaceId) ?? list[0];
   return (
     <div className="min-h-screen">
@@ -112,6 +123,50 @@ export default async function AccountPage() {
             </div>
           )}
         </Panel>
+
+        {chatgptOn ? (
+          <Panel
+            title="ChatGPT plan"
+            description={
+              <>
+                Generate guides with your own ChatGPT Plus or Pro plan instead of the workspace&apos;s provider. Requests count
+                toward your plan&apos;s usage limits, which are shared with the other apps where you use it; Omakaze does not
+                charge for them. Only guides you start use your plan, and their diffs are sent to OpenAI under your account.{" "}
+                <a href={CHATGPT_PLAN_HELP_URL} target="_blank" rel="noreferrer" className="link">
+                  Learn more
+                </a>
+              </>
+            }
+          >
+            <div id="chatgpt" className="flex flex-col gap-4">
+              <ChatgptPlanPanel
+                connection={
+                  chatgpt
+                    ? {
+                        signedIn: Boolean(chatgpt.refreshTokenEnc),
+                        email: chatgpt.email,
+                        planUsage: grantsPlanUsage(chatgpt.scopes),
+                        model: chatgpt.model,
+                        enabled: chatgpt.enabled,
+                      }
+                    : null
+                }
+                redirectUri={CHATGPT_REDIRECT_URI}
+                start={startChatgptSignInAction}
+                finish={finishChatgptSignInAction}
+                signOut={signOutChatgptAction}
+                savePrefs={saveChatgptPrefsAction}
+                listModels={listChatgptModelsAction}
+              />
+              <p className="text-[12px] text-muted">
+                {chatgptWorkspaces.length > 0
+                  ? `Allowed in ${chatgptWorkspaces.join(", ")}.`
+                  : "None of your workspaces allow ChatGPT plans yet. A workspace admin can turn them on in Settings → AI provider."}{" "}
+                Elsewhere, and for automated guides, the workspace provider is used.
+              </p>
+            </div>
+          </Panel>
+        ) : null}
 
         {methods.email ? (
           <Panel title={user.passwordHash ? "Change password" : "Set a password"} description="Lets you sign in with your email address.">
