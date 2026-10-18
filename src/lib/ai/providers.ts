@@ -16,6 +16,7 @@ import {
 } from "ai";
 import type { z } from "zod";
 import { env } from "@/lib/env";
+import { chatgptFetch, ChatgptError, MANAGE_USAGE_URL } from "./chatgpt";
 import { providerInfo, type AiConfig } from "./config";
 
 export class AiError extends Error {
@@ -65,6 +66,9 @@ export function languageModel(cfg: AiConfig): LanguageModel {
       return createOpenAI({ apiKey, baseURL: cfg.baseUrl })(cfg.model);
     case "google":
       return createGoogleGenerativeAI({ apiKey, baseURL: cfg.baseUrl })(cfg.model);
+    case "chatgpt":
+      // The token comes from the user's connection and is refreshed per request, so a long generation outlives it.
+      return createOpenAI({ apiKey: "chatgpt-plan", baseURL: cfg.baseUrl, fetch: chatgptFetch(cfg.chatgptConnectionId!) }).responses(cfg.model);
     default:
       // OpenRouter, Ollama, LM Studio and other servers that speak the Chat Completions API.
       return createOpenAICompatible({
@@ -77,7 +81,11 @@ export function languageModel(cfg: AiConfig): LanguageModel {
   }
 }
 
-function providerOptions(cfg: AiConfig) {
+type ProviderOptions = Parameters<typeof streamText>[0]["providerOptions"];
+
+function providerOptions(cfg: AiConfig): ProviderOptions {
+  // Plan requests are not stored and take instructions as developer messages.
+  if (cfg.provider === "chatgpt") return { openai: { store: false, systemMessageMode: "developer" as const } };
   if (cfg.provider !== "anthropic") return undefined;
   const anthropic = {
     ...(supportsEffort(cfg.model) ? { effort: "high" as const } : {}),
@@ -119,7 +127,8 @@ async function streamJson<T>(cfg: AiConfig, req: JsonRequest<T>, structured: boo
     model: languageModel(cfg),
     system: req.system,
     prompt: req.user,
-    maxOutputTokens: req.maxTokens ?? (cfg.provider === "anthropic" ? 64000 : 32000),
+    // Plan requests reject max_output_tokens.
+    maxOutputTokens: cfg.provider === "chatgpt" ? undefined : (req.maxTokens ?? (cfg.provider === "anthropic" ? 64000 : 32000)),
     ...(structured
       ? { output: Output.object({ schema: jsonSchema(req.jsonSchema as JSONSchema7), name: req.schemaName }) }
       : {}),
@@ -158,11 +167,48 @@ function unwrap(err: unknown): unknown {
 export function rejectsResponseFormat(err: unknown): boolean {
   const e = unwrap(err);
   if (!APICallError.isInstance(e) || ![400, 404, 422].includes(e.statusCode ?? 0)) return false;
-  return /response_format|json_schema|json_object|structured|schema/i.test(`${e.message} ${e.responseBody ?? ""}`);
+  return /response_format|json_schema|json_object|structured|schema|text\.format/i.test(`${e.message} ${e.responseBody ?? ""}`);
+}
+
+/** Errors from ChatGPT plan requests, mapped to what the user can do about them. */
+export function chatgptAiError(err: unknown): AiError | null {
+  const e = unwrap(err);
+  if (e instanceof ChatgptError) return new AiError(e.message, e.opts.retryable ?? false);
+  const text = APICallError.isInstance(e) ? `${e.message} ${e.responseBody ?? ""}` : e instanceof Error ? e.message : "";
+  const code = /\b(subscription_sharing_[a-z_]+|chatpass_v2_[a-z_]+)\b/.exec(text)?.[1];
+  switch (code) {
+    case "subscription_sharing_usage_limit_exceeded":
+      return new AiError(
+        `Your ChatGPT plan's usage limit was reached. See your usage at ${MANAGE_USAGE_URL}, or turn off your ChatGPT plan in Account settings to use the workspace provider.`,
+      );
+    case "subscription_sharing_usage_unavailable":
+    case "subscription_sharing_user_unavailable":
+      return new AiError("ChatGPT plan usage is temporarily unavailable. Try again later.", true);
+    case "subscription_sharing_user_not_eligible":
+      return new AiError("Your ChatGPT account can't use its plan here. Plan usage needs an eligible ChatGPT Plus or Pro plan.");
+    case "subscription_sharing_invalid_user":
+      return new AiError("ChatGPT did not accept your connection. If you disconnected Omakaze in ChatGPT, sign in again in Account settings.");
+    case "subscription_sharing_unsupported_capability":
+      return new AiError(`ChatGPT plan requests do not support part of this request: ${APICallError.isInstance(e) ? e.message : text}`);
+    case undefined:
+      break;
+    default:
+      return new AiError(`ChatGPT refused the request (${code}).`);
+  }
+  if (APICallError.isInstance(e)) {
+    if (e.statusCode === 401) return new AiError("ChatGPT did not accept your connection. Sign in again in Account settings.");
+    if (e.statusCode === 403) return new AiError(`ChatGPT refused the request: ${e.message}`);
+    if (e.statusCode === 503) return new AiError("ChatGPT plan usage is temporarily unavailable. Try again later.", true);
+  }
+  return null;
 }
 
 export function toAiError(err: unknown, cfg: AiConfig): unknown {
   if (err instanceof AiError) return err;
+  if (cfg.provider === "chatgpt") {
+    const mapped = chatgptAiError(err);
+    if (mapped) return mapped;
+  }
   const label = providerInfo(cfg.provider).label;
   const e = unwrap(err);
   if (APICallError.isInstance(e)) {

@@ -82,6 +82,37 @@ export const githubAccounts = pgTable(
   ],
 );
 
+/**
+ * A user's ChatGPT account, connected with Sign in with ChatGPT so guides they generate can use their
+ * ChatGPT plan. Signing out clears the tokens but keeps the registration, which later sign-ins reuse.
+ */
+export const chatgptConnections = pgTable(
+  "chatgpt_connections",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Issued by OpenAI when the account was first registered (oaiapp_…). */
+    clientId: text("client_id").notNull(),
+    /** The ID token's `sub`. */
+    subject: text("subject").notNull(),
+    email: text("email"),
+    accessTokenEnc: text("access_token_enc"),
+    refreshTokenEnc: text("refresh_token_enc"),
+    idTokenEnc: text("id_token_enc"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    /** Granted scopes, space separated. Plan usage needs `chatgpt.tokens.use.direct`. */
+    scopes: text("scopes").notNull(),
+    model: text("model"),
+    /** Use the plan for guides this user generates. */
+    enabled: boolean("enabled").default(true).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("chatgpt_connections_user_unique").on(t.userId)],
+);
+
 export const sessions = pgTable(
   "sessions",
   {
@@ -125,6 +156,8 @@ export const workspaces = pgTable(
     aiBaseUrl: text("ai_base_url"),
     aiApiKeyEnc: text("ai_api_key_enc"),
     aiInstructions: text("ai_instructions"),
+    /** Members may generate guides with their own ChatGPT plan instead of the workspace provider. */
+    allowChatgptPlans: boolean("allow_chatgpt_plans").default(false).notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

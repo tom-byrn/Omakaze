@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { repositories } from "@/db/schema";
-import { resolveAiConfig } from "@/lib/ai/config";
+import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getRepoContext } from "@/lib/github/connections";
 import { failStaleGuides, getLatestGuide, guidePath, isStaleGuide, startGuide } from "@/lib/guides/service";
@@ -26,7 +26,7 @@ async function memberContext(slug: string) {
 export async function generateGuideAction(slug: string, repositoryId: string, prNumber: number): Promise<ActionResult> {
   try {
     const { user, ws } = await memberContext(slug);
-    const cfg = resolveAiConfig(ws);
+    const cfg = await resolveAiConfigFor(ws, user.id);
     if (!cfg) return { error: "Add an AI provider in Settings → AI first, or copy the agent prompt." };
     const [repo] = await db
       .select()

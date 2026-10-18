@@ -10,7 +10,7 @@ import { NoGuide } from "@/components/guide/NoGuide";
 import { Markdown } from "@/components/markdown/Markdown";
 import { Avatar } from "@/components/ui/Avatar";
 import { CopyButton } from "@/components/ui/CopyButton";
-import { resolveAiConfig } from "@/lib/ai/config";
+import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { getGitHubAccount } from "@/lib/auth/users";
 import { shortSha, timeAgo } from "@/lib/format";
 import { findWorkspaceRepo, getRepoContext } from "@/lib/github/connections";
@@ -48,7 +48,7 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
   const requested = Number(sp.v);
   const selectedMeta = versions.find((v) => v.version === requested) ?? versions[0] ?? null;
   const guide = selectedMeta ? await getGuide(selectedMeta.id) : null;
-  const ai = resolveAiConfig(workspace);
+  const ai = await resolveAiConfigFor(workspace, user.id);
   const prompt = agentPrompt(pull.htmlUrl);
   const outdated = guide && guide.headSha !== pull.headSha;
   const sectionParam = typeof sp.section === "string" ? sp.section : null;
@@ -95,6 +95,7 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
               prNumber={pull.number}
               label="Regenerate"
               className="btn btn-ghost btn-sm"
+              chatgptPlan={ai?.source === "chatgpt"}
               disabledReason={ai ? null : "Add an AI provider in Settings → AI to regenerate here."}
             />
           ) : null}
@@ -149,6 +150,7 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
               prNumber={pull.number}
               label="Generate with AI"
               className="btn btn-primary btn-md"
+              chatgptPlan={ai?.source === "chatgpt"}
               disabledReason={ai ? null : "Add an AI provider in Settings → AI first."}
             />
           }

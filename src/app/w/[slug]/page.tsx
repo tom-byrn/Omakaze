@@ -4,7 +4,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/app/PageHeader";
 import { RepoGroup } from "@/components/app/PullList";
 import { SyncOnMount } from "@/components/app/SyncOnMount";
-import { resolveAiConfig } from "@/lib/ai/config";
+import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { isStale, loadDashboard, parseStateFilter, type StateFilter } from "@/lib/dashboard";
 import { listConnections } from "@/lib/github/connections";
 import { requireWorkspace } from "@/lib/workspaces";
@@ -21,12 +21,12 @@ const TABS: { key: StateFilter; label: string }[] = [
 export default async function DashboardPage(props: PageProps<"/w/[slug]">) {
   const { slug } = await props.params;
   const sp = await props.searchParams;
-  const { workspace } = await requireWorkspace(slug);
+  const { workspace, user } = await requireWorkspace(slug);
   const state = parseStateFilter(sp.state);
   const q = typeof sp.q === "string" ? sp.q : "";
   const data = await loadDashboard(workspace.id, { state, q });
   const connections = await listConnections(workspace.id);
-  const aiDisabledReason = resolveAiConfig(workspace) ? null : "Add an AI provider in Settings → AI to generate guides here.";
+  const aiDisabledReason = (await resolveAiConfigFor(workspace, user.id)) ? null : "Add an AI provider in Settings → AI to generate guides here.";
   const href = (s: StateFilter) => `/w/${slug}?${new URLSearchParams({ ...(s !== "open" ? { state: s } : {}), ...(q ? { q } : {}) })}`;
 
   const byRepo = new Map(data.repos.map((r) => [r.id, [] as typeof data.pulls]));

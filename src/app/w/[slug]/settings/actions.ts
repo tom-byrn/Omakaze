@@ -404,6 +404,19 @@ export async function listAiModelsAction(
   }
 }
 
+/** Whether members may generate guides with their own ChatGPT plan. */
+export async function saveChatgptPlansAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
+  try {
+    const { user, ws } = await ctx(slug, "admin");
+    const allowChatgptPlans = form.get("allowChatgptPlans") === "on";
+    await db.update(workspaces).set({ allowChatgptPlans }).where(eq(workspaces.id, ws.id));
+    await logActivity({ workspaceId: ws.id, type: "settings.updated", actorUserId: user.id, data: { section: "chatgpt-plans", allowChatgptPlans } });
+    return done(ws, "/settings/ai", "Saved.");
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 /** Extra instructions apply to whichever provider is in effect, including the instance default. */
 export async function saveAiInstructionsAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
   try {

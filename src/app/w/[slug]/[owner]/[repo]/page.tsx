@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { PageHeader } from "@/components/app/PageHeader";
 import { RepoGroup } from "@/components/app/PullList";
 import { SyncOnMount } from "@/components/app/SyncOnMount";
-import { resolveAiConfig } from "@/lib/ai/config";
+import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { isStale, loadDashboard, parseStateFilter, type StateFilter } from "@/lib/dashboard";
 import { findWorkspaceRepo } from "@/lib/github/connections";
 import { requireWorkspace } from "@/lib/workspaces";
@@ -24,12 +24,12 @@ export async function generateMetadata(props: PageProps<"/w/[slug]/[owner]/[repo
 export default async function RepoPage(props: PageProps<"/w/[slug]/[owner]/[repo]">) {
   const { slug, owner, repo: name } = await props.params;
   const sp = await props.searchParams;
-  const { workspace } = await requireWorkspace(slug);
+  const { workspace, user } = await requireWorkspace(slug);
   const repo = await findWorkspaceRepo(workspace.id, owner, name);
   if (!repo) notFound();
   const state = parseStateFilter(sp.state);
   const data = await loadDashboard(workspace.id, { state, repositoryId: repo.id });
-  const aiDisabledReason = resolveAiConfig(workspace) ? null : "Add an AI provider in Settings → AI to generate guides here.";
+  const aiDisabledReason = (await resolveAiConfigFor(workspace, user.id)) ? null : "Add an AI provider in Settings → AI to generate guides here.";
   return (
     <main className="mx-auto max-w-[1240px] px-4 py-10 lg:px-8">
       <PageHeader

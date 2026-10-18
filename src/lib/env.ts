@@ -58,6 +58,8 @@ const schema = z.object({
   AI_MODEL: optionalString,
   AI_API_KEY: optionalString,
   AI_BASE_URL: optionalString,
+  /** Let users connect their own ChatGPT plan with Sign in with ChatGPT. */
+  CHATGPT_PLAN_ENABLED: bool(true),
 
   /**
    * How many reverse proxies in front of the app append to X-Forwarded-For. The client address used

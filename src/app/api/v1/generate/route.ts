@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resolveAiConfig } from "@/lib/ai/config";
+import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { apiPrincipal, resolvePullForApi, workspaceOf } from "@/lib/api-v1";
 import { errorResponse, HttpError, readJson } from "@/lib/http";
 import { failStaleGuides, getLatestGuide, guideUrl, isStaleGuide, startGuide } from "@/lib/guides/service";
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const parsed = z.object({ pr: z.string() }).safeParse(await readJson(req));
     if (!parsed.success) throw new HttpError(400, "pr is required");
     const ws = await workspaceOf(p.workspaceId);
-    const cfg = resolveAiConfig(ws);
+    const cfg = await resolveAiConfigFor(ws, p.user.id);
     if (!cfg) throw new HttpError(409, "No AI provider is configured for this workspace");
     const { ctx, number } = await resolvePullForApi(p, parsed.data.pr);
     const latest = await getLatestGuide(ctx.repo.id, number);

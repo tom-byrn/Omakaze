@@ -1,6 +1,7 @@
 import { eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { jobs, repositories, workspaces } from "@/db/schema";
+import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { resolveAiConfig } from "@/lib/ai/config";
 import { generateGuideWithAi } from "@/lib/ai/generate";
 import { AiError } from "@/lib/ai/providers";
@@ -52,7 +53,8 @@ async function generateGuide(job: Job) {
     await appendGuideEvent(guide.id, `Starting over: removed ${removed} section(s) from the previous attempt`, "warn");
   }
   const ws = await workspaceForRepo(guide.repositoryId);
-  const cfg = ws ? resolveAiConfig(ws) : null;
+  // A guide someone started can use their own ChatGPT plan; automated ones use the workspace provider.
+  const cfg = ws ? await resolveAiConfigFor(ws, guide.createdByUserId) : null;
   if (!cfg) {
     await failGuide(guide.id, "No AI provider is configured. Add one in Settings → AI.");
     return;
