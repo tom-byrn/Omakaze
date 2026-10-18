@@ -183,21 +183,24 @@ await d.caption("Omakaze", "Sections in review order. Explanation on the left, t
 await d.sleep(3000);
 await d.scroll(820, { duration: 1800 });
 await d.sleep(1500);
-await d.scroll(900, { duration: 1800 });
+await d.scrollTo(null, page.locator("#how-it-works"), { offset: 20, duration: 1800 });
 await d.caption("How it works", "Connect GitHub, let an agent write the guide, review in sections, comment on GitHub.");
 await d.sleep(6500);
-await d.scroll(1000, { duration: 2000 });
+await d.scrollTo(null, page.locator("#features"), { offset: 20, duration: 2000 });
 await d.caption("Features", "Markdown with Mermaid, tables and video. Expandable context. Workspaces and invites.");
 await d.sleep(3500);
-await d.scroll(1000, { duration: 2000 });
+await d.scrollTo(null, page.locator("#agents"), { offset: 20, duration: 2000 });
 await d.caption("Agents", "One prompt sets up the MCP server in Claude Code, Codex, Cursor or VS Code.");
 await d.sleep(1200);
 await d.click(page.locator("#agents").getByRole("button", { name: "Copy" }).first());
 await d.sleep(2200);
-await d.scroll(900, { duration: 1800 });
+await d.scrollTo(null, page.locator("#self-host"), { offset: 20, duration: 1800 });
 await d.caption("Self-host", "One container and Postgres. MIT licensed.");
 await d.sleep(3000);
-await d.scroll("top", { duration: 2200 });
+await d.scroll(2400, { duration: 2400 });
+await d.caption(null, null);
+await d.sleep(2500);
+await d.scroll("top", { duration: 2600 });
 await d.caption(null, null);
 await d.sleep(600);
 
@@ -369,16 +372,17 @@ const WRITE = process.env.SKIP_GITHUB_WRITES !== "1";
 
 await openSection(9, "Comment on any line, or shift-click to select a range.");
 const savedRoute = page.locator('[data-path="server/src/routes/savedSearches.ts"]');
-const limitLine = savedRoute.locator("tr.row-add", { hasText: "listSavedSearches(db, req.clientId).length" });
-await d.scrollTo(RIGHT, limitLine, { offset: 260, duration: 1800 });
+// An earlier recording left a comment on the limit check (line 33); this one comments on the duplicate check.
+const duplicateLine = savedRoute.locator("tr.row-add", { hasText: "already saved this search" });
+await d.scrollTo(RIGHT, duplicateLine, { offset: 260, duration: 1800 });
 await d.sleep(800);
-await d.hover(limitLine);
+await d.hover(duplicateLine);
 await d.sleep(500);
-await d.click(limitLine.locator(".diff-add-comment"));
-await d.type(savedRoute.locator("textarea"), GUIDE.lineComment, { delay: 24 });
+await d.click(duplicateLine.locator(".diff-add-comment"));
+await d.type(savedRoute.locator("textarea").first(), GUIDE.lineComment, { delay: 24 });
 await d.sleep(400);
 if (WRITE) {
-  await d.click(savedRoute.getByRole("button", { name: "Comment on GitHub" }));
+  await d.click(savedRoute.getByRole("button", { name: "Comment on GitHub" }).first());
   await page.getByText("Comment posted to GitHub").waitFor();
 }
 await d.caption("Comments", "The comment is posted to the pull request on GitHub, and replies from GitHub show up here.");

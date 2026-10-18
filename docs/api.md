@@ -37,8 +37,8 @@ Lists up to 500 pull requests from the workspace's followed repositories, most r
 | `repo` | Optional. `owner/name` of a followed repository (case does not matter); 404 if the workspace does not follow it. The filter is applied to the 500 most recently updated pull requests of the workspace. |
 
 ```sh
-curl -sS "$GUIDED_PRS_URL/api/v1/pulls?state=open&repo=acme/web" \
-  -H "Authorization: Bearer $GUIDED_PRS_TOKEN"
+curl -sS "$OMAKAZE_URL/api/v1/pulls?state=open&repo=acme/web" \
+  -H "Authorization: Bearer $OMAKAZE_TOKEN"
 ```
 
 ```json
@@ -73,8 +73,8 @@ Reads the latest guide of a pull request, or a specific version.
 | `version` | Optional. A positive integer; without it, the latest version is returned. 400 if it is not a positive integer, 404 if the version does not exist. |
 
 ```sh
-curl -sS "$GUIDED_PRS_URL/api/v1/guides?pr=https://github.com/acme/web/pull/412" \
-  -H "Authorization: Bearer $GUIDED_PRS_TOKEN"
+curl -sS "$OMAKAZE_URL/api/v1/guides?pr=https://github.com/acme/web/pull/412" \
+  -H "Authorization: Bearer $OMAKAZE_TOKEN"
 ```
 
 ```json
@@ -131,8 +131,8 @@ Creates a complete guide and publishes it, like the MCP `create_guide` tool. The
 | `auto_cover` | boolean | No | Default `true`: uncovered changes go to an automatic "Other changes" section |
 
 ```sh
-curl -sS -X POST "$GUIDED_PRS_URL/api/v1/guides" \
-  -H "Authorization: Bearer $GUIDED_PRS_TOKEN" \
+curl -sS -X POST "$OMAKAZE_URL/api/v1/guides" \
+  -H "Authorization: Bearer $OMAKAZE_TOKEN" \
   -H "Content-Type: application/json" \
   -d @guide.json
 ```
@@ -196,8 +196,8 @@ Starts AI generation with the workspace's AI provider (or the instance default).
 | `pr` | string | Yes | Pull request URL or `owner/repo#number` |
 
 ```sh
-curl -sS -X POST "$GUIDED_PRS_URL/api/v1/generate" \
-  -H "Authorization: Bearer $GUIDED_PRS_TOKEN" \
+curl -sS -X POST "$OMAKAZE_URL/api/v1/generate" \
+  -H "Authorization: Bearer $OMAKAZE_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"pr": "https://github.com/acme/web/pull/412"}'
 ```
@@ -234,10 +234,10 @@ Errors are JSON objects with an `error` message:
 
 ## GitHub Actions example
 
-This workflow asks Omakaze to generate a guide whenever a pull request is opened, updated or marked ready for review. Create a token in **Settings → API tokens & MCP**, store it as the repository secret `GUIDED_PRS_TOKEN`, and store the instance URL as the repository variable `GUIDED_PRS_URL`. The instance must be reachable from GitHub's runners.
+This workflow asks Omakaze to generate a guide whenever a pull request is opened, updated or marked ready for review. Create a token in **Settings → API tokens & MCP**, store it as the repository secret `OMAKAZE_TOKEN`, and store the instance URL as the repository variable `OMAKAZE_URL`. The instance must be reachable from GitHub's runners.
 
 ```yaml
-name: Guided PR
+name: Omakaze guide
 
 on:
   pull_request:
@@ -250,12 +250,12 @@ jobs:
     steps:
       - name: Generate a guided walkthrough
         env:
-          GUIDED_PRS_URL: ${{ vars.GUIDED_PRS_URL }}
-          GUIDED_PRS_TOKEN: ${{ secrets.GUIDED_PRS_TOKEN }}
+          OMAKAZE_URL: ${{ vars.OMAKAZE_URL }}
+          OMAKAZE_TOKEN: ${{ secrets.OMAKAZE_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          curl --fail-with-body -sS -X POST "$GUIDED_PRS_URL/api/v1/generate" \
-            -H "Authorization: Bearer $GUIDED_PRS_TOKEN" \
+          curl --fail-with-body -sS -X POST "$OMAKAZE_URL/api/v1/generate" \
+            -H "Authorization: Bearer $OMAKAZE_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"pr\": \"$PR_URL\"}"
 ```
