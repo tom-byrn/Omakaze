@@ -103,7 +103,7 @@ export const sessions = pgTable(
 /* Workspaces, members, invites                                        */
 /* ------------------------------------------------------------------ */
 
-export type AiProvider = "openrouter" | "anthropic" | "openai" | "openai-compatible";
+export type AiProvider = "anthropic" | "openai" | "google" | "openrouter" | "ollama" | "lmstudio" | "openai-compatible";
 
 export const workspaces = pgTable(
   "workspaces",

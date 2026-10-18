@@ -54,7 +54,7 @@ const schema = z.object({
   MAX_UPLOAD_MB: z.coerce.number().default(50),
 
   // AI defaults (workspaces can override)
-  AI_PROVIDER: z.enum(["openrouter", "anthropic", "openai", "openai-compatible"]).optional(),
+  AI_PROVIDER: z.enum(["anthropic", "openai", "google", "openrouter", "ollama", "lmstudio", "openai-compatible"]).optional(),
   AI_MODEL: optionalString,
   AI_API_KEY: optionalString,
   AI_BASE_URL: optionalString,

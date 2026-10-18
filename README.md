@@ -51,17 +51,6 @@
 
 Omakaze is an open-source, self-hostable web app that turns GitHub pull requests into guided walkthroughs. A guide splits a pull request into ordered sections. Each section has a markdown explanation on the left and the parts of the diff it covers on the right, so reviewers read the change in a planned order instead of file by file. Guides are written by coding agents through the built-in MCP server, by the built-in AI generator, through the REST API, or by hand in the editor. Comments and reviews made in Omakaze are posted to the pull request on GitHub.
 
-<table align="center">
-  <tr>
-    <td align="center"><strong>17</strong><br><sub>MCP tools</sub></td>
-    <td align="center"><strong>4</strong><br><sub>AI providers</sub></td>
-    <td align="center"><strong>4</strong><br><sub>REST endpoints</sub></td>
-    <td align="center"><strong>3</strong><br><sub>ways to connect GitHub</sub></td>
-    <td align="center"><strong>1</strong><br><sub>container + PostgreSQL</sub></td>
-    <td align="center"><strong>MIT</strong><br><sub>license</sub></td>
-  </tr>
-</table>
-
 ## Demo
 
 [omakaze-demo.mp4](docs/demo/omakaze-demo.mp4) (7 minutes, no sound) is a recording of a self-hosted instance and a real pull request, [tom-byrn/Guided-PRs#1](https://github.com/tom-byrn/Guided-PRs/pull/1), which adds home buying to a small rental listings app. It shows connecting GitHub, a coding agent writing the guide through the MCP server, reviewing it section by section, a line comment and a review posted to GitHub, a teammate joining through an invite link, and the settings. The recording script is in [scripts/demo](scripts/demo).
@@ -76,7 +65,7 @@ Omakaze is an open-source, self-hostable web app that turns GitHub pull requests
 - **Review progress.** Mark sections as reviewed and see which other members reviewed them.
 - **Versions.** Every new guide for a pull request is a new version; older versions stay available. A guide written for an older head commit is marked as outdated.
 - **MCP server.** 17 tools and one prompt over Streamable HTTP at `/api/mcp`. Clients authenticate with OAuth 2.1 (dynamic client registration and PKCE) or an API token.
-- **Built-in AI generation.** OpenRouter (default), Anthropic, OpenAI or an OpenAI-compatible server such as Ollama, vLLM or LM Studio.
+- **Optional built-in AI generation.** Anthropic, OpenAI, Google, OpenRouter, local models with Ollama or LM Studio, or any OpenAI-compatible server such as vLLM or LiteLLM. Not needed if you write guides with your own agent over MCP.
 - **REST API.** List pull requests, read and create guides, and start AI generation.
 - **Automation.** Generate a guide when a pull request opens, create a new version when commits are pushed, skip drafts, and post a summary comment on the pull request.
 - **Workspaces.** Members with owner, admin and member roles, invite links (optionally limited to one confirmed email address) and an activity log.
@@ -164,7 +153,7 @@ Create a guided PR for <PR URL> using the Omakaze MCP.
 
 ## Built-in AI
 
-Omakaze can write guides itself with OpenRouter (default), Anthropic, OpenAI or an OpenAI-compatible server. Configure a provider per workspace in **Settings → AI provider**, or set instance defaults with `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL`. Then use **Generate with AI** on a pull request, turn on automation in **Settings → Automation**, or call `POST /api/v1/generate`. The diff is sent to the provider you configure; a local model through the OpenAI-compatible provider keeps it on your network. See [docs/ai.md](docs/ai.md).
+Built-in generation is optional: agents connected over MCP use their own model. To have Omakaze write guides itself, pick a provider per workspace in **Settings → AI provider** (Anthropic, OpenAI, Google, OpenRouter, Ollama, LM Studio or any OpenAI-compatible server; the model list is loaded from the provider), or set instance defaults with `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL`. Then use **Generate with AI** on a pull request, turn on automation in **Settings → Automation**, or call `POST /api/v1/generate`. The diff is sent to the provider you configure; a local model through Ollama, LM Studio or another OpenAI-compatible server keeps it on your network. See [docs/ai.md](docs/ai.md).
 
 ## Documentation
 
@@ -194,21 +183,6 @@ pnpm dev
 ```
 
 The app runs at http://localhost:3000 and applies migrations on start. See [docs/development.md](docs/development.md), [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
-
-## Contributors
-
-<a href="https://github.com/tom-byrn/Guided-PRs/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=tom-byrn/Guided-PRs" alt="Contributors">
-</a>
-
-## Star history
-
-<a href="https://star-history.com/#tom-byrn/Guided-PRs&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=tom-byrn/Guided-PRs&type=Date&theme=dark">
-    <img src="https://api.star-history.com/svg?repos=tom-byrn/Guided-PRs&type=Date" alt="Star history chart">
-  </picture>
-</a>
 
 ## License
 

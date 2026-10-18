@@ -171,7 +171,7 @@ const BODY_JSON_SCHEMA = {
 /* ------------------------------------------------------------------ */
 
 function budgetFor(cfg: AiConfig): number {
-  const big = cfg.provider === "anthropic" || /claude|gemini/i.test(cfg.model);
+  const big = cfg.provider === "anthropic" || cfg.provider === "google" || /claude|gemini/i.test(cfg.model);
   return big ? 600_000 : 240_000;
 }
 

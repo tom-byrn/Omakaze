@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Panel } from "@/components/settings/Panel";
 import { AiSettingsForm } from "@/components/settings/AiSettingsForm";
 import { ActionForm } from "@/components/ui/ActionForm";
@@ -5,7 +6,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { describeAiConfig, PROVIDERS, resolveAiConfig } from "@/lib/ai/config";
 import { env } from "@/lib/env";
 import { requireWorkspace, roleAtLeast } from "@/lib/workspaces";
-import { saveAiInstructionsAction, saveAiSettingsAction } from "../actions";
+import { listAiModelsAction, saveAiInstructionsAction, saveAiSettingsAction } from "../actions";
 
 export const metadata = { title: "AI provider" };
 
@@ -19,11 +20,20 @@ export default async function AiSettingsPage(props: PageProps<"/w/[slug]/setting
     <div className="flex flex-col gap-6">
       <Panel
         title="Built-in generation"
-        description="Omakaze can write guides with a model you choose. Agents connected over MCP do not need this."
+        description={
+          <>
+            Optional. Omakaze can write guides itself with a model you choose: a hosted API or a local model. If your team
+            writes guides with its own agent (Claude Code, Codex, Cursor and others), it uses that agent&apos;s model over{" "}
+            <Link href={`/w/${slug}/settings/tokens`} className="link">
+              MCP
+            </Link>{" "}
+            and nothing here is needed.
+          </>
+        }
       >
         <dl className="grid grid-cols-[140px_minmax(0,1fr)] gap-y-2 text-[14px]">
           <dt className="mono-label pt-0.5">Status</dt>
-          <dd className="text-ink">{describeAiConfig(effective)}</dd>
+          <dd className="text-ink">{effective ? describeAiConfig(effective) : "Off"}</dd>
           <dt className="mono-label pt-0.5">Source</dt>
           <dd className="text-body">
             {effective?.source === "workspace"
@@ -32,14 +42,22 @@ export default async function AiSettingsPage(props: PageProps<"/w/[slug]/setting
                 ? "Instance default (environment)"
                 : instanceDefault
                   ? "Instance default is incomplete"
-                  : "None"}
+                  : "None. Guides come from agents over MCP, the REST API or the editor."}
           </dd>
         </dl>
       </Panel>
       {admin ? (
-        <Panel title="Provider" description="The API key is encrypted at rest and never shown again.">
+        <Panel
+          title="Provider"
+          description={
+            effective?.source === "instance"
+              ? "This workspace uses the instance default. Pick a provider to use your own instead. API keys are encrypted at rest and never shown again."
+              : "API keys are encrypted at rest and never shown again."
+          }
+        >
           <AiSettingsForm
             action={saveAiSettingsAction.bind(null, slug)}
+            listModels={listAiModelsAction.bind(null, slug)}
             providers={PROVIDERS}
             current={{
               provider: workspace.aiProvider,
