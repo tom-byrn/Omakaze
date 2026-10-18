@@ -4,6 +4,7 @@ import { Footer } from "@/components/landing/Footer";
 import { ProductSchematic } from "@/components/landing/ProductSchematic";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { Steps } from "@/components/landing/Steps";
+import { getAuthMethods } from "@/lib/auth/methods";
 import { getCurrentUser } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 import { agentPrompt, setupPrompt } from "@/lib/prompts";
@@ -39,6 +40,7 @@ const FEATURES = [
 
 export default async function LandingPage() {
   const user = await getCurrentUser();
+  const methods = await getAuthMethods();
   const appUrl = env().APP_URL;
   const prompt = setupPrompt(appUrl);
   return (
@@ -55,8 +57,7 @@ export default async function LandingPage() {
           <div className="mx-auto flex max-w-[840px] flex-col items-center text-center">
             <span className="eyebrow animate-reveal">Open source · Self-hosted · MCP</span>
             <h1 className="h1 mt-6 animate-reveal">
-              Review large pull requests
-              <br />
+              Review large pull requests <br className="hidden sm:block" />
               one section at a time.
             </h1>
             <p className="lead mt-6 max-w-[560px] animate-reveal">
@@ -65,7 +66,7 @@ export default async function LandingPage() {
             </p>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
               <Link href="/login" className="btn btn-primary btn-lg w-[260px]">
-                {user ? "Open the app" : "Sign in with GitHub"}
+                {user ? "Open the app" : methods.github ? "Sign in with GitHub" : "Sign in"}
               </Link>
               <CopyButton text={prompt} label="Copy agent setup prompt" className="btn btn-secondary btn-lg w-[260px]" />
             </div>
