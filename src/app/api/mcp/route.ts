@@ -41,7 +41,12 @@ async function handle(req: Request): Promise<Response> {
   if (!principal) return unauthorized("Invalid or expired token");
 
   const server = createMcpServer(principal, { name: await clientLabel(principal.tokenId) });
-  const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+    // Room for base64-encoded screenshots and recordings sent to upload_asset.
+    maxRequestBodySize: Math.ceil(env().MAX_UPLOAD_MB * 1.4 + 2) * 1024 * 1024,
+  });
   await server.connect(transport);
   const res = await transport.handleRequest(req, {
     authInfo: { token, clientId: principal.tokenId ?? "token", scopes: ["mcp"], extra: { userId: principal.user.id } },

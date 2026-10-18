@@ -1,4 +1,4 @@
-import { desc, count } from "drizzle-orm";
+import { count, desc, ne, or } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { AppHeader } from "@/components/app/AppHeader";
 import { Panel } from "@/components/settings/Panel";
@@ -29,7 +29,12 @@ export default async function AdminPage(props: PageProps<"/admin">) {
     db.select({ n: count() }).from(workspaces),
     db.select({ n: count() }).from(guides),
     db.select().from(webhookDeliveries).orderBy(desc(webhookDeliveries.receivedAt)).limit(15),
-    db.select().from(jobs).orderBy(desc(jobs.updatedAt)).limit(10),
+    db
+      .select()
+      .from(jobs)
+      .where(or(ne(jobs.type, "poll_repos"), ne(jobs.status, "done")))
+      .orderBy(desc(jobs.updatedAt))
+      .limit(10),
   ]);
   const state = signPayload({ uid: user.id }, "github-manifest", 3600);
   const manifest = JSON.stringify(buildAppManifest(`Guided PRs (${new URL(e.APP_URL).host})`));
@@ -147,7 +152,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
             <ul className="-my-1 font-mono text-[12px]">
               {deliveries.map((d) => (
                 <li key={d.id} className="flex gap-3 border-t border-dashed border-line py-1.5 first:border-t-0">
-                  <span className="w-24 text-meta">{timeAgo(d.receivedAt)}</span>
+                  <span className="w-32 shrink-0 text-meta">{timeAgo(d.receivedAt)}</span>
                   <span className="flex-1 text-ink">
                     {d.event}
                     {d.action ? `.${d.action}` : ""} {d.repositoryFullName ? `· ${d.repositoryFullName}` : ""}
@@ -166,7 +171,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
             <ul className="-my-1 font-mono text-[12px]">
               {failedJobs.map((j) => (
                 <li key={j.id} className="flex gap-3 border-t border-dashed border-line py-1.5 first:border-t-0">
-                  <span className="w-24 text-meta">{timeAgo(j.updatedAt)}</span>
+                  <span className="w-32 shrink-0 text-meta">{timeAgo(j.updatedAt)}</span>
                   <span className="flex-1 text-ink">
                     {j.type} <span className="text-meta">#{j.id}</span>
                     {j.lastError ? <span className="block truncate text-danger">{j.lastError}</span> : null}

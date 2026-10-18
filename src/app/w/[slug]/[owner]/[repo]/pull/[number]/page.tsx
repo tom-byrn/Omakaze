@@ -5,6 +5,7 @@ import { DiffStat, PrStateTag, prStateOf } from "@/components/app/Badges";
 import { GenerateButton } from "@/components/app/GenerateButton";
 import { GuideViewer } from "@/components/guide/GuideViewer";
 import { VersionSelect } from "@/components/guide/VersionSelect";
+import { WatchLatestGuide } from "@/components/guide/WatchLatestGuide";
 import { NoGuide } from "@/components/guide/NoGuide";
 import { Markdown } from "@/components/markdown/Markdown";
 import { Avatar } from "@/components/ui/Avatar";
@@ -111,6 +112,14 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
           </Link>
         </div>
       ) : null}
+      <WatchLatestGuide
+        slug={slug}
+        repositoryId={repo.id}
+        prNumber={pull.number}
+        currentVersion={guide?.version ?? null}
+        pinned={Number.isInteger(requested) && requested > 0}
+        basePath={`/w/${slug}/${repo.fullName}/pull/${pull.number}`}
+      />
       {outdated ? (
         <div className="flex flex-wrap items-center gap-3 border-t border-dashed border-line bg-highlight/15 px-4 py-2 text-[12px] text-ink lg:px-6">
           <span className="dot bg-highlight" />

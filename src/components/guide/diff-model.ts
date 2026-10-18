@@ -159,7 +159,7 @@ const CLOSER = /^\s*(\}|\)|\]|end\b|<\/|\};|\);|`;?)/;
  */
 export function functionRange(rows: Row[], s: number, e: number): [number, number] | null {
   const text = (i: number) => rowText(rows[i]);
-  let anchors: number[] = [];
+  const anchors: number[] = [];
   for (let i = s; i <= e; i++) if (rows[i].kind !== "context" && text(i).trim()) anchors.push(i);
   if (anchors.length === 0) for (let i = s; i <= e; i++) if (text(i).trim()) anchors.push(i);
   if (anchors.length === 0) return null;

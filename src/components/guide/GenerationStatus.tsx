@@ -57,7 +57,9 @@ export function GenerationStatus({
     <div className="mb-8 border border-black/15 bg-white">
       <div className="flex items-center gap-2 border-b border-dashed border-line px-4 py-3">
         <span className="dot animate-pulse-dot bg-blue-bright" />
-        <p className="mono-label">Writing this guide · {data?.sections ?? sectionCount} sections so far</p>
+        <p className="mono-label">
+          Writing this guide · {data?.sections ?? sectionCount} section{(data?.sections ?? sectionCount) === 1 ? "" : "s"} so far
+        </p>
       </div>
       <ol className="max-h-48 overflow-auto px-4 py-3 font-mono text-[11px] leading-[18px] text-ui">
         {events.length === 0 ? <li>Waiting for the first update…</li> : null}
