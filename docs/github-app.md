@@ -134,7 +134,20 @@ Without webhooks, the pull request list is refreshed when members open the works
 
 ### Removing a connection
 
-**Remove** on **Settings → GitHub** deletes the connection together with its repositories and their guides in this workspace. Nothing is changed on GitHub.
+**Remove** on **Settings → GitHub** deletes the connection. Its repositories and their guides stay in the workspace without a connection. Nothing is changed on GitHub.
+
+### Repositories without a connection
+
+A repository loses its connection when the connection is removed, when the GitHub App is uninstalled, or when the user behind a linked-account connection deletes their account. The **Repositories** page then shows "No GitHub connection" for it.
+
+- Guides, sections and the cached pull requests are kept, and section text stays readable.
+- Everything that needs GitHub fails until the repository is reconnected: the diff and file views, comments and reviews, syncing, polling and AI generation. API and MCP calls get the error `<owner>/<name> has no GitHub connection` (HTTP 409 in the REST API).
+
+A repository is reconnected when:
+
+- an admin adds a connection that can access it: a linked account, a token or a new GitHub App installation (for account and token connections, the confirmation says how many repositories were reconnected);
+- an admin adds it again on the **Repositories** page;
+- an admin's MCP or REST API call names a pull request of the repository and one of the workspace's connections can access it.
 
 ## Webhooks
 
@@ -143,6 +156,7 @@ Without webhooks, the pull request list is refreshed when members open the works
 - The `X-Hub-Signature-256` header must match an HMAC-SHA256 of the body with either the app's webhook secret or the repository webhook secret; otherwise the response is `401`.
 - Deliveries are de-duplicated by `X-GitHub-Delivery` and recorded; `/admin` shows the last 15.
 - `pull_request` updates the cached pull request. The actions `opened`, `reopened`, `synchronize` and `ready_for_review` also check whether a guide should be generated automatically (see [ai.md](ai.md#automation)).
+- `pull_request_review` and `pull_request_review_comment` update the cached pull request and drop the cached review comments, so reviews and comments made on GitHub appear in Guided PRs.
 - `installation` handles `deleted`, `suspend` and `unsuspend` as described above.
 - Other events and actions are recorded as ignored.
 
