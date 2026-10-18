@@ -2,13 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 
 /**
- * Crossed black-wood chopsticks on a transparent background (public/logo-black.svg), or the white
+ * Crossed black-wood chopsticks on a transparent background (public/logo.svg), or the white
  * version (public/logo-white.svg) for dark surfaces, where the black one disappears.
  */
 export function LogoMark({ size = 26, invert = false }: { size?: number; invert?: boolean }) {
   return (
     <Image
-      src={invert ? "/logo-white.svg" : "/logo-black.svg"}
+      src={invert ? "/logo-white.svg" : "/logo.svg"}
       alt=""
       aria-hidden="true"
       width={size}
