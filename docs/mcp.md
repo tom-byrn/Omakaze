@@ -437,7 +437,7 @@ The full text is in `src/lib/guides/guidelines.ts`.
 
 ### Markdown in bodies and summaries
 
-Bodies and the summary are GitHub-flavored markdown: headings, lists, tables, task lists, fenced code blocks (highlighted on the server), Mermaid diagrams in `mermaid` code blocks, math with `$...$` and `$$...$$` (as in Pandoc, `$` only closes inline math when it follows a non-space character and isn't followed by a digit, so prices such as $5 and $10 stay text), GitHub alert blockquotes (NOTE, TIP, IMPORTANT, WARNING, CAUTION), images, `<video>` and `<details>`. Raw HTML is sanitized.
+Bodies and the summary are GitHub-flavored markdown: headings, lists, tables, task lists, fenced code blocks (highlighted on the server), Mermaid diagrams in `mermaid` code blocks, math with `$...$` and `$$...$$` (as in Pandoc, `$` only closes inline math when it follows a non-space character and isn't followed by a digit, so a price such as `$5` in running text stays text), GitHub alert blockquotes (NOTE, TIP, IMPORTANT, WARNING, CAUTION), images, `<video>` and `<details>`. Raw HTML is sanitized.
 
 ## Diff references
 
