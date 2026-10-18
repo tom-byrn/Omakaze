@@ -1,1 +1,1 @@
-export const OAUTH_NONCE_COOKIE = "gpr_oauth_nonce";
+export const OAUTH_NONCE_COOKIE = "omk_oauth_nonce";

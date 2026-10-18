@@ -53,7 +53,7 @@ function Media({ step }: { step: number }) {
   if (step === 1) {
     return (
       <div className="w-full max-w-[460px] border border-border-dark bg-[#101010] p-4 font-mono text-[11px] leading-[19px] text-white/70">
-        <p className="text-white/40">&gt; Create a guided PR for https://github.com/acme/web/pull/412 using the Guided PRs MCP.</p>
+        <p className="text-white/40">&gt; Create a guided PR for https://github.com/acme/web/pull/412 using the Omakaze MCP.</p>
         <p className="mt-3 text-white/85">● get_pull_request</p>
         <p className="pl-4 text-white/45">48 files · 131 hunks · head 9f2c1e0</p>
         <p className="mt-1 text-white/85">● get_diff ×3</p>

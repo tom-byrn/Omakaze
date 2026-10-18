@@ -1,4 +1,4 @@
-// Records the Guided PRs product walkthrough.
+// Records the Omakaze product walkthrough.
 //
 //   node scripts/demo/record.mjs
 //
@@ -71,7 +71,7 @@ async function oauthBegin() {
         `<!doctype html><html><body style="margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center;background:#fcfcfc;font-family:Georgia,serif">
         <div style="border:1px solid rgba(0,0,0,.15);background:#fff;padding:40px 48px;max-width:460px">
         <p style="font:10px/15px ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.6);border:1px dashed rgba(0,0,0,.25);display:inline-block;padding:4px 8px;margin:0">Claude Code</p>
-        <h1 style="font-weight:400;font-size:32px;letter-spacing:-.03em;margin:20px 0 8px">Connected to Guided PRs.</h1>
+        <h1 style="font-weight:400;font-size:32px;letter-spacing:-.03em;margin:20px 0 8px">Connected to Omakaze.</h1>
         <p style="font:15px/1.5 system-ui,sans-serif;color:#727272;margin:0">You can close this tab and return to your terminal.</p></div></body></html>`,
       );
       if (u.searchParams.get("state") === state) resolveCode(u.searchParams.get("code"));
@@ -150,7 +150,7 @@ async function finish() {
   execFileSync("ffmpeg", [
     "-loglevel", "error", "-y", "-i", path.join(OUT_DIR, "raw.mp4"),
     "-c:v", "libx264", "-preset", "slow", "-crf", "24", "-tune", "animation", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
-    path.join(OUT_DIR, "guided-prs-demo.mp4"),
+    path.join(OUT_DIR, "omakaze-demo.mp4"),
   ]);
   mark2("done");
 }
@@ -176,10 +176,10 @@ await mark("landing");
 await goto("/");
 await rec.use(page);
 await d.sleep(1200);
-await d.caption("Guided PRs", "Open-source, self-hosted guided walkthroughs for pull requests.");
+await d.caption("Omakaze", "Open-source, self-hosted guided walkthroughs for pull requests.");
 await d.sleep(3500);
 await d.scroll(860, { duration: 2200 });
-await d.caption("Guided PRs", "Sections in review order. Explanation on the left, the code it covers on the right.");
+await d.caption("Omakaze", "Sections in review order. Explanation on the left, the code it covers on the right.");
 await d.sleep(3000);
 await d.scroll(820, { duration: 1800 });
 await d.sleep(1500);
@@ -257,7 +257,7 @@ await page.waitForURL((u) => !u.search.includes("state="));
 await d.sleep(1200);
 const row = page.locator("li").filter({ has: page.getByText(`#${PR}`, { exact: true }) }).first();
 await d.hover(row.getByRole("button", { name: "Copy prompt" }));
-await d.caption("Agent prompt", `"Create a guided PR for <link> using the Guided PRs MCP."`);
+await d.caption("Agent prompt", `"Create a guided PR for <link> using the Omakaze MCP."`);
 await d.sleep(800);
 await d.click(row.getByRole("button", { name: "Copy prompt" }));
 await d.sleep(2200);
@@ -523,7 +523,7 @@ await d.sleep(1500);
 // End on the guide overview
 await mark("end");
 await goto(prPage);
-await d.caption("Guided PRs", "github.com/tom-byrn/guided-prs");
+await d.caption("Omakaze", "github.com/tom-byrn/guided-prs");
 await d.sleep(3500);
 await d.caption(null, null);
 await d.sleep(800);

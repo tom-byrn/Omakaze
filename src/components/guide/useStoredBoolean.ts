@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-const EVENT = "gpr:storage";
+const EVENT = "omk:storage";
 
 function read(key: string, fallback: boolean): boolean {
   try {

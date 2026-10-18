@@ -17,7 +17,7 @@ export type ApiPrincipal = {
 
 const lastUsedWrites = new Map<string, number>();
 
-/** Authenticate an API token (`Authorization: Bearer gpr_…` or an OAuth access token). */
+/** Authenticate an API token (`Authorization: Bearer omk_…` or an OAuth access token). */
 export async function principalFromToken(raw: string): Promise<ApiPrincipal | null> {
   const [row] = await db
     .select({ token: apiTokens, user: users })

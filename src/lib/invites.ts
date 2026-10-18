@@ -42,8 +42,8 @@ export async function createInvite(input: {
     const [inviter] = await db.select().from(users).where(eq(users.id, input.invitedByUserId)).limit(1);
     emailed = await sendMail({
       to: invite.email,
-      subject: `${inviter?.name ?? "Someone"} invited you to ${ws?.name ?? "a workspace"} on Guided PRs`,
-      text: `${inviter?.name ?? "Someone"} invited you to join the ${ws?.name} workspace on Guided PRs.\n\nAccept the invite: ${url}\n\nThe link expires in ${INVITE_DAYS} days.`,
+      subject: `${inviter?.name ?? "Someone"} invited you to ${ws?.name ?? "a workspace"} on Omakaze`,
+      text: `${inviter?.name ?? "Someone"} invited you to join the ${ws?.name} workspace on Omakaze.\n\nAccept the invite: ${url}\n\nThe link expires in ${INVITE_DAYS} days.`,
     });
   }
   await logActivity({
@@ -115,7 +115,7 @@ async function checkInviteEmail(token: string, invite: Invite, workspaceName: st
   const sent = await sendMail({
     to: invite.email,
     subject: `Confirm your email address to join ${workspaceName}`,
-    text: `Open this link to confirm ${invite.email} and join the ${workspaceName} workspace on Guided PRs:\n\n${link}\n\nThe link expires in 24 hours. If you didn't ask for it, ignore this email.`,
+    text: `Open this link to confirm ${invite.email} and join the ${workspaceName} workspace on Omakaze:\n\n${link}\n\nThe link expires in 24 hours. If you didn't ask for it, ignore this email.`,
   });
   if (!sent) throw new InviteError(`We couldn't send a confirmation link to ${invite.email}. Try again later.`);
   throw new InviteError(`To join, confirm ${invite.email}: we sent a link to that address.`);

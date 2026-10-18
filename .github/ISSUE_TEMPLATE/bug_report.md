@@ -26,7 +26,7 @@ assignees: ""
 
 ## Environment
 
-- Guided PRs version or commit:
+- Omakaze version or commit:
 - Deployment: Docker Compose / Node.js / other:
 - PostgreSQL version:
 - GitHub: github.com / GitHub Enterprise Server:

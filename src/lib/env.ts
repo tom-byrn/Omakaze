@@ -46,7 +46,7 @@ const schema = z.object({
 
   // Email
   SMTP_URL: optionalString,
-  SMTP_FROM: z.string().default("Guided PRs <no-reply@localhost>"),
+  SMTP_FROM: z.string().default("Omakaze <no-reply@localhost>"),
 
   // Storage
   STORAGE_DRIVER: z.enum(["database", "filesystem"]).default("database"),

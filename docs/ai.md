@@ -1,6 +1,6 @@
 # AI generation
 
-Besides agents connected over [MCP](mcp.md), Guided PRs can write guides itself with a model you configure. The code is in `src/lib/ai/`: `config.ts` (providers and defaults), `providers.ts` (API calls) and `generate.ts` (the pipeline).
+Besides agents connected over [MCP](mcp.md), Omakaze can write guides itself with a model you configure. The code is in `src/lib/ai/`: `config.ts` (providers and defaults), `providers.ts` (API calls) and `generate.ts` (the pipeline).
 
 ## Providers
 
@@ -54,7 +54,7 @@ Every request asks for JSON that matches a schema. The response is validated; if
 | Provider | How JSON is requested |
 | --- | --- |
 | Anthropic | Messages API, streamed. For models that support these options, the JSON schema is passed as structured output and effort is set to `high`; otherwise the JSON is taken from the response text. For `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5-5` and `claude-fable-5-1` on `https://api.anthropic.com`, the request opts in to Anthropic's server-side fallback (beta `server-side-fallback-2026-07-01`), which retries a declined request on Anthropic's recommended fallback model. |
-| OpenRouter, OpenAI, OpenAI-compatible | `POST <base URL>/chat/completions`. The first attempt uses `response_format` with a strict JSON schema, then `json_object`, then no `response_format`. The next format is tried only when the provider rejects the request with an error that mentions the response format or schema. OpenRouter requests also send `HTTP-Referer: <APP_URL>` and `X-Title: Guided PRs`. |
+| OpenRouter, OpenAI, OpenAI-compatible | `POST <base URL>/chat/completions`. The first attempt uses `response_format` with a strict JSON schema, then `json_object`, then no `response_format`. The next format is tried only when the provider rejects the request with an error that mentions the response format or schema. OpenRouter requests also send `HTTP-Referer: <APP_URL>` and `X-Title: Omakaze`. |
 
 Output limits per request: 64,000 tokens for the single-request path with Anthropic and 32,000 tokens otherwise (`max_completion_tokens` for OpenAI, `max_tokens` for the others). Requests time out after 20 minutes.
 
@@ -92,7 +92,7 @@ Repositories can override the first switch on the **Repositories** page: **Works
 
 ### When a guide is generated automatically
 
-Guided PRs checks a pull request when:
+Omakaze checks a pull request when:
 
 - a `pull_request` webhook arrives with the action `opened`, `reopened`, `synchronize` or `ready_for_review`, or
 - the poller finds an open pull request that was updated in the last three days.
@@ -120,7 +120,7 @@ With **Post a summary comment on GitHub** on, a job runs every time a guide of t
 - a table of the sections with links to each one and the number of files it references;
 - a link to the guide and the version and short head commit.
 
-It is posted with the workspace's GitHub connection. The links open Guided PRs, which requires signing in as a member of the workspace.
+It is posted with the workspace's GitHub connection. The links open Omakaze, which requires signing in as a member of the workspace.
 
 ## Cost and privacy
 
@@ -128,4 +128,4 @@ It is posted with the workspace's GitHub connection. The links open Guided PRs, 
 - A local model through the `openai-compatible` provider (for example Ollama at `http://ollama:11434/v1`) keeps the data on your network.
 - Large pull requests use several requests: one per batch of hunk summaries, one for the plan and one per section. Automation can create a new version on every push, and each version is a full generation.
 - Workspace API keys are stored encrypted with a key derived from `APP_SECRET`.
-- Agents connected over MCP use their own model and their own provider account. Guided PRs makes no model requests for guides written through MCP, `POST /api/v1/guides` or the editor.
+- Agents connected over MCP use their own model and their own provider account. Omakaze makes no model requests for guides written through MCP, `POST /api/v1/guides` or the editor.

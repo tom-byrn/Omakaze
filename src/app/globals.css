@@ -195,6 +195,38 @@ h4 {
     color: var(--color-blue-mist);
   }
 
+  /* Vertical Japanese in the side margins of landing page sections (SideNote). */
+  .side-note {
+    position: absolute;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: rgba(0, 0, 0, 0.2);
+    user-select: none;
+  }
+  @media (min-width: 1024px) {
+    .side-note {
+      display: flex;
+    }
+  }
+  .dark .side-note,
+  .blue .side-note {
+    color: rgba(255, 255, 255, 0.22);
+  }
+  .side-note-text {
+    writing-mode: vertical-rl;
+    font-family: var(--font-shippori), "Hiragino Mincho ProN", "Yu Mincho", serif;
+    font-size: 15px;
+    line-height: 1;
+    letter-spacing: 0.42em;
+    white-space: nowrap;
+  }
+  .side-note-rule {
+    height: 56px;
+    border-left: 1px dashed currentColor;
+  }
+
   .mono-label {
     font-family: var(--font-mono);
     font-size: 10px;
@@ -361,6 +393,13 @@ h4 {
   .btn-ghost:hover:not(:disabled) {
     color: var(--color-ink);
     background: rgba(0, 0, 0, 0.04);
+  }
+  .dark .btn-secondary {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.35);
+  }
+  .dark .btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
   }
   .dark .btn-primary,
   .btn-invert {

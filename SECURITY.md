@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Guided PRs has not had a stable release yet. Security fixes are made on the `main` branch and included in the next release. Once releases are published, fixes target the latest release.
+Omakaze has not had a stable release yet. Security fixes are made on the `main` branch and included in the next release. Once releases are published, fixes target the latest release.
 
 | Version | Supported |
 | --- | --- |
@@ -35,7 +35,7 @@ In scope is the code in this repository, for example:
 
 Out of scope:
 
-- vulnerabilities in dependencies without a way to exploit them through Guided PRs (report those to the dependency);
+- vulnerabilities in dependencies without a way to exploit them through Omakaze (report those to the dependency);
 - attacks that need an already compromised server, database or `APP_SECRET`;
 - insecure deployments that contradict the documentation, such as serving over plain HTTP on a public network;
 - denial of service through request volume, and social engineering.

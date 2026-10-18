@@ -44,7 +44,7 @@ import { AssetError, fetchRemoteAsset, markdownFor, assetUrl, storeAsset } from 
 import { getMembership, roleAtLeast } from "@/lib/workspaces";
 import type { ApiPrincipal } from "@/lib/guides/access";
 
-export const MCP_INSTRUCTIONS = `Guided PRs turns pull requests into guided walkthroughs: ordered sections, each with a markdown explanation and the parts of the diff it covers.
+export const MCP_INSTRUCTIONS = `Omakaze turns pull requests into guided walkthroughs: ordered sections, each with a markdown explanation and the parts of the diff it covers.
 
 ${AGENT_WORKFLOW}
 
@@ -85,7 +85,7 @@ const prArg = z.string().describe('Pull request URL (https://github.com/owner/re
 
 export function createMcpServer(principal: ApiPrincipal, client: { name?: string } = {}) {
   const server = new McpServer(
-    { name: "guided-prs", title: "Guided PRs", version: "0.1.0" },
+    { name: "omakaze", title: "Omakaze", version: "0.1.0" },
     { instructions: MCP_INSTRUCTIONS, capabilities: { tools: {}, prompts: {} } },
   );
   const workspaceId = principal.tokenWorkspaceId!;
@@ -632,7 +632,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
     "list_review_comments",
     {
       title: "List review comments",
-      description: "Read the line comments on a pull request (including ones posted from Guided PRs).",
+      description: "Read the line comments on a pull request (including ones posted from Omakaze).",
       inputSchema: { pr: prArg },
       annotations: { readOnlyHint: true },
     },

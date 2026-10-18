@@ -419,7 +419,7 @@ export async function createTokenAction(slug: string, _prev: FormState, form: Fo
     const { user, ws } = await ctx(slug, "member");
     const name = String(form.get("name") ?? "").trim().slice(0, 80) || "API token";
     const days = Number(form.get("expires") ?? 0);
-    const token = newToken("gpr");
+    const token = newToken("omk");
     await db.insert(apiTokens).values({
       userId: user.id,
       workspaceId: ws.id,

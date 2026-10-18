@@ -104,7 +104,7 @@ export default async function ActivityPage(props: PageProps<"/w/[slug]/activity"
                 <div className="flex items-center gap-3 py-2.5">
                   <Avatar src={r.actorAvatar} name={r.actorName ?? r.actorLabel} size={24} />
                   <p className="min-w-0 flex-1 text-[14px] leading-[20px] text-text">
-                    <span className="text-ink">{r.actorName ?? r.actorLabel ?? "Guided PRs"}</span>{" "}
+                    <span className="text-ink">{r.actorName ?? r.actorLabel ?? "Omakaze"}</span>{" "}
                     {prHref ? (
                       <Link href={prHref} className="hover:underline">
                         {describe(r as Row)}

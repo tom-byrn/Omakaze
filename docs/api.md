@@ -7,12 +7,12 @@ The REST API under `/api/v1` lists pull requests, reads and creates guides, and 
 Send an API token in the `Authorization` header:
 
 ```text
-Authorization: Bearer gpr_...
+Authorization: Bearer omk_...
 ```
 
-- Create tokens in **Settings → API tokens & MCP**. A token acts as the user who created it, in the workspace it was created in. Access tokens issued to MCP clients through OAuth (`gpo_...`) are accepted as well.
+- Create tokens in **Settings → API tokens & MCP**. A token acts as the user who created it, in the workspace it was created in. Access tokens issued to MCP clients through OAuth (`omko_...`) are accepted as well.
 - Browser sessions are not accepted. A request without a token, or with a session cookie only, returns 401.
-- Pull requests must belong to a repository the workspace follows. If an admin's or owner's token names a repository that is not followed yet, or one that [has no GitHub connection](github-app.md#repositories-without-a-connection), Guided PRs adds or reconnects it with the first GitHub connection that can access it. For members, a repository that is not followed returns 404, and one without a connection returns 409.
+- Pull requests must belong to a repository the workspace follows. If an admin's or owner's token names a repository that is not followed yet, or one that [has no GitHub connection](github-app.md#repositories-without-a-connection), Omakaze adds or reconnects it with the first GitHub connection that can access it. For members, a repository that is not followed returns 404, and one without a connection returns 409.
 
 ## Pull request references
 
@@ -61,7 +61,7 @@ curl -sS "$GUIDED_PRS_URL/api/v1/pulls?state=open&repo=acme/web" \
 
 `guide` is `null` when the pull request has no guide. Guide statuses are `draft`, `generating`, `ready` and `failed`.
 
-The list comes from Guided PRs' cache of GitHub data. The cache is refreshed by webhooks, by polling (for repositories with automatic guides) and when members open the workspace in the browser, so recent pull requests can be missing if none of these has run.
+The list comes from Omakaze's cache of GitHub data. The cache is refreshed by webhooks, by polling (for repositories with automatic guides) and when members open the workspace in the browser, so recent pull requests can be missing if none of these has run.
 
 ### GET /api/v1/guides
 
@@ -85,7 +85,7 @@ curl -sS "$GUIDED_PRS_URL/api/v1/guides?pr=https://github.com/acme/web/pull/412"
   "title": "Add checkout endpoint",
   "summary": "Adds a checkout endpoint that ...",
   "head_sha": "9f2c1e0b...",
-  "url": "https://guided-prs.example.com/w/acme/acme/web/pull/412?v=2",
+  "url": "https://omakaze.example.com/w/acme/acme/web/pull/412?v=2",
   "versions": [
     { "version": 2, "status": "ready", "head_sha": "9f2c1e0b..." },
     { "version": 1, "status": "ready", "head_sha": "41d7a2c9..." }
@@ -113,7 +113,7 @@ curl -sS "$GUIDED_PRS_URL/api/v1/guides?pr=https://github.com/acme/web/pull/412"
 
 - Each ref is a string in the form described in [mcp.md](mcp.md#diff-references) when that form describes it completely, and an object when it has a caption (`note`) or an `expand` setting.
 - `automatic` is `true` for the automatic "Other changes" section.
-- `url` opens the guide in Guided PRs; it requires signing in as a member of the workspace.
+- `url` opens the guide in Omakaze; it requires signing in as a member of the workspace.
 
 Returns 404 when the pull request has no guide or the requested version does not exist.
 
@@ -165,7 +165,7 @@ Response, `201 Created`:
 {
   "id": "Xq3v9yQm1kPz0aBc",
   "version": 3,
-  "url": "https://guided-prs.example.com/w/acme/acme/web/pull/412?v=3",
+  "url": "https://omakaze.example.com/w/acme/acme/web/pull/412?v=3",
   "coverage": {
     "changed_lines": 431,
     "covered": 412,
@@ -209,7 +209,7 @@ Response, `202 Accepted`:
   "id": "Xq3v9yQm1kPz0aBc",
   "version": 4,
   "status": "generating",
-  "url": "https://guided-prs.example.com/w/acme/acme/web/pull/412?v=4"
+  "url": "https://omakaze.example.com/w/acme/acme/web/pull/412?v=4"
 }
 ```
 
@@ -234,7 +234,7 @@ Errors are JSON objects with an `error` message:
 
 ## GitHub Actions example
 
-This workflow asks Guided PRs to generate a guide whenever a pull request is opened, updated or marked ready for review. Create a token in **Settings → API tokens & MCP**, store it as the repository secret `GUIDED_PRS_TOKEN`, and store the instance URL as the repository variable `GUIDED_PRS_URL`. The instance must be reachable from GitHub's runners.
+This workflow asks Omakaze to generate a guide whenever a pull request is opened, updated or marked ready for review. Create a token in **Settings → API tokens & MCP**, store it as the repository secret `GUIDED_PRS_TOKEN`, and store the instance URL as the repository variable `GUIDED_PRS_URL`. The instance must be reachable from GitHub's runners.
 
 ```yaml
 name: Guided PR

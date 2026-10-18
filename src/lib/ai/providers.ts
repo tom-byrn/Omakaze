@@ -120,7 +120,7 @@ async function openAiCompatibleJson<T>(cfg: AiConfig, req: JsonRequest<T>): Prom
   if (cfg.apiKey) headers.Authorization = `Bearer ${cfg.apiKey}`;
   if (cfg.provider === "openrouter") {
     headers["HTTP-Referer"] = env().APP_URL;
-    headers["X-Title"] = "Guided PRs";
+    headers["X-Title"] = "Omakaze";
   }
   const tokenField = cfg.provider === "openai" ? "max_completion_tokens" : "max_tokens";
   const formats: (Record<string, unknown> | null)[] = [

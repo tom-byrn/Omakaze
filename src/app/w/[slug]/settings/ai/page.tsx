@@ -19,7 +19,7 @@ export default async function AiSettingsPage(props: PageProps<"/w/[slug]/setting
     <div className="flex flex-col gap-6">
       <Panel
         title="Built-in generation"
-        description="Guided PRs can write guides with a model you choose. Agents connected over MCP do not need this."
+        description="Omakaze can write guides with a model you choose. Agents connected over MCP do not need this."
       >
         <dl className="grid grid-cols-[140px_minmax(0,1fr)] gap-y-2 text-[14px]">
           <dt className="mono-label pt-0.5">Status</dt>
