@@ -16,18 +16,21 @@ import {
 } from "@/lib/auth/users";
 import { hashPassword, verifyPassword } from "@/lib/crypto";
 import { env } from "@/lib/env";
-import { rateLimit, safeNext } from "@/lib/http";
+import { clientIp, rateLimit, safeNext } from "@/lib/http";
 import { acceptInvite, getInviteByToken, InviteError } from "@/lib/invites";
 import { homePathFor } from "@/lib/workspaces";
 
 export type AuthState = { error?: string; fields?: Record<string, string> } | undefined;
 
 async function clientKey(): Promise<string> {
-  const h = await headers();
-  return (h.get("x-forwarded-for")?.split(",")[0] ?? h.get("x-real-ip") ?? "local").trim();
+  return clientIp(await headers());
 }
 
-async function finish(user: { id: string; email: string | null; name: string }, invite: string | null, next: string | null) {
+async function finish(
+  user: { id: string; email: string | null; emailVerifiedAt: Date | null; name: string },
+  invite: string | null,
+  next: string | null,
+) {
   if (invite) {
     try {
       const { slug } = await acceptInvite(invite, user);
@@ -65,7 +68,8 @@ export async function signupAction(_prev: AuthState, form: FormData): Promise<Au
   if (!(await canCreateAccount(Boolean(inviteRow?.usable)))) {
     return { error: "Sign-ups are disabled on this instance. Ask an admin for an invite link.", fields };
   }
-  if (!emailDomainAllowed(parsed.data.email)) {
+  // An invite is an admin's approval, so it also admits addresses outside AUTH_ALLOWED_EMAIL_DOMAINS.
+  if (!inviteRow?.usable && !emailDomainAllowed(parsed.data.email)) {
     return { error: "This email domain is not allowed on this instance.", fields };
   }
   if (await findUserByEmail(parsed.data.email)) {
@@ -88,8 +92,10 @@ export async function loginAction(_prev: AuthState, form: FormData): Promise<Aut
   const invite = (form.get("invite") as string) || null;
   const next = (form.get("next") as string) || null;
   if (!email || !password) return { error: "Enter your email and password.", fields: { email } };
-  const key = await clientKey();
-  if (!rateLimit(`login:${key}:${email.toLowerCase()}`, 10, 15 * 60 * 1000)) {
+  // Limit per account (whatever the address) and per address (whatever the account).
+  const perAccount = rateLimit(`login:${email.toLowerCase()}`, 10, 15 * 60 * 1000);
+  const perAddress = rateLimit(`login-ip:${await clientKey()}`, 50, 15 * 60 * 1000);
+  if (!perAccount || !perAddress) {
     return { error: "Too many attempts. Wait a few minutes and try again.", fields: { email } };
   }
   const user = await findUserByEmail(email);

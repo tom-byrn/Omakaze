@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { resolveAiConfig } from "@/lib/ai/config";
 import { apiPrincipal, resolvePullForApi, workspaceOf } from "@/lib/api-v1";
-import { errorResponse, HttpError } from "@/lib/http";
+import { errorResponse, HttpError, readJson } from "@/lib/http";
 import { guideUrl, startGuide } from "@/lib/guides/service";
 import { enqueueJob } from "@/lib/jobs/queue";
 
@@ -9,7 +9,7 @@ import { enqueueJob } from "@/lib/jobs/queue";
 export async function POST(req: Request) {
   try {
     const p = await apiPrincipal(req);
-    const parsed = z.object({ pr: z.string() }).safeParse(await req.json());
+    const parsed = z.object({ pr: z.string() }).safeParse(await readJson(req));
     if (!parsed.success) throw new HttpError(400, "pr is required");
     const ws = await workspaceOf(p.workspaceId);
     const cfg = resolveAiConfig(ws);

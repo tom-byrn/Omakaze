@@ -28,7 +28,7 @@ export default async function ReposPage(props: PageProps<"/w/[slug]/repos">) {
   const repos = await db
     .select({ repo: repositories, connection: githubConnections })
     .from(repositories)
-    .innerJoin(githubConnections, eq(githubConnections.id, repositories.connectionId))
+    .leftJoin(githubConnections, eq(githubConnections.id, repositories.connectionId))
     .where(eq(repositories.workspaceId, workspace.id))
     .orderBy(asc(repositories.fullName));
 
@@ -74,11 +74,17 @@ export default async function ReposPage(props: PageProps<"/w/[slug]/repos">) {
                     <Link href={`/w/${slug}/${repo.fullName}`} className="font-mono text-[13px] text-ink hover:underline">
                       {repo.fullName}
                     </Link>
-                    <p className="mt-0.5 font-mono text-[11px] text-meta">
-                      via {connection.accountLogin} ({CONN_LABEL[connection.type]}) ·{" "}
-                      {repo.lastSyncedAt ? `synced ${timeAgo(repo.lastSyncedAt)}` : "not synced"}
-                      {connection.type !== "app" ? (repo.webhookId ? " · webhook active" : " · no webhook (polling)") : " · app webhooks"}
-                    </p>
+                    {connection ? (
+                      <p className="mt-0.5 font-mono text-[11px] text-meta">
+                        via {connection.accountLogin} ({CONN_LABEL[connection.type]}) ·{" "}
+                        {repo.lastSyncedAt ? `synced ${timeAgo(repo.lastSyncedAt)}` : "not synced"}
+                        {connection.type !== "app" ? (repo.webhookId ? " · webhook active" : " · no webhook (polling)") : " · app webhooks"}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-[12px] text-danger">
+                        No GitHub connection. Guides stay readable; add {repo.fullName} again above, or add a connection that can access it.
+                      </p>
+                    )}
                     {repo.syncError ? <p className="mt-1 text-[12px] text-danger">{repo.syncError}</p> : null}
                   </div>
                   <AutoGenerateSelect
@@ -87,7 +93,7 @@ export default async function ReposPage(props: PageProps<"/w/[slug]/repos">) {
                     action={setRepoAutoGenerateAction.bind(null, slug, repo.id)}
                     disabled={!admin}
                   />
-                  {admin && connection.type !== "app" && !repo.webhookId ? (
+                  {admin && connection && connection.type !== "app" && !repo.webhookId ? (
                     <ConfirmButton action={createRepoWebhookAction.bind(null, slug, repo.id)} className="btn btn-secondary btn-xs">
                       Create webhook
                     </ConfirmButton>

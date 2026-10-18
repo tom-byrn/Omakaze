@@ -25,18 +25,21 @@ export async function resolvePullForApi(p: ApiPrincipal & { workspaceId: string 
   const parsed = parsePullUrl(pr);
   if (!parsed) throw new HttpError(400, "pr must be a pull request URL or owner/repo#number");
   let repo = await findWorkspaceRepo(p.workspaceId, parsed.owner, parsed.repo);
-  if (!repo) {
+  if (!repo || !repo.connectionId) {
     const role = await getMembership(p.workspaceId, p.user.id);
-    if (!role || !roleAtLeast(role, "admin")) throw new HttpError(404, `${parsed.owner}/${parsed.repo} is not in this workspace`);
-    for (const conn of await listConnections(p.workspaceId)) {
-      try {
-        repo = await addRepository(p.workspaceId, conn, await lookupRepo(conn, `${parsed.owner}/${parsed.repo}`));
-        break;
-      } catch {
-        // next connection
+    const admin = role !== null && roleAtLeast(role, "admin");
+    if (!repo && !admin) throw new HttpError(404, `${parsed.owner}/${parsed.repo} is not in this workspace`);
+    if (admin) {
+      for (const conn of await listConnections(p.workspaceId)) {
+        try {
+          repo = await addRepository(p.workspaceId, conn, await lookupRepo(conn, `${parsed.owner}/${parsed.repo}`));
+          break;
+        } catch {
+          // next connection
+        }
       }
+      if (!repo) throw new HttpError(404, `No GitHub connection can access ${parsed.owner}/${parsed.repo}`);
     }
-    if (!repo) throw new HttpError(404, `No GitHub connection can access ${parsed.owner}/${parsed.repo}`);
   }
-  return { ctx: await getRepoContext(repo.id), number: parsed.number };
+  return { ctx: await getRepoContext(repo!.id), number: parsed.number };
 }

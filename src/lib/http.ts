@@ -27,6 +27,15 @@ export class HttpError extends Error {
   }
 }
 
+/** Parse a JSON request body; malformed JSON is a 400, not a 500. */
+export async function readJson(req: Request): Promise<unknown> {
+  try {
+    return await req.json();
+  } catch {
+    throw new HttpError(400, "The request body must be valid JSON.");
+  }
+}
+
 export function json(data: unknown, init?: ResponseInit): Response {
   return Response.json(data, init);
 }
@@ -40,6 +49,16 @@ export function errorResponse(err: unknown): Response {
 
 export function absoluteUrl(path: string): string {
   return `${env().APP_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+/** The client's address from X-Forwarded-For, skipping entries a client could have forged (see TRUST_PROXY_HOPS). */
+export function clientIp(headers: Headers): string {
+  const entries = (headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+  if (entries.length === 0) return headers.get("x-real-ip")?.trim() || "unknown";
+  return entries[Math.max(0, entries.length - env().TRUST_PROXY_HOPS)];
 }
 
 /** Tiny in-memory rate limiter (per process) for login attempts and similar. */

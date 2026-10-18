@@ -47,6 +47,8 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 export async function createUser(input: {
   name: string;
   email?: string | null;
+  /** The address is known to belong to the user (e.g. a verified GitHub email). */
+  emailVerified?: boolean;
   avatarUrl?: string | null;
   passwordHash?: string | null;
 }): Promise<User> {
@@ -56,6 +58,7 @@ export async function createUser(input: {
     .values({
       name: input.name.trim().slice(0, 100) || "User",
       email: input.email ? normalizeEmail(input.email) : null,
+      emailVerifiedAt: input.email && input.emailVerified ? new Date() : null,
       avatarUrl: input.avatarUrl ?? null,
       passwordHash: input.passwordHash ?? null,
       isInstanceAdmin: n === 0,
@@ -81,14 +84,31 @@ type TokenSet = {
   tokenType: "oauth" | "pat";
 };
 
-async function fetchPrimaryEmail(token: string, ghUser: GhUser): Promise<string | null> {
-  if (ghUser.email) return ghUser.email;
+/**
+ * Verified email addresses of a GitHub user, primary first. GitHub only allows a verified address
+ * as the public profile email, so that one counts too when /user/emails isn't readable.
+ */
+async function fetchVerifiedEmails(token: string, ghUser: GhUser): Promise<string[]> {
+  const out: string[] = [];
   try {
     const emails = await gh<{ email: string; primary: boolean; verified: boolean }[]>(token, "/user/emails");
-    return emails.find((e) => e.primary && e.verified)?.email ?? null;
+    for (const e of [...emails].sort((a, b) => Number(b.primary) - Number(a.primary))) {
+      if (e.verified) out.push(normalizeEmail(e.email));
+    }
   } catch {
-    return null;
+    // The token may not be allowed to read email addresses.
   }
+  if (ghUser.email && !out.includes(normalizeEmail(ghUser.email))) out.push(normalizeEmail(ghUser.email));
+  return out;
+}
+
+/** Mark the user's email as verified when it is one of their verified GitHub addresses. */
+async function verifyEmailFromGitHub(user: User, token: string, ghUser: GhUser): Promise<User> {
+  if (!user.email || user.emailVerifiedAt) return user;
+  const verified = await fetchVerifiedEmails(token, ghUser);
+  if (!verified.includes(normalizeEmail(user.email))) return user;
+  const [updated] = await db.update(users).set({ emailVerifiedAt: new Date() }).where(eq(users.id, user.id)).returning();
+  return updated;
 }
 
 /**
@@ -127,7 +147,7 @@ export async function upsertGitHubIdentity(
       .onConflictDoUpdate({ target: githubAccounts.userId, set: values });
     const [user] = await db.select().from(users).where(eq(users.id, linkToUserId)).limit(1);
     if (!user.avatarUrl) await db.update(users).set({ avatarUrl: ghUser.avatar_url }).where(eq(users.id, user.id));
-    return { user, created: false };
+    return { user: await verifyEmailFromGitHub(user, tokens.accessToken, ghUser), created: false };
   }
 
   if (existing) {
@@ -137,16 +157,23 @@ export async function upsertGitHubIdentity(
       .update(users)
       .set({ avatarUrl: ghUser.avatar_url, name: user.name || ghUser.name || ghUser.login })
       .where(eq(users.id, user.id));
-    return { user: { ...user, avatarUrl: ghUser.avatar_url }, created: false };
+    return { user: await verifyEmailFromGitHub({ ...user, avatarUrl: ghUser.avatar_url }, tokens.accessToken, ghUser), created: false };
   }
 
   if (!(await canCreateAccount(opts.allowCreate))) {
     throw new AuthError("Sign-ups are disabled on this instance. Ask an admin for an invite link.");
   }
 
-  let email = await fetchPrimaryEmail(tokens.accessToken, ghUser);
+  const verified = await fetchVerifiedEmails(tokens.accessToken, ghUser);
+  // Without an invite, an email domain restriction applies to GitHub sign-ups too.
+  if (env().AUTH_ALLOWED_EMAIL_DOMAINS && !opts.allowCreate && !verified.some(emailDomainAllowed)) {
+    throw new AuthError(
+      "Sign-up is limited to certain email domains, and this GitHub account has no verified address in them. Ask an admin for an invite link.",
+    );
+  }
+  let email: string | null = verified.find(emailDomainAllowed) ?? verified[0] ?? null;
   if (email && (await findUserByEmail(email))) email = null; // never auto-merge accounts by email
-  const user = await createUser({ name: ghUser.name || ghUser.login, email, avatarUrl: ghUser.avatar_url });
+  const user = await createUser({ name: ghUser.name || ghUser.login, email, emailVerified: true, avatarUrl: ghUser.avatar_url });
   await db.insert(githubAccounts).values({ ...values, userId: user.id });
   return { user, created: true };
 }

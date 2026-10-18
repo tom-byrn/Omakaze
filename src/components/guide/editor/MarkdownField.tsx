@@ -60,7 +60,7 @@ export function MarkdownField({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*,video/mp4,video/webm,video/quicktime"
+          accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml,video/mp4,video/webm,video/quicktime,application/pdf"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];

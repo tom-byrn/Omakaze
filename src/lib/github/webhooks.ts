@@ -6,6 +6,7 @@ import { maybeAutoGenerate } from "@/lib/automation";
 import { safeEqual } from "@/lib/crypto";
 import type { GhPull } from "./client";
 import { upsertPull } from "./pulls";
+import { invalidateReviewComments } from "./review";
 
 export function verifySignature(body: string, signature: string | null, secret: string): boolean {
   if (!signature?.startsWith("sha256=")) return false;
@@ -52,6 +53,20 @@ export async function handleWebhook(event: string, payload: Payload): Promise<"p
         if (["opened", "reopened", "synchronize", "ready_for_review"].includes(payload.action ?? "")) {
           await maybeAutoGenerate(repo.id, row, "webhook");
         }
+      }
+      return "processed";
+    }
+    case "pull_request_review":
+    case "pull_request_review_comment": {
+      // Reviews and comments made on GitHub: refresh the pull request and the cached comments.
+      const pr = payload.pull_request;
+      const repoId = payload.repository?.id;
+      if (!pr || !repoId) return "ignored";
+      const repos = await db.select().from(repositories).where(eq(repositories.githubId, repoId));
+      if (repos.length === 0) return "ignored";
+      for (const repo of repos) {
+        await upsertPull(repo.id, pr);
+        invalidateReviewComments(repo.id, pr.number);
       }
       return "processed";
     }

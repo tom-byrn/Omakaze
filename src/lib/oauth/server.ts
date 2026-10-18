@@ -28,6 +28,21 @@ export function mcpResource(): string {
   return `${env().APP_URL}/api/mcp`;
 }
 
+/** RFC 8707: a requested resource must be this server's MCP endpoint (or the instance itself). */
+function checkResource(resource: string | null): string | null {
+  if (!resource) return null;
+  const clean = resource.replace(/\/+$/, "");
+  if (clean !== mcpResource() && clean !== issuer()) {
+    throw new OAuthError("invalid_target", `Unknown resource ${resource}. Use ${mcpResource()}.`);
+  }
+  return mcpResource();
+}
+
+/** "mcp" is the only scope; unknown scopes are dropped rather than refused (RFC 6749 3.3). */
+function grantedScope(_requested: string | null): string {
+  return "mcp";
+}
+
 export function authorizationServerMetadata() {
   const base = issuer();
   return {
@@ -60,7 +75,7 @@ export function protectedResourceMetadata() {
 
 export const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, mcp-protocol-version",
   "Access-Control-Max-Age": "86400",
 };
@@ -145,8 +160,8 @@ export async function validateAuthorizeRequest(params: URLSearchParams): Promise
       redirectUri,
       state: params.get("state"),
       codeChallenge,
-      scope: params.get("scope"),
-      resource: params.get("resource"),
+      scope: grantedScope(params.get("scope")),
+      resource: checkResource(params.get("resource")),
     },
     clientName: client.name,
   };
@@ -230,6 +245,8 @@ export async function exchangeToken(form: URLSearchParams, basicAuth: { id: stri
     if (row.expiresAt < new Date()) throw new OAuthError("invalid_grant", "Authorization code expired");
     const redirectUri = form.get("redirect_uri");
     if (redirectUri && redirectUri !== row.redirectUri) throw new OAuthError("invalid_grant", "redirect_uri mismatch");
+    const resource = checkResource(form.get("resource"));
+    if (resource && row.resource && resource !== row.resource) throw new OAuthError("invalid_target", "resource does not match the authorization request");
     if (!verifier || s256(verifier) !== row.codeChallenge) throw new OAuthError("invalid_grant", "PKCE verification failed");
     const used = await db
       .update(oauthCodes)
@@ -241,6 +258,7 @@ export async function exchangeToken(form: URLSearchParams, basicAuth: { id: stri
   }
 
   if (grant === "refresh_token") {
+    checkResource(form.get("resource"));
     const refresh = form.get("refresh_token") ?? "";
     const [row] = await db.select().from(oauthRefreshTokens).where(eq(oauthRefreshTokens.tokenHash, sha256(refresh))).limit(1);
     if (!row || row.clientId !== client.id || row.revokedAt || row.expiresAt < new Date()) {
@@ -254,11 +272,30 @@ export async function exchangeToken(form: URLSearchParams, basicAuth: { id: stri
   throw new OAuthError("unsupported_grant_type", "Use authorization_code or refresh_token");
 }
 
-export async function revokeToken(token: string): Promise<void> {
+/** Revoke an access token and the refresh token issued with it, ending the client's grant. */
+export async function revokeAccessToken(tokenId: string): Promise<void> {
+  const now = new Date();
+  await db.update(apiTokens).set({ revokedAt: now }).where(and(eq(apiTokens.id, tokenId), isNull(apiTokens.revokedAt)));
+  await db
+    .update(oauthRefreshTokens)
+    .set({ revokedAt: now })
+    .where(and(eq(oauthRefreshTokens.accessTokenId, tokenId), isNull(oauthRefreshTokens.revokedAt)));
+}
+
+/**
+ * RFC 7009 revocation. The client identifies itself (and authenticates if it has a secret); tokens
+ * issued to other clients are left alone, and the response is 200 either way.
+ */
+export async function revokeToken(token: string, client: { id: string; secret: string | null }): Promise<void> {
+  const c = await authenticateClient(client.id, client.secret);
   const hash = sha256(token);
-  await db.update(apiTokens).set({ revokedAt: new Date() }).where(eq(apiTokens.tokenHash, hash));
+  const [access] = await db.select().from(apiTokens).where(eq(apiTokens.tokenHash, hash)).limit(1);
+  if (access) {
+    if (access.kind === "oauth" && access.oauthClientId === c.id) await revokeAccessToken(access.id);
+    return;
+  }
   const [r] = await db.select().from(oauthRefreshTokens).where(eq(oauthRefreshTokens.tokenHash, hash)).limit(1);
-  if (r) {
+  if (r && r.clientId === c.id) {
     await db.update(oauthRefreshTokens).set({ revokedAt: new Date() }).where(eq(oauthRefreshTokens.tokenHash, hash));
     if (r.accessTokenId) await db.update(apiTokens).set({ revokedAt: new Date() }).where(eq(apiTokens.id, r.accessTokenId));
   }
@@ -277,7 +314,13 @@ export function parseBasicAuth(header: string | null): { id: string; secret: str
 export async function readForm(req: Request): Promise<URLSearchParams> {
   const type = req.headers.get("content-type") ?? "";
   if (type.includes("application/json")) {
-    const body = (await req.json()) as Record<string, unknown>;
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      throw new OAuthError("invalid_request", "The request body must be valid JSON.");
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new OAuthError("invalid_request", "Expected a JSON object.");
     return new URLSearchParams(Object.entries(body).map(([k, v]) => [k, String(v)]));
   }
   return new URLSearchParams(await req.text());

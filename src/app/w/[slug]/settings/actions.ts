@@ -24,13 +24,15 @@ import { newToken } from "@/lib/ids";
 import { createInvite, revokeInvite } from "@/lib/invites";
 import {
   addRepository,
+  ConnectionError,
   getConnection,
   lookupRepo,
-  ConnectionError,
+  reattachRepositories,
 } from "@/lib/github/connections";
 import { gh, GitHubError } from "@/lib/github/client";
 import { repoWebhookSecret } from "@/lib/crypto";
 import { env } from "@/lib/env";
+import { revokeAccessToken } from "@/lib/oauth/server";
 import { syncRepositoryPulls } from "@/lib/github/pulls";
 import { getRepoContext } from "@/lib/github/connections";
 import { assertWorkspaceRole, getWorkspaceBySlug, ownerCount, uniqueSlug, slugify, type Workspace } from "@/lib/workspaces";
@@ -178,6 +180,10 @@ export async function removeMemberAction(slug: string, userId: string): Promise<
 
 /* GitHub connections ------------------------------------------------- */
 
+function reattachedNote(count: number): string {
+  return count > 0 ? ` ${count} ${count === 1 ? "repository was" : "repositories were"} reconnected.` : "";
+}
+
 export async function connectWithAccountAction(slug: string): Promise<FormState> {
   try {
     const { user, ws } = await ctx(slug, "admin");
@@ -189,17 +195,21 @@ export async function connectWithAccountAction(slug: string): Promise<FormState>
       .where(and(eq(githubConnections.workspaceId, ws.id), eq(githubConnections.type, "user"), eq(githubConnections.userId, user.id)))
       .limit(1);
     if (existing) return { error: `Already connected through @${account.login}.` };
-    await db.insert(githubConnections).values({
-      workspaceId: ws.id,
-      type: "user",
-      userId: user.id,
-      accountLogin: account.login,
-      accountType: "User",
-      accountAvatarUrl: account.avatarUrl,
-      createdByUserId: user.id,
-    });
+    const [conn] = await db
+      .insert(githubConnections)
+      .values({
+        workspaceId: ws.id,
+        type: "user",
+        userId: user.id,
+        accountLogin: account.login,
+        accountType: "User",
+        accountAvatarUrl: account.avatarUrl,
+        createdByUserId: user.id,
+      })
+      .returning();
     await logActivity({ workspaceId: ws.id, type: "connection.created", actorUserId: user.id, data: { type: "user", login: account.login } });
-    return done(ws, "/settings/github", `Connected through @${account.login}.`);
+    const reattached = await reattachRepositories(ws.id, conn);
+    return done(ws, "/settings/github", `Connected through @${account.login}.${reattachedNote(reattached)}`);
   } catch (err) {
     return fail(err);
   }
@@ -211,17 +221,21 @@ export async function connectWithTokenAction(slug: string, _prev: FormState, for
     const token = String(form.get("token") ?? "").trim();
     if (token.length < 10) return { error: "Paste a personal access token." };
     const { user: ghUser } = await verifyGitHubToken(token);
-    await db.insert(githubConnections).values({
-      workspaceId: ws.id,
-      type: "token",
-      tokenEnc: encrypt(token),
-      accountLogin: ghUser.login,
-      accountType: ghUser.type === "Organization" ? "Organization" : "User",
-      accountAvatarUrl: ghUser.avatar_url,
-      createdByUserId: user.id,
-    });
+    const [conn] = await db
+      .insert(githubConnections)
+      .values({
+        workspaceId: ws.id,
+        type: "token",
+        tokenEnc: encrypt(token),
+        accountLogin: ghUser.login,
+        accountType: ghUser.type === "Organization" ? "Organization" : "User",
+        accountAvatarUrl: ghUser.avatar_url,
+        createdByUserId: user.id,
+      })
+      .returning();
     await logActivity({ workspaceId: ws.id, type: "connection.created", actorUserId: user.id, data: { type: "token", login: ghUser.login } });
-    return done(ws, "/settings/github", `Connected with a token for @${ghUser.login}.`);
+    const reattached = await reattachRepositories(ws.id, conn);
+    return done(ws, "/settings/github", `Connected with a token for @${ghUser.login}.${reattachedNote(reattached)}`);
   } catch (err) {
     if (err instanceof AuthError) return { error: err.message };
     return fail(err);
@@ -344,7 +358,6 @@ export async function saveAiSettingsAction(slug: string, _prev: FormState, form:
     const model = String(form.get("model") ?? "").trim() || info.defaultModel;
     const baseUrl = String(form.get("baseUrl") ?? "").trim();
     const apiKey = String(form.get("apiKey") ?? "").trim();
-    const instructions = String(form.get("instructions") ?? "").trim();
     if (!model) return { error: "Enter a model name" };
     if (baseUrl && !/^https?:\/\//.test(baseUrl)) return { error: "Base URL must start with http:// or https://" };
     const keepKey = !apiKey && ws.aiProvider === provider && ws.aiApiKeyEnc;
@@ -354,7 +367,6 @@ export async function saveAiSettingsAction(slug: string, _prev: FormState, form:
       aiModel: model,
       aiBaseUrl: baseUrl || null,
       aiApiKeyEnc: apiKey ? encrypt(apiKey) : keepKey ? ws.aiApiKeyEnc : null,
-      aiInstructions: instructions || null,
     };
     if (intent === "test") {
       const cfg = resolveAiConfig({ ...ws, ...values });
@@ -364,6 +376,19 @@ export async function saveAiSettingsAction(slug: string, _prev: FormState, form:
     }
     await db.update(workspaces).set(values).where(eq(workspaces.id, ws.id));
     await logActivity({ workspaceId: ws.id, type: "settings.updated", actorUserId: user.id, data: { section: "ai", provider, model } });
+    return done(ws, "/settings/ai", "Saved.");
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** Extra instructions apply to whichever provider is in effect, including the instance default. */
+export async function saveAiInstructionsAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
+  try {
+    const { user, ws } = await ctx(slug, "admin");
+    const instructions = String(form.get("instructions") ?? "").trim().slice(0, 4000);
+    await db.update(workspaces).set({ aiInstructions: instructions || null }).where(eq(workspaces.id, ws.id));
+    await logActivity({ workspaceId: ws.id, type: "settings.updated", actorUserId: user.id, data: { section: "ai-instructions" } });
     return done(ws, "/settings/ai", "Saved.");
   } catch (err) {
     return fail(err);
@@ -418,7 +443,8 @@ export async function revokeTokenAction(slug: string, tokenId: string): Promise<
     const [tok] = await db.select().from(apiTokens).where(and(eq(apiTokens.id, tokenId), eq(apiTokens.workspaceId, ws.id))).limit(1);
     if (!tok) return { error: "Token not found" };
     if (tok.userId !== user.id && role === "member") return { error: "You can only revoke your own tokens." };
-    await db.update(apiTokens).set({ revokedAt: new Date() }).where(eq(apiTokens.id, tok.id));
+    // For OAuth clients this also revokes the refresh token, so the client can't get a new access token.
+    await revokeAccessToken(tok.id);
     return done(ws, "/settings/tokens");
   } catch (err) {
     return fail(err);

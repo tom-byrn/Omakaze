@@ -44,6 +44,8 @@ export const users = pgTable(
     id: id(),
     name: text("name").notNull(),
     email: text("email"),
+    /** Set when the address was confirmed: a verified GitHub email or an emailed link. Cleared when it changes. */
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     avatarUrl: text("avatar_url"),
     passwordHash: text("password_hash"),
     isInstanceAdmin: boolean("is_instance_admin").default(false).notNull(),
@@ -210,9 +212,8 @@ export const repositories = pgTable(
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    connectionId: text("connection_id")
-      .notNull()
-      .references(() => githubConnections.id, { onDelete: "cascade" }),
+    /** null when the connection was removed; guides stay readable until another connection is chosen. */
+    connectionId: text("connection_id").references(() => githubConnections.id, { onDelete: "set null" }),
     githubId: bigint("github_id", { mode: "number" }).notNull(),
     owner: text("owner").notNull(),
     name: text("name").notNull(),

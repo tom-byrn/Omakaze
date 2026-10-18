@@ -6,7 +6,7 @@ import { repositories } from "@/db/schema";
 import { resolveAiConfig } from "@/lib/ai/config";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getRepoContext } from "@/lib/github/connections";
-import { getLatestGuide, guidePath, startGuide } from "@/lib/guides/service";
+import { failStaleGuides, getLatestGuide, guidePath, isStaleGuide, startGuide } from "@/lib/guides/service";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { getMembership, getWorkspaceBySlug } from "@/lib/workspaces";
 
@@ -35,7 +35,9 @@ export async function generateGuideAction(slug: string, repositoryId: string, pr
       .limit(1);
     if (!repo) return { error: "Repository not found" };
     const latest = await getLatestGuide(repo.id, prNumber);
-    if (latest?.status === "generating") return { url: guidePath(ws.slug, repo.fullName, prNumber) };
+    // A guide that is still being written opens instead; an abandoned one is replaced.
+    if (latest?.status === "generating" && !isStaleGuide(latest)) return { url: guidePath(ws.slug, repo.fullName, prNumber) };
+    if (latest && isStaleGuide(latest)) await failStaleGuides();
     const ctx = await getRepoContext(repo.id);
     const { guide } = await startGuide({
       workspaceId: ws.id,

@@ -2,7 +2,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { pullRequests, repositories, workspaces } from "@/db/schema";
 import { resolveAiConfig } from "@/lib/ai/config";
-import { getLatestGuide } from "@/lib/guides/service";
+import { getLatestGuide, isStaleGuide } from "@/lib/guides/service";
 import { enqueueJob } from "@/lib/jobs/queue";
 
 type PullLike = { number: number; headSha: string; draft: boolean; state: "open" | "closed" };
@@ -32,7 +32,7 @@ export async function maybeAutoGenerate(
   const latest = await getLatestGuide(repositoryId, pull.number);
   if (latest) {
     if (latest.headSha === pull.headSha) return "skipped";
-    if (latest.status === "generating") return "skipped";
+    if (latest.status === "generating" && !isStaleGuide(latest)) return "skipped";
     if (!info.ws.regenerateOnPush) return "skipped";
   }
   const job = await enqueueJob(

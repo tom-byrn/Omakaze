@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, lt, max, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   guideSections,
@@ -41,6 +41,16 @@ export class GuideError extends Error {
 }
 
 export const OTHER_CHANGES_TITLE = "Other changes";
+
+/**
+ * A guide that stays in `generating` this long without any change (a section, an event, a
+ * metadata edit) was abandoned, e.g. by an agent that never called `finish_guide`.
+ */
+export const STALE_GUIDE_MINUTES = 60;
+
+export function isStaleGuide(guide: { status: GuideStatus; updatedAt: Date }, now = Date.now()): boolean {
+  return guide.status === "generating" && now - guide.updatedAt.getTime() > STALE_GUIDE_MINUTES * 60_000;
+}
 
 export function guidePath(workspaceSlug: string, repoFullName: string, prNumber: number, version?: number): string {
   const base = `/w/${workspaceSlug}/${repoFullName}/pull/${prNumber}`;
@@ -273,7 +283,15 @@ export async function deleteSection(sectionId: string): Promise<void> {
       .update(guideSections)
       .set({ position: sql`${guideSections.position} - 1` })
       .where(and(eq(guideSections.guideId, current.guideId), gt(guideSections.position, current.position)));
+    await tx.update(guides).set({ updatedAt: new Date() }).where(eq(guides.id, current.guideId));
   });
+}
+
+/** Remove every section, e.g. before generation starts over after a failed attempt. */
+export async function clearSections(guideId: string): Promise<number> {
+  const removed = await db.delete(guideSections).where(eq(guideSections.guideId, guideId)).returning({ id: guideSections.id });
+  await db.update(guides).set({ updatedAt: new Date() }).where(eq(guides.id, guideId));
+  return removed.length;
 }
 
 export async function reorderSections(guideId: string, sectionIds: string[]): Promise<Section[]> {
@@ -290,6 +308,7 @@ export async function reorderSections(guideId: string, sectionIds: string[]): Pr
     for (let i = 0; i < sectionIds.length; i++) {
       await tx.update(guideSections).set({ position: i + 1 }).where(eq(guideSections.id, sectionIds[i]));
     }
+    await tx.update(guides).set({ updatedAt: new Date() }).where(eq(guides.id, guideId));
   });
   return getSections(guideId);
 }
@@ -329,6 +348,18 @@ export function describeCoverage(c: Coverage): string {
   return lines.join("\n");
 }
 
+/** Coverage report for a published guide: what the author's sections covered, and what was filled in. */
+export function describeFinishedCoverage(sectionCoverage: Coverage, finalCoverage: Coverage): string {
+  if (sectionCoverage.uncovered.length === 0) return describeCoverage(sectionCoverage);
+  const filled = finalCoverage.uncovered.length === 0;
+  return [
+    `Your sections: ${describeCoverage(sectionCoverage)}`,
+    filled
+      ? `These changes were added to the "${OTHER_CHANGES_TITLE}" section. Move important ones into your own sections with update_section.`
+      : "These changes are not shown in any section.",
+  ].join("\n");
+}
+
 /**
  * Mark a guide as ready. Uncovered changes go to an automatic "Other changes"
  * section so reviewers always see the full diff.
@@ -336,9 +367,10 @@ export function describeCoverage(c: Coverage): string {
 export async function finishGuide(
   guideId: string,
   opts: { autoCover?: boolean; actorUserId?: string | null; actorLabel?: string | null } = {},
-): Promise<{ guide: Guide; coverage: Coverage }> {
+): Promise<{ guide: Guide; coverage: Coverage; sectionCoverage: Coverage }> {
   const guide = await getGuide(guideId);
   if (!guide) throw new GuideError("Guide not found");
+  assertEditable(guide);
   const { files } = await loadParsedFiles(guide);
   let sections = await getSections(guideId);
   // Remove a previous automatic section before recomputing.
@@ -348,7 +380,9 @@ export async function finishGuide(
   if (userSections.length === 0 && files.length > 0 && opts.autoCover === false) {
     throw new GuideError("Add at least one section before finishing the guide.");
   }
-  let coverage = computeCoverage(files, sections);
+  // Coverage of the author's own sections, before "Other changes" fills the gaps.
+  const sectionCoverage = computeCoverage(files, sections);
+  let coverage = sectionCoverage;
   if ((opts.autoCover ?? true) && coverage.uncovered.length > 0) {
     const refs = refsForUncovered(coverage.uncovered);
     await db.insert(guideSections).values({
@@ -379,14 +413,15 @@ export async function finishGuide(
     data: { version: guide.version, sections: (await getSections(guideId)).length },
   });
   await afterGuideReady(updated);
-  return { guide: updated, coverage };
+  return { guide: updated, coverage, sectionCoverage };
 }
 
+/** Mark a guide that is still being written as failed. Published guides are left alone. */
 export async function failGuide(guideId: string, error: string): Promise<void> {
   const [g] = await db
     .update(guides)
     .set({ status: "failed", error: error.slice(0, 4000) })
-    .where(eq(guides.id, guideId))
+    .where(and(eq(guides.id, guideId), eq(guides.status, "generating")))
     .returning();
   if (!g) return;
   await appendGuideEvent(guideId, error.slice(0, 500), "error");
@@ -401,6 +436,19 @@ export async function failGuide(guideId: string, error: string): Promise<void> {
   });
 }
 
+/** Fail guides that were left in `generating` (see STALE_GUIDE_MINUTES). Returns how many. */
+export async function failStaleGuides(): Promise<number> {
+  const cutoff = new Date(Date.now() - STALE_GUIDE_MINUTES * 60_000);
+  const stale = await db
+    .select({ id: guides.id })
+    .from(guides)
+    .where(and(eq(guides.status, "generating"), lt(guides.updatedAt, cutoff)));
+  for (const g of stale) {
+    await failGuide(g.id, `Nothing changed for ${STALE_GUIDE_MINUTES} minutes, so the guide was marked as abandoned. Start a new version.`);
+  }
+  return stale.length;
+}
+
 export async function deleteGuide(guideId: string): Promise<void> {
   await db.delete(guides).where(eq(guides.id, guideId));
 }
@@ -408,7 +456,7 @@ export async function deleteGuide(guideId: string): Promise<void> {
 /** One-shot creation used by the MCP `create_guide` tool and the REST API. */
 export async function createCompleteGuide(
   input: StartGuideInput & { sections: SectionInput[]; autoCover?: boolean },
-): Promise<{ guide: Guide; coverage: Coverage; warnings: RefProblem[] }> {
+): Promise<{ guide: Guide; coverage: Coverage; sectionCoverage: Coverage; warnings: RefProblem[] }> {
   // Validate everything before creating anything.
   const { snapshot } = await getOrCreateSnapshot(input.ctx, input.prNumber, { expectedHeadSha: input.expectedHeadSha });
   const files = parseFiles(snapshot.files);
@@ -432,12 +480,12 @@ export async function createCompleteGuide(
       })),
     );
   }
-  const { guide: finished, coverage } = await finishGuide(guide.id, {
+  const { guide: finished, coverage, sectionCoverage } = await finishGuide(guide.id, {
     autoCover: input.autoCover,
     actorUserId: input.userId,
     actorLabel: input.author,
   });
-  return { guide: finished, coverage, warnings: prepared.flatMap((p) => p.warnings) };
+  return { guide: finished, coverage, sectionCoverage, warnings: prepared.flatMap((p) => p.warnings) };
 }
 
 /* ------------------------------------------------------------------ */

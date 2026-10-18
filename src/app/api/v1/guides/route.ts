@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiPrincipal, resolvePullForApi, workspaceOf } from "@/lib/api-v1";
-import { errorResponse, HttpError } from "@/lib/http";
-import { formatRef, type RefInput } from "@/lib/guides/refs";
+import { errorResponse, HttpError, readJson } from "@/lib/http";
+import { serializeRef, type RefInput } from "@/lib/guides/refs";
 import { createCompleteGuide, getGuide, getSections, guideUrl, GuideError, listGuideVersions } from "@/lib/guides/service";
 import { StaleHeadError } from "@/lib/github/pulls";
 
@@ -14,8 +14,14 @@ export async function GET(req: Request) {
     if (!pr) throw new HttpError(400, "pr is required");
     const { ctx, number } = await resolvePullForApi(p, pr);
     const versions = await listGuideVersions(ctx.repo.id, number);
-    const wanted = Number(url.searchParams.get("version"));
-    const meta = versions.find((v) => v.version === wanted) ?? versions[0];
+    const versionParam = url.searchParams.get("version");
+    let meta = versions[0];
+    if (versionParam !== null) {
+      const wanted = Number(versionParam);
+      if (!Number.isInteger(wanted) || wanted < 1) throw new HttpError(400, "version must be a positive integer");
+      meta = versions.find((v) => v.version === wanted)!;
+      if (!meta) throw new HttpError(404, `No version ${wanted} of this guide`);
+    }
     if (!meta) throw new HttpError(404, "No guide for this pull request");
     const guide = (await getGuide(meta.id))!;
     const ws = await workspaceOf(p.workspaceId);
@@ -29,7 +35,7 @@ export async function GET(req: Request) {
       head_sha: guide.headSha,
       url: guideUrl(ws.slug, ctx.repo.fullName, number, guide.version),
       versions: versions.map((v) => ({ version: v.version, status: v.status, head_sha: v.headSha })),
-      sections: sections.map((s) => ({ id: s.id, position: s.position, title: s.title, body: s.body, refs: s.refs.map(formatRef), automatic: s.generated })),
+      sections: sections.map((s) => ({ id: s.id, position: s.position, title: s.title, body: s.body, refs: s.refs.map(serializeRef), automatic: s.generated })),
     });
   } catch (err) {
     return errorResponse(err);
@@ -60,12 +66,12 @@ const createSchema = z.object({
 export async function POST(req: Request) {
   try {
     const p = await apiPrincipal(req);
-    const parsed = createSchema.safeParse(await req.json());
+    const parsed = createSchema.safeParse(await readJson(req));
     if (!parsed.success) throw new HttpError(400, parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
     const body = parsed.data;
     const { ctx, number } = await resolvePullForApi(p, body.pr);
     try {
-      const { guide, coverage, warnings } = await createCompleteGuide({
+      const { guide, coverage, sectionCoverage, warnings } = await createCompleteGuide({
         workspaceId: p.workspaceId,
         ctx,
         prNumber: number,
@@ -85,7 +91,13 @@ export async function POST(req: Request) {
           id: guide.id,
           version: guide.version,
           url: guideUrl(ws.slug, ctx.repo.fullName, number, guide.version),
-          coverage: { changed_lines: coverage.totalChanged, covered: coverage.coveredChanged, uncovered: coverage.uncovered },
+          // Coverage of the sections you sent; uncovered changes went to "Other changes" unless auto_cover was false.
+          coverage: {
+            changed_lines: sectionCoverage.totalChanged,
+            covered: sectionCoverage.coveredChanged,
+            uncovered: sectionCoverage.uncovered,
+            added_to_other_changes: sectionCoverage.uncovered.length > 0 && coverage.uncovered.length === 0,
+          },
           warnings,
         },
         { status: 201 },

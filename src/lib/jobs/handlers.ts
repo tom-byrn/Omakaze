@@ -1,6 +1,6 @@
 import { eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { repositories, workspaces } from "@/db/schema";
+import { jobs, repositories, workspaces } from "@/db/schema";
 import { resolveAiConfig } from "@/lib/ai/config";
 import { generateGuideWithAi } from "@/lib/ai/generate";
 import { AiError } from "@/lib/ai/providers";
@@ -8,7 +8,7 @@ import { autoGenerateCandidates, maybeAutoGenerate } from "@/lib/automation";
 import { getRepoContext } from "@/lib/github/connections";
 import { syncRepositoryPulls } from "@/lib/github/pulls";
 import { postGuideSummaryComment } from "@/lib/github/summary-comment";
-import { failGuide, getGuide, startGuide } from "@/lib/guides/service";
+import { appendGuideEvent, clearSections, failGuide, getGuide, startGuide } from "@/lib/guides/service";
 import type { Job } from "./queue";
 
 /** Errors that should not be retried. */
@@ -24,7 +24,8 @@ async function workspaceForRepo(repositoryId: string) {
   return row?.ws ?? null;
 }
 
-async function generateGuide(payload: Record<string, unknown>) {
+async function generateGuide(job: Job) {
+  const payload = job.payload;
   let guideId = payload.guideId as string | undefined;
   if (!guideId) {
     const repositoryId = payload.repositoryId as string;
@@ -40,9 +41,16 @@ async function generateGuide(payload: Record<string, unknown>) {
       author: resolveAiConfig(ws)?.model ?? "AI",
     });
     guideId = guide.id;
+    // Remember the guide so a retry continues it instead of starting another version.
+    await db.update(jobs).set({ payload: { ...payload, guideId } }).where(eq(jobs.id, job.id));
   }
   const guide = await getGuide(guideId);
   if (!guide || guide.status !== "generating") return;
+  // A retry (or a job recovered after a crash) starts over.
+  const removed = await clearSections(guide.id);
+  if (removed > 0) {
+    await appendGuideEvent(guide.id, `Starting over: removed ${removed} section(s) from the previous attempt`, "warn");
+  }
   const ws = await workspaceForRepo(guide.repositoryId);
   const cfg = ws ? resolveAiConfig(ws) : null;
   if (!cfg) {
@@ -86,21 +94,20 @@ async function pollRepos() {
 export async function runJob(job: Job): Promise<void> {
   switch (job.type) {
     case "generate_guide":
-      return generateGuide(job.payload);
+      return generateGuide(job);
     case "post_pr_comment":
       return postGuideSummaryComment(String(job.payload.guideId));
     case "poll_repos":
       return pollRepos();
-    case "sync_repo":
-      await syncRepositoryPulls(await getRepoContext(String(job.payload.repositoryId)));
-      return;
     default:
       throw new PermanentJobError(`Unknown job type ${job.type}`);
   }
 }
 
 export async function onJobGaveUp(job: Job, error: string): Promise<void> {
-  if (job.type === "generate_guide" && typeof job.payload.guideId === "string") {
-    await failGuide(job.payload.guideId, error);
-  }
+  if (job.type !== "generate_guide") return;
+  // The handler may have stored the guide id after the job was claimed.
+  const [fresh] = await db.select({ payload: jobs.payload }).from(jobs).where(eq(jobs.id, job.id)).limit(1);
+  const guideId = (fresh?.payload ?? job.payload).guideId;
+  if (typeof guideId === "string") await failGuide(guideId, error);
 }

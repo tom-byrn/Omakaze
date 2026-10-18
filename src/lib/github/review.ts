@@ -46,6 +46,11 @@ async function withPoster<T>(
 
 const commentCache = new Map<string, { at: number; data: GhReviewComment[] }>();
 
+/** Drop cached review comments, e.g. when a webhook says they changed on GitHub. */
+export function invalidateReviewComments(repositoryId: string, prNumber: number): void {
+  commentCache.delete(`${repositoryId}:${prNumber}`);
+}
+
 export async function listReviewComments(ctx: RepoContext, prNumber: number, fresh = false): Promise<GhReviewComment[]> {
   const key = `${ctx.repo.id}:${prNumber}`;
   const hit = commentCache.get(key);

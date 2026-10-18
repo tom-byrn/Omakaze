@@ -5,7 +5,7 @@ import { getRepoContext } from "@/lib/github/connections";
 import { postIssueComment, submitReview } from "@/lib/github/review";
 import { requireGuideAccess } from "@/lib/guides/access";
 import { guidePath } from "@/lib/guides/service";
-import { assertSameOrigin, errorResponse, HttpError } from "@/lib/http";
+import { assertSameOrigin, errorResponse, HttpError, readJson } from "@/lib/http";
 
 const schema = z.object({
   event: z.enum(["APPROVE", "REQUEST_CHANGES", "COMMENT", "ISSUE_COMMENT"]),
@@ -18,7 +18,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/guides/[id]/rev
     assertSameOrigin(req);
     const { id } = await ctx.params;
     const { guide, principal, workspace, repo } = await requireGuideAccess(req, id);
-    const parsed = schema.safeParse(await req.json());
+    const parsed = schema.safeParse(await readJson(req));
     if (!parsed.success) throw new HttpError(400, "Invalid review");
     const { event, body } = parsed.data;
     if ((event === "REQUEST_CHANGES" || event === "ISSUE_COMMENT") && !body.trim()) {

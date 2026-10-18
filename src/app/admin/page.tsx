@@ -9,7 +9,7 @@ import { guides, jobs, users, webhookDeliveries, workspaces } from "@/db/schema"
 import { requireUser } from "@/lib/auth/session";
 import { signPayload } from "@/lib/crypto";
 import { env } from "@/lib/env";
-import { timeAgo } from "@/lib/format";
+import { formatInterval, timeAgo } from "@/lib/format";
 import { buildAppManifest, getGitHubApp } from "@/lib/github/app";
 import { listUserWorkspaces } from "@/lib/workspaces";
 import { removeStoredAppAction } from "./actions";
@@ -135,7 +135,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
             <span className="text-body">{e.STORAGE_DRIVER}</span>
             <span className="mono-label pt-0.5">Background worker</span>
             <span className="text-body">
-              {e.WORKER_ENABLED ? "Running in this process" : "Disabled"} · polling {e.POLL_INTERVAL_SECONDS > 0 ? `every ${e.POLL_INTERVAL_SECONDS}s` : "off"}
+              {e.WORKER_ENABLED ? "Running in this process" : "Disabled"} · polling {e.POLL_INTERVAL_SECONDS > 0 ? `every ${formatInterval(e.POLL_INTERVAL_SECONDS)}` : "off"}
             </span>
             <span className="mono-label pt-0.5">Webhook URL</span>
             <span className="flex items-center gap-2">

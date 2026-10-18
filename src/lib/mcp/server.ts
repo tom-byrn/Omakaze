@@ -19,12 +19,13 @@ import {
 import { getOrCreateSnapshot, parsePullUrl } from "@/lib/github/pulls";
 import { listReviewComments } from "@/lib/github/review";
 import { AGENT_WORKFLOW, GUIDE_GUIDELINES } from "@/lib/guides/guidelines";
-import { formatRef, type RefInput } from "@/lib/guides/refs";
+import { formatRef, serializeRef, type RefInput } from "@/lib/guides/refs";
 import {
   addSection,
   createCompleteGuide,
   deleteSection,
   describeCoverage,
+  describeFinishedCoverage,
   finishGuide,
   getCoverage,
   getGuide,
@@ -101,25 +102,29 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
     if (!parsed) throw new ToolError(`Could not read "${pr}". Use a URL like https://github.com/owner/repo/pull/123.`);
     const ws = await workspace();
     let repo = await findWorkspaceRepo(ws.id, parsed.owner, parsed.repo);
-    if (!repo) {
+    // Admins can follow a new repository (or reconnect one that lost its connection) by using it.
+    if (!repo || !repo.connectionId) {
       const role = await getMembership(ws.id, principal.user.id);
-      if (!role || !roleAtLeast(role, "admin")) {
+      const admin = role !== null && roleAtLeast(role, "admin");
+      if (!repo && !admin) {
         throw new ToolError(`${parsed.owner}/${parsed.repo} is not connected to the "${ws.name}" workspace. Ask an admin to add it at ${env().APP_URL}/w/${ws.slug}/repos.`);
       }
-      for (const conn of await listConnections(ws.id)) {
-        try {
-          const ghRepo = await lookupRepo(conn, `${parsed.owner}/${parsed.repo}`);
-          repo = await addRepository(ws.id, conn, ghRepo);
-          break;
-        } catch {
-          // try the next connection
+      if (admin) {
+        for (const conn of await listConnections(ws.id)) {
+          try {
+            const ghRepo = await lookupRepo(conn, `${parsed.owner}/${parsed.repo}`);
+            repo = await addRepository(ws.id, conn, ghRepo);
+            break;
+          } catch {
+            // try the next connection
+          }
+        }
+        if (!repo) {
+          throw new ToolError(`None of the GitHub connections of "${ws.name}" can access ${parsed.owner}/${parsed.repo}. Connect GitHub at ${env().APP_URL}/w/${ws.slug}/settings/github.`);
         }
       }
-      if (!repo) {
-        throw new ToolError(`None of the GitHub connections of "${ws.name}" can access ${parsed.owner}/${parsed.repo}. Connect GitHub at ${env().APP_URL}/w/${ws.slug}/settings/github.`);
-      }
     }
-    return { ctx: await getRepoContext(repo.id), number: parsed.number, slug: ws.slug };
+    return { ctx: await getRepoContext(repo!.id), number: parsed.number, slug: ws.slug };
   }
 
   async function guideInWorkspace(guideId: string): Promise<Guide> {
@@ -347,7 +352,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
     },
     wrap(async ({ pr, head_sha, title, summary, sections, auto_cover }) => {
       const { ctx, number } = await resolvePr(pr);
-      const { guide, coverage, warnings } = await createCompleteGuide({
+      const { guide, coverage, sectionCoverage, warnings } = await createCompleteGuide({
         workspaceId,
         ctx,
         prNumber: number,
@@ -366,7 +371,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
         [
           `Created guide v${guide.version} (guide_id ${guide.id}).`,
           `URL: ${url}`,
-          describeCoverage(coverage),
+          describeFinishedCoverage(sectionCoverage, coverage),
           warnings.length ? `Warnings:\n${warnings.map((w) => `- ${w.ref}: ${w.message}`).join("\n")}` : "",
         ]
           .filter(Boolean)
@@ -539,7 +544,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
         ...sections.flatMap((s) => [
           `## ${s.position}. ${s.title}${s.generated ? " (automatic)" : ""}`,
           `section_id: ${s.id}`,
-          `refs: ${s.refs.map(formatRef).join(", ") || "none"}`,
+          `refs: ${s.refs.map((r) => JSON.stringify(serializeRef(r))).join(", ") || "none"}`,
           s.body,
           "",
         ]),
@@ -572,12 +577,14 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
     },
     wrap(async ({ guide_id, auto_cover }) => {
       await guideInWorkspace(guide_id);
-      const { guide, coverage } = await finishGuide(guide_id, {
+      const { guide, coverage, sectionCoverage } = await finishGuide(guide_id, {
         autoCover: auto_cover,
         actorUserId: principal.user.id,
         actorLabel: author,
       });
-      return text(`Published guide v${guide.version}.\nURL: ${await urlFor(guide)}\n${describeCoverage(coverage)}`);
+      return text(
+        `Published guide v${guide.version}.\nURL: ${await urlFor(guide)}\n${describeFinishedCoverage(sectionCoverage, coverage)}`,
+      );
     }),
   );
 
@@ -586,7 +593,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
     {
       title: "Upload image or video",
       description:
-        "Upload a screenshot, image or screen recording (png, jpg, gif, webp, svg, mp4, webm, mov) to use in section bodies. Returns a URL and a markdown snippet.",
+        "Upload a screenshot, image, screen recording or PDF (png, jpg, gif, webp, avif, svg, mp4, webm, mov, m4v, pdf) to use in section bodies. Returns a URL and a markdown snippet.",
       inputSchema: {
         filename: z.string().describe("e.g. checkout-flow.mp4"),
         content_base64: z.string().optional().describe("File contents, base64 encoded"),

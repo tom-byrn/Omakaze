@@ -8,6 +8,20 @@
       "when": 1792288077453,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792294121009,
+      "tag": "0001_keep_repos_without_connection",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792294580591,
+      "tag": "0002_user_email_verified",
+      "breakpoints": true
     }
   ]
 }

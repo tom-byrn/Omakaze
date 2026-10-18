@@ -59,9 +59,22 @@ const schema = z.object({
   AI_API_KEY: optionalString,
   AI_BASE_URL: optionalString,
 
+  /**
+   * How many reverse proxies in front of the app append to X-Forwarded-For. The client address used
+   * for rate limits is the entry this many places from the right; 1 also fits a direct deployment,
+   * where Next.js fills in the connection's address.
+   */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(1).max(10).default(1),
+
   // Worker
   WORKER_ENABLED: bool(true),
-  POLL_INTERVAL_SECONDS: z.coerce.number().default(300),
+  /** 0 turns polling off; anything else is at least 30 seconds (the scheduler's tick). */
+  POLL_INTERVAL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(300)
+    .transform((v) => (v === 0 ? 0 : Math.max(30, v))),
 });
 
 export type Env = z.infer<typeof schema>;

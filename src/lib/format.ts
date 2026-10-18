@@ -32,3 +32,10 @@ export function plural(n: number, word: string, pluralWord = `${word}s`): string
 export function shortSha(sha: string | null | undefined): string {
   return sha ? sha.slice(0, 7) : "";
 }
+
+/** "30 seconds", "5 minutes", "2 hours". */
+export function formatInterval(seconds: number): string {
+  if (seconds < 60) return plural(Math.round(seconds), "second");
+  if (seconds < 3600) return plural(Math.round(seconds / 60), "minute");
+  return plural(Math.round((seconds / 3600) * 10) / 10, "hour");
+}

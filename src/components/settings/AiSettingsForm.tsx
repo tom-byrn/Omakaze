@@ -13,7 +13,7 @@ export function AiSettingsForm({
 }: {
   action: (prev: FormState, form: FormData) => Promise<FormState>;
   providers: Provider[];
-  current: { provider: string | null; model: string | null; baseUrl: string | null; hasKey: boolean; instructions: string | null };
+  current: { provider: string | null; model: string | null; baseUrl: string | null; hasKey: boolean };
 }) {
   const [state, formAction] = useActionState(action, undefined);
   const [provider, setProvider] = useState(current.provider ?? "openrouter");
@@ -73,19 +73,6 @@ export function AiSettingsForm({
           key={`base-${provider}`}
           defaultValue={sameProvider ? (current.baseUrl ?? "") : ""}
           placeholder={info.baseUrl}
-        />
-      </div>
-      <div>
-        <label className="field-label" htmlFor="instructions">
-          Extra instructions (optional)
-        </label>
-        <textarea
-          id="instructions"
-          name="instructions"
-          className="input"
-          rows={4}
-          defaultValue={current.instructions ?? ""}
-          placeholder="e.g. Always include a section on database migrations. Write in British English."
         />
       </div>
       <FormMessage state={state} />

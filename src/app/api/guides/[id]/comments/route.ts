@@ -4,7 +4,7 @@ import { createReviewComment, deleteReviewComment, listReviewComments, ownCommen
 import { getGitHubAccount } from "@/lib/auth/users";
 import { requireGuideAccess } from "@/lib/guides/access";
 import { guidePath } from "@/lib/guides/service";
-import { assertSameOrigin, errorResponse, HttpError } from "@/lib/http";
+import { assertSameOrigin, errorResponse, HttpError, readJson } from "@/lib/http";
 import { env } from "@/lib/env";
 import { GitHubError } from "@/lib/github/client";
 
@@ -61,7 +61,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/guides/[id]/com
     assertSameOrigin(req);
     const { id } = await ctx.params;
     const { guide, principal, workspace, repo } = await requireGuideAccess(req, id);
-    const parsed = postSchema.safeParse(await req.json());
+    const parsed = postSchema.safeParse(await readJson(req));
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0]?.message ?? "Invalid comment");
     const rc = await getRepoContext(guide.repositoryId);
     const link = `${env().APP_URL}${guidePath(workspace.slug, repo.fullName, guide.prNumber)}`;

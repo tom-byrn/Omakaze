@@ -151,21 +151,11 @@ export async function getOrCreateSnapshot(
   const { owner, name } = ctx.repo;
   const p = await gh<GhPull>(ctx.token, `/repos/${owner}/${name}/pulls/${number}`, { noCache: true });
   const pull = await upsertPull(ctx.repo.id, p);
-  if (opts.expectedHeadSha && !p.head.sha.startsWith(opts.expectedHeadSha) && opts.expectedHeadSha !== p.head.sha) {
-    // allow a snapshot that already exists for the expected head
-    const [old] = await db
-      .select()
-      .from(diffSnapshots)
-      .where(
-        and(
-          eq(diffSnapshots.repositoryId, ctx.repo.id),
-          eq(diffSnapshots.prNumber, number),
-          eq(diffSnapshots.headSha, opts.expectedHeadSha),
-        ),
-      )
-      .limit(1);
-    if (old) return { snapshot: old, pull };
-    throw new StaleHeadError(p.head.sha);
+  if (opts.expectedHeadSha) {
+    // The caller read the diff at this commit; refuse to build on a different one so hunk numbers match.
+    const expected = opts.expectedHeadSha.trim().toLowerCase();
+    const matches = expected === p.head.sha || (expected.length >= 7 && p.head.sha.startsWith(expected));
+    if (!matches) throw new StaleHeadError(p.head.sha);
   }
 
   const [existing] = await db

@@ -7,6 +7,7 @@ import {
   normalizeRef,
   parseRefString,
   refsForUncovered,
+  serializeRef,
   validateRefs,
 } from "@/lib/guides/refs";
 
@@ -55,10 +56,33 @@ describe("parseRefString", () => {
     expect(parseRefString("src/api.ts:old:11", known)).toEqual({ path: "src/api.ts", lines: { start: 11, end: 11, side: "old" } });
   });
 
+  it("parses line ranges within hunks", () => {
+    expect(parseRefString("src/api.ts#2:41-43", known)).toEqual({
+      path: "src/api.ts",
+      hunks: [2],
+      lines: { start: 41, end: 43, side: "new" },
+    });
+    expect(parseRefString("src/api.ts#1:old:11", known)).toEqual({
+      path: "src/api.ts",
+      hunks: [1],
+      lines: { start: 11, end: 11, side: "old" },
+    });
+  });
+
   it("round-trips through formatRef", () => {
-    for (const s of ["src/api.ts", "src/api.ts#1,2", "src/new.ts:2-4", "src/api.ts:old:11"]) {
+    for (const s of ["src/api.ts", "src/api.ts#1,2", "src/new.ts:2-4", "src/api.ts:old:11", "src/api.ts#2:41-43"]) {
       expect(formatRef(parseRefString(s, known))).toBe(s);
     }
+  });
+});
+
+describe("serializeRef", () => {
+  it("uses the string form only when it is lossless", () => {
+    expect(serializeRef({ path: "src/api.ts", hunks: [2] })).toBe("src/api.ts#2");
+    expect(serializeRef({ path: "src/api.ts", expand: "none" })).toBe("src/api.ts");
+    const rich = { path: "src/api.ts", hunks: [2], lines: { start: 41, end: 43, side: "new" as const }, note: "Retry", expand: "function" as const };
+    expect(serializeRef(rich)).toEqual(rich);
+    expect(normalizeRef(serializeRef(rich))).toEqual(rich);
   });
 });
 

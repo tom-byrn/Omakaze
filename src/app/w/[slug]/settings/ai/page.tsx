@@ -1,9 +1,11 @@
 import { Panel } from "@/components/settings/Panel";
 import { AiSettingsForm } from "@/components/settings/AiSettingsForm";
+import { ActionForm } from "@/components/ui/ActionForm";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { describeAiConfig, PROVIDERS, resolveAiConfig } from "@/lib/ai/config";
 import { env } from "@/lib/env";
 import { requireWorkspace, roleAtLeast } from "@/lib/workspaces";
-import { saveAiSettingsAction } from "../actions";
+import { saveAiInstructionsAction, saveAiSettingsAction } from "../actions";
 
 export const metadata = { title: "AI provider" };
 
@@ -44,9 +46,30 @@ export default async function AiSettingsPage(props: PageProps<"/w/[slug]/setting
               model: workspace.aiModel,
               baseUrl: workspace.aiBaseUrl,
               hasKey: Boolean(workspace.aiApiKeyEnc),
-              instructions: workspace.aiInstructions,
             }}
           />
+        </Panel>
+      ) : null}
+      {admin ? (
+        <Panel
+          title="Extra instructions"
+          description="Added to every built-in generation in this workspace, whichever provider is in effect."
+        >
+          <ActionForm action={saveAiInstructionsAction.bind(null, slug)} className="flex max-w-[620px] flex-col gap-3">
+            <textarea
+              id="instructions"
+              name="instructions"
+              aria-label="Extra instructions"
+              className="input"
+              rows={4}
+              maxLength={4000}
+              defaultValue={workspace.aiInstructions ?? ""}
+              placeholder="e.g. Always include a section on database migrations. Write in British English."
+            />
+            <div>
+              <SubmitButton pendingText="Saving…">Save instructions</SubmitButton>
+            </div>
+          </ActionForm>
         </Panel>
       ) : (
         <p className="text-[13px] text-muted">Only admins can change the AI provider.</p>

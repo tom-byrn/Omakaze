@@ -24,6 +24,7 @@ Diff references (refs)
 - "path/to/file.ts" - every hunk of the file.
 - "path/to/file.ts#2" - hunk 2 of the file ("#1,3" or "#1-3" for several). Hunk numbers come from get_pull_request / get_diff.
 - "path/to/file.ts:40-88" - lines 40-88 of the new version (use "path:old:40-88" for removed code). Use ranges to split a large hunk or a new file across sections.
+- "path/to/file.ts#2:40-60" - lines 40-60 within hunk 2.
 - Object form is also accepted: {"path": "...", "hunks": [2], "lines": {"start": 40, "end": 88}, "note": "short caption", "expand": "function"}. "expand" controls the default context shown around the change: "none" (default), "function" (enclosing block) or "file".`;
 
 export const AGENT_WORKFLOW = `Workflow

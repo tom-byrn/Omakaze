@@ -2,14 +2,19 @@ import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { jobs } from "@/db/schema";
 
-export type JobType = "generate_guide" | "post_pr_comment" | "poll_repos" | "sync_repo";
+export type JobType = "generate_guide" | "post_pr_comment" | "poll_repos";
 export type Job = typeof jobs.$inferSelect;
 
 export async function enqueueJob(
   type: JobType,
   payload: Record<string, unknown>,
-  opts: { dedupeKey?: string; runAt?: Date; maxAttempts?: number } = {},
+  opts: { dedupeKey?: string; runAt?: Date; maxAttempts?: number; oncePerKey?: boolean } = {},
 ): Promise<Job | null> {
+  if (opts.oncePerKey && opts.dedupeKey) {
+    // The unique index only covers queued and running jobs; also skip keys that already ran.
+    const [seen] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.dedupeKey, opts.dedupeKey)).limit(1);
+    if (seen) return null;
+  }
   try {
     const [job] = await db
       .insert(jobs)

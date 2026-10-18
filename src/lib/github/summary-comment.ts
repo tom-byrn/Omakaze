@@ -13,9 +13,23 @@ export function stripDiffLinks(md: string): string {
   return md.replace(/\[([^\]]+)\]\(diff:[^)]*\)/g, "$1");
 }
 
+/**
+ * Drop images and videos: uploads are served to signed-in workspace members only, so they
+ * wouldn't load on GitHub.
+ */
+export function stripMedia(md: string): string {
+  return md
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/<video[\s\S]*?<\/video>/gi, "")
+    .replace(/<img\b[^>]*>/gi, "");
+}
+
 function firstParagraphs(md: string, maxChars = 900): string {
-  const text = stripDiffLinks(md).replace(/```mermaid[\s\S]*?```/g, "").trim();
-  const paras = text.split(/\n{2,}/).filter((p) => !p.startsWith("#"));
+  const text = stripMedia(stripDiffLinks(md)).replace(/```mermaid[\s\S]*?```/g, "").trim();
+  const paras = text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter((p) => p && !p.startsWith("#"));
   let out = "";
   for (const p of paras) {
     if ((out + p).length > maxChars) break;

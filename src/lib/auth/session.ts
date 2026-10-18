@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { sessions, users } from "@/db/schema";
 import { sha256 } from "@/lib/crypto";
 import { isSecureUrl } from "@/lib/env";
+import { clientIp } from "@/lib/http";
 
 export const SESSION_COOKIE = "gpr_session";
 const SESSION_DAYS = 30;
@@ -22,7 +23,7 @@ export async function createSession(userId: string): Promise<void> {
     userId,
     expiresAt: new Date(Date.now() + SESSION_DAYS * DAY),
     userAgent: h.get("user-agent")?.slice(0, 300) ?? null,
-    ipAddress: (h.get("x-forwarded-for")?.split(",")[0] ?? h.get("x-real-ip"))?.trim() ?? null,
+    ipAddress: clientIp(h),
   });
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {

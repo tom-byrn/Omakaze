@@ -1,5 +1,6 @@
 import { hostname } from "node:os";
 import { env } from "@/lib/env";
+import { failStaleGuides } from "@/lib/guides/service";
 import { onJobGaveUp, PermanentJobError, runJob } from "./handlers";
 import { claimJob, completeJob, enqueueJob, failJob, pruneOldJobs, recoverStuckJobs } from "./queue";
 
@@ -36,20 +37,22 @@ async function loop(slot: number) {
   }
 }
 
+/** Housekeeping every 30 seconds; polling runs once per POLL_INTERVAL_SECONDS window across all instances. */
 async function scheduler() {
   const interval = env().POLL_INTERVAL_SECONDS;
   for (;;) {
     try {
       await recoverStuckJobs();
+      await failStaleGuides();
       if (interval > 0) {
         const bucket = Math.floor(Date.now() / (interval * 1000));
-        await enqueueJob("poll_repos", {}, { dedupeKey: `poll:${bucket}`, maxAttempts: 1 });
+        await enqueueJob("poll_repos", {}, { dedupeKey: `poll:${interval}:${bucket}`, maxAttempts: 1, oncePerKey: true });
       }
       if (Math.random() < 0.05) await pruneOldJobs();
     } catch (err) {
       console.error("[worker] scheduler error", err instanceof Error ? err.message : err);
     }
-    await sleep(Math.max(30, Math.min(interval || 60, 300)) * 1000);
+    await sleep(30_000);
   }
 }
 

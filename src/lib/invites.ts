@@ -3,9 +3,10 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { invites, memberships, users, workspaces, type Role } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
-import { decrypt, encrypt, sha256 } from "@/lib/crypto";
+import { decrypt, encrypt, sha256, signPayload } from "@/lib/crypto";
 import { env } from "@/lib/env";
-import { sendMail } from "@/lib/mail";
+import { rateLimit } from "@/lib/http";
+import { mailEnabled, sendMail } from "@/lib/mail";
 
 export type Invite = typeof invites.$inferSelect;
 
@@ -87,14 +88,43 @@ export async function getInviteByToken(token: string) {
 
 export class InviteError extends Error {}
 
-export async function acceptInvite(token: string, user: { id: string; email: string | null }): Promise<{ slug: string }> {
+export const INVITE_EMAIL_PURPOSE = "invite-email";
+
+type InviteeUser = { id: string; email: string | null; emailVerifiedAt: Date | null };
+
+/**
+ * An invite with an email address can only be used by an account that has that address and has
+ * confirmed it (a verified GitHub email, or a link we send to the address).
+ */
+async function checkInviteEmail(token: string, invite: Invite, workspaceName: string, user: InviteeUser): Promise<void> {
+  if (!invite.email) return;
+  if (invite.email !== (user.email ?? "").toLowerCase()) {
+    throw new InviteError(`This invite is for ${invite.email}. Sign in with that email address to accept it.`);
+  }
+  if (user.emailVerifiedAt) return;
+  if (!mailEnabled()) {
+    throw new InviteError(
+      `This invite is for ${invite.email}, and that address isn't confirmed on your account. Sign in with a GitHub account that has it verified, or ask for an invite without an email address.`,
+    );
+  }
+  if (rateLimit(`invite-confirm:${user.id}:${invite.id}`, 3, 60 * 60 * 1000)) {
+    const sig = signPayload({ uid: user.id, email: invite.email }, INVITE_EMAIL_PURPOSE, 24 * 60 * 60);
+    const link = `${env().APP_URL}/invite/${token}/confirm?sig=${encodeURIComponent(sig)}`;
+    await sendMail({
+      to: invite.email,
+      subject: `Confirm your email address to join ${workspaceName}`,
+      text: `Open this link to confirm ${invite.email} and join the ${workspaceName} workspace on Guided PRs:\n\n${link}\n\nThe link expires in 24 hours. If you didn't ask for it, ignore this email.`,
+    });
+  }
+  throw new InviteError(`To join, confirm ${invite.email}: we sent a link to that address.`);
+}
+
+export async function acceptInvite(token: string, user: InviteeUser): Promise<{ slug: string }> {
   const found = await getInviteByToken(token);
   if (!found) throw new InviteError("This invite link is not valid.");
   if (!found.usable) throw new InviteError("This invite has expired or was already used.");
   const { invite, workspace } = found;
-  if (invite.email && invite.email !== (user.email ?? "").toLowerCase()) {
-    throw new InviteError(`This invite is for ${invite.email}. Sign in with that email address to accept it.`);
-  }
+  await checkInviteEmail(token, invite, workspace.name, user);
   await db.transaction(async (tx) => {
     await tx
       .insert(memberships)

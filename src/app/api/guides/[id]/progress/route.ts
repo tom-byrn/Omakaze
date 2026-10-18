@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { guideSections } from "@/db/schema";
 import { requireGuideAccess } from "@/lib/guides/access";
 import { setSectionReviewed } from "@/lib/guides/service";
-import { assertSameOrigin, errorResponse, HttpError } from "@/lib/http";
+import { assertSameOrigin, errorResponse, HttpError, readJson } from "@/lib/http";
 
 const schema = z.object({ sectionId: z.string(), reviewed: z.boolean() });
 
@@ -13,7 +13,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/guides/[id]/pro
     assertSameOrigin(req);
     const { id } = await ctx.params;
     const { principal } = await requireGuideAccess(req, id);
-    const parsed = schema.safeParse(await req.json());
+    const parsed = schema.safeParse(await readJson(req));
     if (!parsed.success) throw new HttpError(400, "Invalid request");
     const [section] = await db
       .select({ id: guideSections.id })

@@ -28,7 +28,7 @@ export function InviteForm({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_160px_auto] md:items-end">
         <div>
           <label className="field-label" htmlFor="invite-email">
-            Email {canEmail ? "" : "(optional, restricts the link)"}
+            Email (optional)
           </label>
           <input id="invite-email" name="email" type="email" placeholder="teammate@example.com" className="input" />
         </div>
@@ -43,9 +43,11 @@ export function InviteForm({
         </div>
         <SubmitButton pendingText="Creating…">{canEmail ? "Send invite" : "Create invite link"}</SubmitButton>
       </div>
-      {!canEmail ? (
-        <p className="text-[12px] text-muted">Email is not configured on this instance (SMTP_URL), so invites are shared as links.</p>
-      ) : null}
+      <p className="text-[12px] text-muted">
+        {canEmail
+          ? "With an email address, the link is sent there and only an account that confirms that address can use it. Without one, anyone with the link can join."
+          : "Email is not configured on this instance (SMTP_URL), so invites are shared as links. With an email address, only an account whose address is verified on GitHub can use the link."}
+      </p>
     </ActionForm>
   );
 }

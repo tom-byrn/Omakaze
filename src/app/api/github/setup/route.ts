@@ -4,12 +4,31 @@ import { db } from "@/db";
 import { githubConnections, workspaces } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getUserGitHubToken } from "@/lib/auth/users";
+import { getGitHubAccount, getUserGitHubToken } from "@/lib/auth/users";
 import { verifyPayload } from "@/lib/crypto";
 import { env } from "@/lib/env";
-import { getInstallation } from "@/lib/github/app";
-import { ghPaginate } from "@/lib/github/client";
+import { getInstallation, type GhInstallation } from "@/lib/github/app";
+import { gh, ghPaginate } from "@/lib/github/client";
+import { reattachRepositories } from "@/lib/github/connections";
 import { getMembership, roleAtLeast } from "@/lib/workspaces";
+
+/**
+ * Whether the signed-in user may connect this installation. GitHub App user tokens can list the
+ * installations they can access; other tokens (personal access tokens, OAuth Apps) can't, so for
+ * them the user must be the account itself or an owner of the organization.
+ */
+async function canManageInstallation(token: string, userId: string, inst: GhInstallation): Promise<boolean> {
+  const listed = await ghPaginate<{ id: number }, { installations: { id: number }[] }>(token, "/user/installations", {
+    pick: (p) => p.installations,
+    maxItems: 500,
+  }).catch(() => null);
+  if (listed?.some((i) => i.id === inst.id)) return true;
+  const account = await getGitHubAccount(userId);
+  if (!account) return false;
+  if (inst.account.type === "User") return inst.account.id === account.githubId;
+  const membership = await gh<{ state: string; role: string }>(token, `/user/memberships/orgs/${inst.account.login}`).catch(() => null);
+  return membership?.state === "active" && membership.role === "admin";
+}
 
 /** GitHub App "Setup URL": called after the app is installed or its repositories change. */
 export async function GET(req: Request) {
@@ -28,15 +47,13 @@ export async function GET(req: Request) {
   // The installing user must be able to see the installation; this stops linking someone else's installation id.
   const token = await getUserGitHubToken(user.id);
   if (!token) return back(`error=${encodeURIComponent("Sign in with GitHub to finish connecting the app.")}`);
-  const mine = await ghPaginate<{ id: number }, { installations: { id: number }[] }>(token, "/user/installations", {
-    pick: (p) => p.installations,
-    maxItems: 500,
-  }).catch(() => []);
-  if (!mine.some((i) => i.id === installationId)) {
-    return back(`error=${encodeURIComponent("Your GitHub account cannot access that installation.")}`);
+  const inst = await getInstallation(installationId);
+  if (!(await canManageInstallation(token, user.id, inst))) {
+    return back(
+      `error=${encodeURIComponent(`Your GitHub account can't manage the installation on ${inst.account.login}. Sign in with GitHub as an owner of ${inst.account.login} and try again.`)}`,
+    );
   }
 
-  const inst = await getInstallation(installationId);
   const [existing] = await db
     .select()
     .from(githubConnections)
@@ -48,15 +65,19 @@ export async function GET(req: Request) {
       .set({ accountLogin: inst.account.login, accountAvatarUrl: inst.account.avatar_url, suspendedAt: null })
       .where(eq(githubConnections.id, existing.id));
   } else {
-    await db.insert(githubConnections).values({
-      workspaceId: ws.id,
-      type: "app",
-      installationId,
-      accountLogin: inst.account.login,
-      accountType: inst.account.type === "Organization" ? "Organization" : "User",
-      accountAvatarUrl: inst.account.avatar_url,
-      createdByUserId: user.id,
-    });
+    const [conn] = await db
+      .insert(githubConnections)
+      .values({
+        workspaceId: ws.id,
+        type: "app",
+        installationId,
+        accountLogin: inst.account.login,
+        accountType: inst.account.type === "Organization" ? "Organization" : "User",
+        accountAvatarUrl: inst.account.avatar_url,
+        createdByUserId: user.id,
+      })
+      .returning();
+    await reattachRepositories(ws.id, conn);
     await logActivity({
       workspaceId: ws.id,
       type: "connection.created",

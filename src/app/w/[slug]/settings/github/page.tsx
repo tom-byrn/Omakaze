@@ -68,7 +68,7 @@ export default async function GitHubSettingsPage(props: PageProps<"/w/[slug]/set
                 {admin ? (
                   <ConfirmButton
                     action={removeConnectionAction.bind(null, slug, conn.id)}
-                    confirm={`Remove the ${conn.accountLogin} connection? Its repositories and guides are removed from this workspace.`}
+                    confirm={`Remove the ${conn.accountLogin} connection? Its repositories stay in the workspace without a connection: guides remain readable, but syncing and commenting stop until another connection covers them.`}
                   >
                     Remove
                   </ConfirmButton>

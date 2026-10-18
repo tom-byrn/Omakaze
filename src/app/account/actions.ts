@@ -23,7 +23,11 @@ export async function updateProfileAction(_prev: State, form: FormData): Promise
     const other = await findUserByEmail(email);
     if (other && other.id !== user.id) return { error: "That email is used by another account" };
   }
-  await db.update(users).set({ name: name.slice(0, 100), email: email || null }).where(eq(users.id, user.id));
+  const emailChanged = (email || null) !== (user.email ?? null);
+  await db
+    .update(users)
+    .set({ name: name.slice(0, 100), email: email || null, ...(emailChanged ? { emailVerifiedAt: null } : {}) })
+    .where(eq(users.id, user.id));
   revalidatePath("/account");
   return { ok: true, message: "Saved." };
 }

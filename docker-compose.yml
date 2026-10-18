@@ -5,12 +5,16 @@
 
 services:
   app:
+    # Builds the image from this checkout. To run a published image instead, replace `build: .`
+    # with `image: ghcr.io/tom-byrn/guided-prs:latest` (see .github/workflows/release.yml).
     build: .
-    image: ghcr.io/tom-byrn/guided-prs:latest
     restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgres://guided:${POSTGRES_PASSWORD:-guided}@db:5432/guided_prs
+      # The server always listens on 3000 inside the container; PORT only changes the host port below.
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
     ports:
       - "${PORT:-3000}:3000"
     volumes:

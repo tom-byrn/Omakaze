@@ -54,7 +54,7 @@ export function SectionEditor({
         </div>
         <div>
           <label className="field-label" htmlFor={`r-${section.id}`}>
-            Diff references · one per line · path, path#2, path:10-40, optional &quot; | caption&quot;
+            Diff references · one per line · path, path#2, path:10-40, path#2:10-40 · add &quot; +function&quot; or &quot; +file&quot; to expand context, &quot; | caption&quot; for a caption
           </label>
           <textarea
             id={`r-${section.id}`}

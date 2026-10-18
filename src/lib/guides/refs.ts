@@ -17,6 +17,7 @@ export type RefInput = string | SectionRef;
 
 const HUNK_SUFFIX = /^(.*)#(\d+(?:\s*[-,]\s*\d+)*)$/;
 const LINE_SUFFIX = /^(.*?):(old:|new:)?L?(\d+)(?:\s*-\s*L?(\d+))?$/;
+const HUNK_AND_LINE_SUFFIX = /^(.*)#(\d+(?:\s*[-,]\s*\d+)*):(old:|new:)?L?(\d+)(?:\s*-\s*L?(\d+))?$/;
 
 function expandNumberList(spec: string): number[] {
   const out = new Set<number>();
@@ -35,10 +36,21 @@ function expandNumberList(spec: string): number[] {
  *   "src/a.ts#2"          hunk 2      ("#1,3" or "#1-3" for several)
  *   "src/a.ts:10-40"      new-side lines 10-40 ("L10-L40" also accepted)
  *   "src/a.ts:old:10-40"  base-side lines
+ *   "src/a.ts#2:10-40"    lines 10-40 within hunk 2
  */
 export function parseRefString(input: string, knownPaths?: Set<string>): SectionRef {
   const s = input.trim();
   if (knownPaths?.has(s)) return { path: s };
+  const both = HUNK_AND_LINE_SUFFIX.exec(s);
+  if (both && (!knownPaths || knownPaths.has(both[1]))) {
+    const start = Number(both[4]);
+    const end = both[5] ? Number(both[5]) : start;
+    return {
+      path: both[1],
+      hunks: expandNumberList(both[2]),
+      lines: { start: Math.min(start, end), end: Math.max(start, end), side: both[3] === "old:" ? "old" : "new" },
+    };
+  }
   const hunk = HUNK_SUFFIX.exec(s);
   if (hunk && (!knownPaths || knownPaths.has(hunk[1]))) {
     return { path: hunk[1], hunks: expandNumberList(hunk[2]) };
@@ -69,15 +81,26 @@ export function normalizeRef(input: RefInput, knownPaths?: Set<string>): Section
   return ref;
 }
 
+/** The string form of a ref: path, hunks and lines. `note` and `expand` are not part of it. */
 export function formatRef(ref: SectionRef): string {
-  if (ref.hunks?.length) return `${ref.path}#${ref.hunks.join(",")}`;
+  const hunks = ref.hunks?.length ? `#${ref.hunks.join(",")}` : "";
   if (ref.lines) {
     const side = ref.lines.side === "old" ? "old:" : "";
-    return ref.lines.start === ref.lines.end
-      ? `${ref.path}:${side}${ref.lines.start}`
-      : `${ref.path}:${side}${ref.lines.start}-${ref.lines.end}`;
+    const range = ref.lines.start === ref.lines.end ? `${ref.lines.start}` : `${ref.lines.start}-${ref.lines.end}`;
+    return `${ref.path}${hunks}:${side}${range}`;
   }
-  return ref.path;
+  return `${ref.path}${hunks}`;
+}
+
+/** The string form when it says everything about the ref, otherwise the object form. */
+export function serializeRef(ref: SectionRef): RefInput {
+  if (!ref.note && (!ref.expand || ref.expand === "none")) return formatRef(ref);
+  const out: SectionRef = { path: ref.path };
+  if (ref.hunks?.length) out.hunks = ref.hunks;
+  if (ref.lines) out.lines = ref.lines;
+  if (ref.note) out.note = ref.note;
+  if (ref.expand && ref.expand !== "none") out.expand = ref.expand;
+  return out;
 }
 
 /* ------------------------------------------------------------------ */

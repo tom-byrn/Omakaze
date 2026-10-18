@@ -1,15 +1,21 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { githubConnections, repositories } from "@/db/schema";
 import { decrypt } from "@/lib/crypto";
 import { getUserGitHubToken } from "@/lib/auth/users";
+import { HttpError } from "@/lib/http";
 import { getInstallationToken } from "./app";
 import { gh, ghPaginate, GitHubError, type GhRepo } from "./client";
 
 export type Connection = typeof githubConnections.$inferSelect;
 export type Repository = typeof repositories.$inferSelect;
 
-export class ConnectionError extends Error {}
+/** A repository can't be reached through its GitHub connection (missing, suspended, signed out). */
+export class ConnectionError extends HttpError {
+  constructor(message: string) {
+    super(409, message);
+  }
+}
 
 /** Token for API calls made on behalf of a workspace connection. */
 export async function getConnectionToken(conn: Connection): Promise<string> {
@@ -49,11 +55,44 @@ export async function getRepoContext(repoId: string): Promise<RepoContext> {
   const [row] = await db
     .select({ repo: repositories, connection: githubConnections })
     .from(repositories)
-    .innerJoin(githubConnections, eq(githubConnections.id, repositories.connectionId))
+    .leftJoin(githubConnections, eq(githubConnections.id, repositories.connectionId))
     .where(eq(repositories.id, repoId))
     .limit(1);
   if (!row) throw new ConnectionError("Repository not found");
-  return { ...row, token: await getConnectionToken(row.connection) };
+  if (!row.connection) {
+    throw new ConnectionError(
+      `${row.repo.fullName} has no GitHub connection. Add a connection that can access it, or add the repository again on the Repositories page.`,
+    );
+  }
+  return { repo: row.repo, connection: row.connection, token: await getConnectionToken(row.connection) };
+}
+
+/**
+ * Attach repositories that lost their connection (it was removed or the app uninstalled) to a
+ * new connection that can access them. Returns how many were reattached.
+ */
+export async function reattachRepositories(workspaceId: string, conn: Connection): Promise<number> {
+  const orphans = await db
+    .select()
+    .from(repositories)
+    .where(and(eq(repositories.workspaceId, workspaceId), isNull(repositories.connectionId)));
+  if (orphans.length === 0) return 0;
+  let token: string;
+  try {
+    token = await getConnectionToken(conn);
+  } catch {
+    return 0;
+  }
+  let count = 0;
+  for (const repo of orphans) {
+    const ok = await gh<GhRepo>(token, `/repos/${repo.owner}/${repo.name}`, { noCache: true })
+      .then((r) => r.id === repo.githubId)
+      .catch(() => false);
+    if (!ok) continue;
+    await db.update(repositories).set({ connectionId: conn.id }).where(eq(repositories.id, repo.id));
+    count++;
+  }
+  return count;
 }
 
 export async function findWorkspaceRepo(workspaceId: string, owner: string, name: string): Promise<Repository | null> {

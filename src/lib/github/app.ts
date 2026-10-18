@@ -187,6 +187,8 @@ export function buildAppManifest(name: string) {
       metadata: "read",
       pull_requests: "write",
       issues: "write",
+      // Lets "Sign in with GitHub" read the user's verified email address.
+      email_addresses: "read",
     },
     default_events: ["pull_request", "pull_request_review", "pull_request_review_comment"],
   };

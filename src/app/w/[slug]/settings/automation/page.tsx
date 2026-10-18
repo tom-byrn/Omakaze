@@ -4,6 +4,7 @@ import { ActionForm } from "@/components/ui/ActionForm";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { resolveAiConfig } from "@/lib/ai/config";
 import { env } from "@/lib/env";
+import { formatInterval } from "@/lib/format";
 import { requireWorkspace, roleAtLeast } from "@/lib/workspaces";
 import { saveAutomationAction } from "../actions";
 
@@ -47,7 +48,7 @@ export default async function AutomationPage(props: PageProps<"/w/[slug]/setting
               Repositories
             </Link>{" "}
             page. Events arrive by webhook (GitHub App or repository webhooks)
-            {poll > 0 ? ` and by polling every ${Math.round(poll / 60)} minutes` : ""}.
+            {poll > 0 ? ` and by polling every ${formatInterval(poll)}` : ""}.
           </>
         }
       >
@@ -55,14 +56,14 @@ export default async function AutomationPage(props: PageProps<"/w/[slug]/setting
           <Toggle
             name="autoGenerate"
             label="Create a guide for every new pull request"
-            help="Runs the configured AI provider when a pull request is opened or marked ready for review."
+            help="Runs the configured AI provider when a pull request is opened, reopened or marked ready for review, or when polling finds one without a guide."
             defaultChecked={workspace.autoGenerate}
             disabled={!admin}
           />
           <Toggle
             name="regenerateOnPush"
             label="Create a new version when commits are pushed"
-            help="Older versions stay available from the version menu."
+            help="When automatic guides are on and new commits are pushed, the guide is generated again as a new version. Older versions stay available from the version menu."
             defaultChecked={workspace.regenerateOnPush}
             disabled={!admin}
           />
