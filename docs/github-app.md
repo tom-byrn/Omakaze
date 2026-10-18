@@ -49,6 +49,8 @@ What the permissions are used for:
 | Issues: read and write | The summary comment in the pull request conversation (`issues/<number>/comments`) |
 | Email addresses: read | The verified email addresses of users who sign in with GitHub: the address of a new account, confirmation for email-restricted invites, and `AUTH_ALLOWED_EMAIL_DOMAINS` |
 
+Without the email permission (for example in an app created before it was added to the manifest), only the public email of a user's GitHub profile is used. It can be added in the app's settings on GitHub.
+
 Guided PRs acts on the `pull_request`, `pull_request_review` and `pull_request_review_comment` events, and on `installation` events, which GitHub sends to every app. Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
 
 If `APP_URL` is not reachable from the internet (for example `http://localhost:3000`), GitHub cannot deliver webhooks to it. Sign-in and API access do not depend on webhooks; pull requests are then refreshed by polling and when members open the app.

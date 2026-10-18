@@ -44,7 +44,7 @@ See [github-app.md](github-app.md) for how these fit together.
 | `AUTH_GITHUB_TOKEN_ENABLED` | `false` | Sign in with a GitHub personal access token. |
 | `AUTH_SIGNUP_ENABLED` | `true` | Allow new accounts. When false, accounts can only be created through an invite link; the first account on an empty instance can always be created. |
 | `AUTH_ALLOWED_EMAIL_DOMAINS` | none | Comma-separated list of domains for new accounts, for example `example.com,example.org`. Email sign-up needs an address in one of them; GitHub and token sign-up need a verified GitHub email in one of them. A valid invite link skips the check. Existing accounts are not affected. |
-| `TRUST_PROXY_HOPS` | `1` | Number of reverse proxies in front of the app that append to `X-Forwarded-For`, from 1 to 10. The client address used for rate limits and the session list is the header entry this many places from the right. See [self-hosting.md](self-hosting.md#https-and-reverse-proxies). |
+| `TRUST_PROXY_HOPS` | `1` | Number of reverse proxies in front of the app that append to `X-Forwarded-For`, a whole number from 1 to 10. The client address used for rate limits and the session list is the header entry this many places from the right (`X-Real-IP` when the header is missing). See [self-hosting.md](self-hosting.md#https-and-reverse-proxies). |
 
 **Sign in with GitHub** is available when a GitHub App with client credentials or an OAuth App is configured; there is no separate switch. If no sign-in method is available, the sign-in page says so.
 
