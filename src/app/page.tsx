@@ -15,7 +15,7 @@ const REPO = "https://github.com/tom-byrn/guided-prs";
 
 const FEATURES = [
   {
-    title: "Sections, not files.",
+    title: "Changes that are understandable.",
     body: "Changes are grouped by what they do. A file can appear in several sections, and every changed line ends up in one.",
   },
   {
@@ -61,7 +61,7 @@ export default async function LandingPage() {
           <div className="mx-auto flex max-w-[840px] flex-col items-center text-center">
             <span className="eyebrow animate-reveal">Open source · Self-hosted · MCP</span>
             <h1 className="h1 mt-6 animate-reveal">
-              Review large pull requests <br className="hidden sm:block" />
+              Review your pull requests <br className="hidden sm:block" />
               one section at a time.
             </h1>
             <p className="lead mt-6 max-w-[560px] animate-reveal">
@@ -70,9 +70,9 @@ export default async function LandingPage() {
             </p>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
               <Link href="/login" className="btn btn-primary btn-lg w-[260px]">
-                {user ? "Open the app" : methods.github ? "Sign in with GitHub" : "Sign in"}
+                {user ? "Open the app" : methods.github ? "Sign In with GitHub" : "Sign In"}
               </Link>
-              <CopyButton text={prompt} label="Copy agent setup prompt" className="btn btn-secondary btn-lg w-[260px]" />
+              <CopyButton text={prompt} label="Copy Setup Prompt" copiedLabel="Setup Prompt Copied" className="btn btn-secondary btn-lg w-[260px]" />
             </div>
           </div>
           <div className="mt-20">
@@ -247,7 +247,7 @@ export default async function LandingPage() {
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Link href="/login" className="btn btn-primary btn-lg w-[260px]">
-              {user ? "Open the app" : "Sign in"}
+              {user ? "Open the app" : "Sign In"}
             </Link>
           </div>
           <pre

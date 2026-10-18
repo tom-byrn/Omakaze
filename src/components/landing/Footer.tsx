@@ -58,7 +58,7 @@ export function Footer({ signedIn, repoUrl }: { signedIn: boolean; repoUrl: stri
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/login" className="btn btn-primary btn-md">
-                {signedIn ? "Open the app" : "Sign in"}
+                {signedIn ? "Open the app" : "Sign In"}
               </Link>
               <a href={repoUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-md">
                 Source on GitHub
@@ -66,10 +66,9 @@ export function Footer({ signedIn, repoUrl }: { signedIn: boolean; repoUrl: stri
             </div>
           </div>
           <nav className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-4" aria-label="Footer">
-            {columns(repoUrl).map((c, i) => (
+            {columns(repoUrl).map((c) => (
               <div key={c.head}>
-                <p className="font-mono text-[10px] tracking-[0.08em] text-white/40">{String(i + 1).padStart(2, "0")}</p>
-                <p className="mt-2 font-serif text-[18px] leading-[19.8px] tracking-[-0.18px] text-white">{c.head}</p>
+                <p className="font-serif text-[18px] leading-[19.8px] tracking-[-0.18px] text-white">{c.head}</p>
                 <span className="mt-4 block border-t border-dashed border-white/[0.16]" />
                 <ul className="mt-4 flex flex-col gap-3">
                   {c.links.map((l) => (
