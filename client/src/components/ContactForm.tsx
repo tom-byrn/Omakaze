@@ -7,6 +7,8 @@ import { CheckCircleIcon, PhoneIcon } from './Icons';
 
 interface ContactFormProps {
   listing: ListingDetail;
+  /** Homes for sale book tours with the slot picker instead. */
+  allowTour?: boolean;
 }
 
 interface FormState {
@@ -28,7 +30,7 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-export function ContactForm({ listing }: ContactFormProps) {
+export function ContactForm({ listing, allowTour = true }: ContactFormProps) {
   const today = useToday();
   const [form, setForm] = useState<FormState>({
     kind: 'question',
@@ -103,20 +105,22 @@ export function ContactForm({ listing }: ContactFormProps) {
         </div>
       ) : (
         <form className="contact-form" onSubmit={submit} noValidate>
-          <div className="segmented segmented--full" role="radiogroup" aria-label="What would you like to do?">
-            {(['question', 'tour'] as const).map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                role="radio"
-                aria-checked={form.kind === kind}
-                className={form.kind === kind ? 'is-selected' : ''}
-                onClick={() => update('kind', kind)}
-              >
-                {kind === 'question' ? 'Ask a question' : 'Request a tour'}
-              </button>
-            ))}
-          </div>
+          {allowTour && (
+            <div className="segmented segmented--full" role="radiogroup" aria-label="What would you like to do?">
+              {(['question', 'tour'] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.kind === kind}
+                  className={form.kind === kind ? 'is-selected' : ''}
+                  onClick={() => update('kind', kind)}
+                >
+                  {kind === 'question' ? 'Ask a question' : 'Request a tour'}
+                </button>
+              ))}
+            </div>
+          )}
 
           <Field label="Full name" error={errors.name}>
             <input value={form.name} onChange={(e) => update('name', e.target.value)} autoComplete="name" />
@@ -140,9 +144,11 @@ export function ContactForm({ listing }: ContactFormProps) {
               />
             </Field>
           ) : (
-            <Field label="Move-in date (optional)" error={errors.moveInDate}>
-              <input type="date" value={form.moveInDate} min={today} onChange={(e) => update('moveInDate', e.target.value)} />
-            </Field>
+            allowTour && (
+              <Field label="Move-in date (optional)" error={errors.moveInDate}>
+                <input type="date" value={form.moveInDate} min={today} onChange={(e) => update('moveInDate', e.target.value)} />
+              </Field>
+            )
           )}
           <Field label="Message" error={errors.message}>
             <textarea rows={4} value={form.message} onChange={(e) => update('message', e.target.value)} />

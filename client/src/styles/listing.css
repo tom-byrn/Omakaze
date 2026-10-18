@@ -50,6 +50,9 @@
 }
 
 .listing-price {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 34px;
   font-weight: 750;
   letter-spacing: -0.03em;

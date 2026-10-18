@@ -37,6 +37,15 @@
   --shadow: 0 4px 12px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.06);
   --shadow-lg: 0 16px 40px rgba(16, 24, 40, 0.16), 0 4px 12px rgba(16, 24, 40, 0.06);
 
+  /* Chart series, in fixed order (checked for colorblind separation). */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-grid: #e7e9ee;
+  --chart-axis: #8792a2;
+
   --header-height: 64px;
   --filter-height: 68px;
   --content-width: 1200px;

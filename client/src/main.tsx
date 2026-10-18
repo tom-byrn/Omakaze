@@ -9,6 +9,7 @@ import './styles/components.css';
 import './styles/search.css';
 import './styles/map.css';
 import './styles/listing.css';
+import './styles/buying.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');

@@ -1,0 +1,400 @@
+/* Sale listing page: price, payment calculator, price history, market, tours. */
+
+.listing-price-meta {
+  display: flex;
+  gap: 14px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.listing-price-meta span {
+  color: var(--color-danger);
+}
+
+.listing-aside--stacked {
+  position: static;
+}
+
+.muted,
+.section-note {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.section-note {
+  margin-top: 12px;
+}
+
+/* Inputs with a $ or % attached */
+
+.input-affix {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: 0 12px;
+  color: var(--color-text-muted);
+}
+
+.input-affix:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.input-affix input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 9px 6px;
+  background: transparent;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.input-affix input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.input-affix--suffix input {
+  text-align: right;
+}
+
+.range-row {
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Mortgage calculator */
+
+.calculator {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 28px;
+  padding: 24px;
+}
+
+.calculator__inputs {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.calculator__inputs .field__label {
+  display: flex;
+  justify-content: space-between;
+}
+
+.calculator__inputs .segmented button {
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+.calculator__result {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 16px;
+}
+
+.donut {
+  width: 176px;
+  height: 176px;
+}
+
+.donut__total {
+  fill: var(--color-text);
+  font-size: 23px;
+  font-weight: 750;
+  text-anchor: middle;
+}
+
+.donut__caption {
+  fill: var(--color-text-muted);
+  font-size: 13px;
+  text-anchor: middle;
+}
+
+.legend {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.legend li {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-muted);
+}
+
+.legend strong {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.legend__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.calculator__note {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Price history */
+
+.price-chart {
+  position: relative;
+}
+
+.price-chart svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.price-chart--loading {
+  height: 240px;
+  border-radius: var(--radius);
+  background: var(--color-bg-subtle);
+}
+
+.chart-grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+
+.chart-label {
+  fill: var(--chart-axis);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-label--y {
+  text-anchor: end;
+}
+
+.chart-label--x {
+  text-anchor: middle;
+}
+
+.chart-area {
+  fill: var(--chart-1);
+  opacity: 0.1;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--chart-1);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-point {
+  fill: var(--chart-1);
+  stroke: var(--color-surface);
+  stroke-width: 2;
+}
+
+.chart-crosshair {
+  stroke: var(--chart-axis);
+  stroke-width: 1;
+}
+
+.chart-tooltip {
+  position: absolute;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(var(--tooltip-x, -50%), var(--tooltip-y, calc(-100% - 14px)));
+}
+
+.chart-tooltip--start {
+  --tooltip-x: -18px;
+}
+
+.chart-tooltip--end {
+  --tooltip-x: calc(-100% + 18px);
+}
+
+.chart-tooltip--below {
+  --tooltip-y: 14px;
+}
+
+.chart-tooltip strong {
+  color: var(--color-text);
+  font-size: 15px;
+}
+
+.data-table {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.data-table th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.data-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table .is-down {
+  color: var(--color-danger);
+}
+
+.data-table .is-up {
+  color: var(--color-success);
+}
+
+/* Market stats */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-grid--loading {
+  height: 104px;
+}
+
+.stat-tile {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-muted);
+}
+
+.stat-tile__label {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.stat-tile__value {
+  margin: 4px 0 2px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.stat-tile__context {
+  color: var(--color-text-subtle);
+  font-size: 12px;
+}
+
+/* Tour scheduler */
+
+.tour-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.tour-card h3 {
+  font-size: 18px;
+}
+
+.date-chips {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.date-chip {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 8px 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.date-chip strong {
+  color: var(--color-text);
+  font-size: 17px;
+}
+
+.date-chip.is-selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.slot-grid button {
+  height: 36px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.slot-grid button:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.slot-grid button.is-selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.slot-grid button:disabled {
+  color: var(--color-text-subtle);
+  text-decoration: line-through;
+  background: var(--color-bg-subtle);
+}
+
+@media (max-width: 900px) {
+  .calculator {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
