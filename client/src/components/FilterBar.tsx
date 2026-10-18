@@ -4,13 +4,24 @@ import {
   formatCompactPrice,
   formatCurrency,
   type ListingFilters,
+  type ListingType,
   type Neighborhood,
 } from '@hearth/shared';
 import { useDebouncedCallback } from '../hooks/misc';
 import { SearchIcon } from './Icons';
 import { Popover } from './Popover';
 
-const PRICE_STEPS = [1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000];
+const PRICE_STEPS: Record<ListingType, number[]> = {
+  rent: [1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000],
+  sale: [300_000, 400_000, 500_000, 600_000, 700_000, 800_000, 900_000, 1_000_000, 1_250_000, 1_500_000, 2_000_000],
+};
+
+const STATUS_CHOICES = [
+  { value: '', label: 'For sale & pending' },
+  { value: 'active', label: 'For sale only' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'sold', label: 'Recently sold' },
+];
 const BED_CHOICES = [null, 1, 2, 3, 4] as const;
 const BATH_CHOICES = [null, 1, 1.5, 2, 3] as const;
 
@@ -42,6 +53,7 @@ export function FilterBar({ filters, neighborhoods, onChange, onReset }: FilterB
   useEffect(() => setQuery(filters.q), [filters.q]);
 
   const activeCount = countActiveFilters(filters) + (filters.q ? 1 : 0);
+  const priceSteps = PRICE_STEPS[filters.type];
 
   return (
     <div className="filter-bar">
@@ -84,7 +96,7 @@ export function FilterBar({ filters, neighborhoods, onChange, onReset }: FilterB
 
         <Popover label={priceLabel(filters)} active={filters.minPrice !== null || filters.maxPrice !== null}>
           <div className="popover__section">
-            <div className="popover__title">Monthly rent</div>
+            <div className="popover__title">{filters.type === 'sale' ? 'Price' : 'Monthly rent'}</div>
             <div className="price-range">
               <label>
                 <span>Minimum</span>
@@ -93,7 +105,7 @@ export function FilterBar({ filters, neighborhoods, onChange, onReset }: FilterB
                   onChange={(event) => onChange({ minPrice: event.target.value ? Number(event.target.value) : null })}
                 >
                   <option value="">No min</option>
-                  {PRICE_STEPS.map((step) => (
+                  {priceSteps.map((step) => (
                     <option key={step} value={step}>
                       {formatCurrency(step)}
                     </option>
@@ -108,7 +120,7 @@ export function FilterBar({ filters, neighborhoods, onChange, onReset }: FilterB
                   onChange={(event) => onChange({ maxPrice: event.target.value ? Number(event.target.value) : null })}
                 >
                   <option value="">No max</option>
-                  {PRICE_STEPS.map((step) => (
+                  {priceSteps.map((step) => (
                     <option key={step} value={step}>
                       {formatCurrency(step)}
                     </option>
@@ -154,16 +166,31 @@ export function FilterBar({ filters, neighborhoods, onChange, onReset }: FilterB
           </div>
         </Popover>
 
-        <select
-          className="filter-select"
-          aria-label="Pets"
-          value={filters.pets ?? ''}
-          onChange={(event) => onChange({ pets: (event.target.value || null) as ListingFilters['pets'] })}
-        >
-          <option value="">Pets: any</option>
-          <option value="cats">Cats allowed</option>
-          <option value="dogs">Dogs allowed</option>
-        </select>
+        {filters.type === 'rent' ? (
+          <select
+            className="filter-select"
+            aria-label="Pets"
+            value={filters.pets ?? ''}
+            onChange={(event) => onChange({ pets: (event.target.value || null) as ListingFilters['pets'] })}
+          >
+            <option value="">Pets: any</option>
+            <option value="cats">Cats allowed</option>
+            <option value="dogs">Dogs allowed</option>
+          </select>
+        ) : (
+          <select
+            className="filter-select"
+            aria-label="Listing status"
+            value={filters.status ?? ''}
+            onChange={(event) => onChange({ status: (event.target.value || null) as ListingFilters['status'] })}
+          >
+            {STATUS_CHOICES.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </select>
+        )}
 
         {activeCount > 0 && (
           <button type="button" className="link-button filter-bar__reset" onClick={onReset}>

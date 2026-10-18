@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import {
-  DEFAULT_FILTERS,
-  SORT_OPTIONS,
   filtersToSearchParams,
   formatCompactPrice,
   isSortOption,
   parseListingFilters,
+  sortOptionsFor,
   type ListingFilters,
 } from '@hearth/shared';
 import { api } from '../api';
@@ -18,6 +17,7 @@ import { MapPopupCard } from '../components/MapPopupCard';
 import { Pagination } from '../components/Pagination';
 import { useDocumentTitle, useToday } from '../hooks/misc';
 import { useAsync } from '../hooks/useAsync';
+import { useSyncListingType } from '../hooks/useListingType';
 import { useNeighborhoods } from '../hooks/useNeighborhoods';
 import { MapView, type MapMarker } from '../map/MapView';
 
@@ -36,7 +36,10 @@ export function SearchPage() {
 
   const neighborhood = neighborhoods.find((hood) => hood.slug === filters.neighborhood);
   const place = neighborhood?.name ?? 'Port Ellis';
-  useDocumentTitle(`Rentals in ${place}`);
+  const forSale = filters.type === 'sale';
+  const title = `${forSale ? 'Homes for sale' : 'Rentals'} in ${place}`;
+  useDocumentTitle(title);
+  useSyncListingType(filters.type);
 
   const updateFilters = (patch: Partial<ListingFilters>) => {
     const next = { ...filters, ...patch };
@@ -52,6 +55,7 @@ export function SearchPage() {
         id: point.id,
         location: point.location,
         label: formatCompactPrice(point.price),
+        tone: point.status === 'pending' || point.status === 'sold' ? ('muted' as const) : ('default' as const),
       })),
     [data],
   );
@@ -62,16 +66,18 @@ export function SearchPage() {
         filters={filters}
         neighborhoods={neighborhoods}
         onChange={updateFilters}
-        onReset={() => setSearchParams(filtersToSearchParams({ sort: filters.sort }))}
+        onReset={() => setSearchParams(filtersToSearchParams({ type: filters.type, sort: filters.sort }))}
       />
 
       <div className="search-layout">
         <section className="search-results" aria-busy={loading}>
           <header className="results-header">
             <div>
-              <h1 className="results-header__title">Rentals in {place}</h1>
+              <h1 className="results-header__title">{title}</h1>
               <p className="results-header__count">
-                {data ? `${data.total} ${data.total === 1 ? 'home' : 'homes'} available` : 'Searching…'}
+                {data
+                  ? `${data.total} ${data.total === 1 ? 'home' : 'homes'} ${forSale ? (filters.status === 'sold' ? 'sold' : 'for sale') : 'available'}`
+                  : 'Searching…'}
                 {filters.q && <> matching “{filters.q}”</>}
               </p>
             </div>
@@ -80,10 +86,10 @@ export function SearchPage() {
               <select
                 value={filters.sort}
                 onChange={(event) =>
-                  isSortOption(event.target.value) && updateFilters({ sort: event.target.value })
+                  isSortOption(event.target.value, filters.type) && updateFilters({ sort: event.target.value })
                 }
               >
-                {SORT_OPTIONS.map((option) => (
+                {sortOptionsFor(filters.type).map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -111,7 +117,11 @@ export function SearchPage() {
               icon={<SearchIcon size={28} />}
               title="No homes match your search"
               action={
-                <button type="button" className="button button--secondary" onClick={() => setSearchParams(filtersToSearchParams(DEFAULT_FILTERS))}>
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => setSearchParams(filtersToSearchParams({ type: filters.type }))}
+                >
                   Clear all filters
                 </button>
               }

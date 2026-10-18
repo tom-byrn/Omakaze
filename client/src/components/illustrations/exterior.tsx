@@ -174,7 +174,11 @@ function modernHouse(rng: Rng): ReactNode {
 }
 
 function townhouses(rng: Rng): ReactNode {
-  const colors = [rng.pick(BRICKS), rng.pick(WALLS), rng.pick(WALLS)];
+  const painted = [rng.pick(WALLS), rng.pick(WALLS), rng.pick(WALLS)];
+  const brickAt = rng.int(0, 3); // 3 = all painted
+  const colors = painted.map((color, i) => (i === brickAt ? rng.pick(BRICKS) : color));
+  const gabled = rng.chance(0.4);
+  const roof = rng.pick(ROOFS);
   const doorColors = [rng.pick(DOORS), rng.pick(DOORS), rng.pick(DOORS)];
   const unitW = 84;
   const startX = 74;
@@ -190,8 +194,9 @@ function townhouses(rng: Rng): ReactNode {
         const winX = doorLeft ? x + unitW - 40 : x + 12;
         return (
           <g key={i}>
+            {gabled && <path d={`M${x - 4} ${top + 2} L${x + unitW / 2} ${top - 34} L${x + unitW + 4} ${top + 2} Z`} fill={roof} />}
             <rect x={x} y={top} width={unitW} height={BASE - top} fill={color} />
-            <rect x={x - 3} y={top - 9} width={unitW + 6} height={10} fill={shade(color, -0.35)} />
+            {!gabled && <rect x={x - 3} y={top - 9} width={unitW + 6} height={10} fill={shade(color, -0.35)} />}
             <rect x={x} y={top + 1} width={unitW} height={4} fill={SHADOW} />
             {windowAt(x + 14, top + 18, 22, 32, { muntins: 'vertical' })}
             {windowAt(x + unitW - 36, top + 18, 22, 32, { muntins: 'vertical' })}

@@ -5,12 +5,16 @@ import {
   formatAvailability,
   formatBaths,
   formatBeds,
+  formatCompactPrice,
+  formatCurrency,
+  formatDate,
   formatListingPrice,
   formatSqft,
   type ListingSummary,
 } from '@hearth/shared';
 import { FavoriteButton } from './FavoriteButton';
 import { ListingPhoto } from './illustrations/ListingPhoto';
+import { StatusBadge } from './StatusBadge';
 
 interface ListingCardProps {
   listing: ListingSummary;
@@ -25,6 +29,7 @@ const NEW_LISTING_DAYS = 3;
 export function ListingCard({ listing, today, highlighted = false, onHover, onFavoriteChange }: ListingCardProps) {
   const isNew = daysBetween(listing.listedAt, today) <= NEW_LISTING_DAYS;
   const availableNow = listing.listingType === 'rent' && listing.availableOn <= today;
+  const sale = listing.listingType === 'sale' ? listing : null;
 
   return (
     <article
@@ -36,12 +41,21 @@ export function ListingCard({ listing, today, highlighted = false, onHover, onFa
         <div className="listing-card__media">
           <ListingPhoto listingId={listing.id} propertyType={listing.propertyType} className="listing-card__photo" />
           <div className="listing-card__badges">
+            {sale && sale.status !== 'active' && <StatusBadge status={sale.status} />}
             {isNew && <span className="badge badge--accent">New</span>}
             {availableNow && <span className="badge">Available now</span>}
+            {sale?.status === 'active' && sale.priceChange !== null && sale.priceChange < 0 && (
+              <span className="badge">Price cut {formatCompactPrice(-sale.priceChange)}</span>
+            )}
           </div>
         </div>
         <div className="listing-card__body">
-          <div className="listing-card__price">{formatListingPrice(listing)}</div>
+          <div className="listing-card__price-row">
+            <div className="listing-card__price">{formatListingPrice(listing)}</div>
+            {sale && sale.status !== 'sold' && (
+              <div className="listing-card__estimate">Est. {formatCurrency(sale.estimatedPayment)}/mo</div>
+            )}
+          </div>
           <div className="listing-card__facts">
             <span>{formatBeds(listing.beds)}</span>
             <span>{formatBaths(listing.baths)}</span>
@@ -51,6 +65,7 @@ export function ListingCard({ listing, today, highlighted = false, onHover, onFa
           <div className="listing-card__meta">
             {listing.neighborhood.name}
             {listing.listingType === 'rent' && !availableNow && <> · {formatAvailability(listing.availableOn, today)}</>}
+            {sale && (sale.soldOn ? <> · Sold {formatDate(sale.soldOn)}</> : <> · {sale.daysOnMarket} {sale.daysOnMarket === 1 ? 'day' : 'days'} on market</>)}
           </div>
         </div>
       </Link>

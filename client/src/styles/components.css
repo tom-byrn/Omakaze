@@ -132,6 +132,19 @@
   padding: 14px 16px 16px;
 }
 
+.listing-card__price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.listing-card__estimate {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .listing-card__price {
   font-size: 21px;
   font-weight: 750;
