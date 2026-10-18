@@ -7,6 +7,9 @@ const REF = 100;
 const TRACKING = -0.05;
 const SIGNAL = [37, 255, 249];
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+/** Time constants (ms) for the focus easing toward the pointer and back out once it leaves. */
+const EASE_IN = 110;
+const EASE_OUT = 260;
 
 type Metrics = { adv: number[]; width: number; asc: number; desc: number };
 type Geom = { w: number; h: number; size: number; scale: number; base: number };
@@ -72,7 +75,7 @@ export function DitherWordmark({ className }: { className?: string }) {
     const pointer = { x: -1e4, y: -1e4, focus: 0, target: 0 };
     let met: Metrics | null = null;
     let g: Geom | null = null;
-    let dpr = 1, cell = 3, cols = 0, rows = 0, raf = 0, timer = 0, lastW = 0, cancelled = false;
+    let dpr = 1, cell = 3, cols = 0, rows = 0, raf = 0, last = 0, timer = 0, lastW = 0, cancelled = false;
     let cov: Uint8ClampedArray, sharp: HTMLCanvasElement, tmp: HTMLCanvasElement;
     let dither: HTMLCanvasElement, ditherImg: ImageData, mask: HTMLCanvasElement, maskImg: ImageData;
 
@@ -105,6 +108,8 @@ export function DitherWordmark({ className }: { className?: string }) {
       if (!g) return;
       const radius = Math.max(90, g.w * 0.15), inner = radius * 0.3;
       const d = ditherImg.data, m = maskImg.data, live = pointer.focus > 0.002;
+      // The fringe narrows with focus, so it thins out alongside the sharp core instead of lingering.
+      const band = 0.2 * pointer.focus;
       d.fill(0);
       m.fill(0);
       for (let j = 0; j < rows; j++) {
@@ -121,7 +126,7 @@ export function DitherWordmark({ className }: { className?: string }) {
             m[o + 3] = 255;
             continue;
           }
-          const edge = f > 0 && f > t - 0.2;
+          const edge = f > 0 && f > t - band;
           if (a * tone > t || (edge && a > 0.4)) {
             d[o] = edge ? SIGNAL[0] : 255;
             d[o + 1] = 255;
@@ -147,12 +152,15 @@ export function DitherWordmark({ className }: { className?: string }) {
       out.drawImage(tmp, 0, 0);
     }
 
-    function tick() {
+    function tick(now: number) {
       raf = 0;
-      pointer.focus += reduced ? pointer.target - pointer.focus : (pointer.target - pointer.focus) * 0.14;
+      const dt = last ? Math.min(64, now - last) : 16;
+      const tau = pointer.target > pointer.focus ? EASE_IN : EASE_OUT;
+      pointer.focus += reduced ? pointer.target - pointer.focus : (pointer.target - pointer.focus) * (1 - Math.exp(-dt / tau));
       // Snap the tail so the last frame is exactly at rest; a residual focus would leave a cyan fringe behind.
       const settled = Math.abs(pointer.target - pointer.focus) <= 0.003;
       if (settled) pointer.focus = pointer.target;
+      last = settled ? 0 : now;
       draw();
       if (!settled) kick();
     }
