@@ -150,8 +150,11 @@ export function DitherWordmark({ className }: { className?: string }) {
     function tick() {
       raf = 0;
       pointer.focus += reduced ? pointer.target - pointer.focus : (pointer.target - pointer.focus) * 0.14;
+      // Snap the tail so the last frame is exactly at rest; a residual focus would leave a cyan fringe behind.
+      const settled = Math.abs(pointer.target - pointer.focus) <= 0.003;
+      if (settled) pointer.focus = pointer.target;
       draw();
-      if (Math.abs(pointer.target - pointer.focus) > 0.003) kick();
+      if (!settled) kick();
     }
     const kick = () => {
       if (!raf) raf = requestAnimationFrame(tick);
