@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DitherWordmark } from "@/components/landing/DitherWordmark";
 import { SideNote } from "@/components/landing/SideNote";
 import { Logo } from "@/components/ui/Logo";
 
@@ -75,7 +76,7 @@ export function Footer({ signedIn, repoUrl }: { signedIn: boolean; repoUrl: stri
                     <li key={l.label}>
                       <a
                         href={l.href}
-                        className="font-mono text-[12px] tracking-[0.72px] text-white/60 uppercase transition-colors hover:text-white"
+                        className="footer-link font-mono text-[12px] tracking-[0.72px] text-white/60 uppercase hover:text-white"
                         {...(l.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
                       >
                         {l.label}
@@ -88,27 +89,10 @@ export function Footer({ signedIn, repoUrl }: { signedIn: boolean; repoUrl: stri
           </nav>
         </div>
 
-        <div className="select-none border-t border-dashed border-white/[0.16] pt-10 pb-6" aria-hidden="true">
-          <svg viewBox="0 0 1176 238" className="w-full" preserveAspectRatio="xMidYMid meet">
-            <text
-              x="0"
-              y="226"
-              fill="rgba(255,255,255,0.92)"
-              style={{ fontFamily: "var(--font-newsreader), Georgia, serif", fontSize: 300, letterSpacing: "-0.05em" }}
-            >
-              Omakaze
-            </text>
-          </svg>
+        <div className="relative select-none border-t border-dashed border-white/[0.16] pt-10">
+          <DitherWordmark className="block w-full font-serif" />
         </div>
         <SideNote note="footer" side="right" className="bottom-24" />
-
-        <div className="flex flex-col gap-3 border-t border-dashed border-white/[0.16] py-6 font-mono text-[10px] leading-[14px] tracking-[0.06em] text-white/50 uppercase md:flex-row md:items-center md:justify-between">
-          <span>MIT License · © 2026 Omakaze contributors</span>
-          <span>Not affiliated with GitHub</span>
-          <a href="#top" className="transition-colors hover:text-white">
-            Back to top ↑
-          </a>
-        </div>
       </div>
     </footer>
   );

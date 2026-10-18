@@ -527,13 +527,30 @@ h4 {
   }
 }
 
-/* Footer hover pattern: siblings fade while one link is hovered */
-.footer-links:has(a:hover) a:not(:hover) {
-  opacity: 0.4;
-  transition: opacity 300ms ease-out;
+/* Footer links: a dithered signal pixel slides in on hover, matching the wordmark */
+.footer-link {
+  position: relative;
+  display: inline-block;
+  transition:
+    color 200ms,
+    transform 300ms var(--ease-snap);
 }
-.footer-links a {
-  transition: opacity 300ms ease-out 150ms;
+.footer-link::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  background: conic-gradient(var(--color-signal) 25%, transparent 0 50%, var(--color-signal) 0 75%, transparent 0) 0 0 / 3px 3px;
+  transform: translateY(-50%) scale(0);
+  transition: transform 220ms var(--ease-snap);
+}
+.footer-link:hover {
+  transform: translateX(14px);
+}
+.footer-link:hover::before {
+  transform: translateY(-50%) scale(1);
 }
 
 @media (prefers-reduced-motion: reduce) {
