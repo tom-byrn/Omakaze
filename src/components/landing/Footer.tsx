@@ -46,7 +46,7 @@ function columns(repo: string) {
   ];
 }
 
-export function Footer({ signedIn, appHref, repoUrl }: { signedIn: boolean; appHref: string; repoUrl: string }) {
+export function Footer({ ctaLabel, appHref, repoUrl }: { ctaLabel: string; appHref: string; repoUrl: string }) {
   return (
     <footer className="dark bg-night grain-dark">
       <div className="relative mx-auto max-w-[1560px] px-6 md:px-[72px]">
@@ -58,7 +58,7 @@ export function Footer({ signedIn, appHref, repoUrl }: { signedIn: boolean; appH
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href={appHref} className="btn btn-primary btn-md">
-                {signedIn ? "Open the app" : "Sign In"}
+                {ctaLabel}
               </Link>
               <a href={repoUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-md">
                 Source on GitHub

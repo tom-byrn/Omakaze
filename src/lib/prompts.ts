@@ -15,5 +15,5 @@ export function setupPrompt(appUrl: string): string {
 2. Authenticate when the client asks (it opens ${appUrl} to sign in and pick a workspace). If the client does not support OAuth, create an API token at ${appUrl}/settings/tokens and send it as the header "Authorization: Bearer <token>".
 3. Call the whoami tool to confirm the connection, then tell me which workspace you are connected to.
 
-Docs: https://github.com/tom-byrn/guided-prs/blob/main/docs/mcp.md`;
+Docs: https://github.com/tom-byrn/omakaze/blob/main/docs/mcp.md`;
 }

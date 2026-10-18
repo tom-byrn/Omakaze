@@ -58,7 +58,7 @@ export function authorizationServerMetadata() {
     token_endpoint_auth_methods_supported: ["none", "client_secret_post", "client_secret_basic"],
     revocation_endpoint_auth_methods_supported: ["none", "client_secret_post", "client_secret_basic"],
     scopes_supported: ["mcp"],
-    service_documentation: "https://github.com/tom-byrn/guided-prs/blob/main/docs/mcp.md",
+    service_documentation: "https://github.com/tom-byrn/omakaze/blob/main/docs/mcp.md",
   };
 }
 
@@ -69,7 +69,7 @@ export function protectedResourceMetadata() {
     bearer_methods_supported: ["header"],
     scopes_supported: ["mcp"],
     resource_name: "Omakaze",
-    resource_documentation: "https://github.com/tom-byrn/guided-prs/blob/main/docs/mcp.md",
+    resource_documentation: "https://github.com/tom-byrn/omakaze/blob/main/docs/mcp.md",
   };
 }
 

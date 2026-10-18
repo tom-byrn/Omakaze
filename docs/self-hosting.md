@@ -22,8 +22,8 @@ Omakaze is one Next.js server process and a PostgreSQL database. The server also
 For the app, Compose sets `DATABASE_URL` to `postgres://omakaze:${POSTGRES_PASSWORD:-omakaze}@db:5432/omakaze`, `PORT` to `3000` and `HOSTNAME` to `0.0.0.0`. These override the same variables in `.env`. The app starts after the database reports healthy.
 
 ```sh
-git clone https://github.com/tom-byrn/guided-prs.git
-cd guided-prs
+git clone https://github.com/tom-byrn/omakaze.git
+cd omakaze
 cp .env.example .env
 # Edit .env: set APP_SECRET (openssl rand -hex 32) and APP_URL.
 docker compose up -d --build
@@ -54,8 +54,8 @@ To run a published image instead of building one, replace `build: .` with `image
 ## Running without Docker
 
 ```sh
-git clone https://github.com/tom-byrn/guided-prs.git
-cd guided-prs
+git clone https://github.com/tom-byrn/omakaze.git
+cd omakaze
 corepack enable
 pnpm install --frozen-lockfile
 cp .env.example .env

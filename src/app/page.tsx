@@ -10,14 +10,15 @@ import { shipporiMincho } from "@/app/landing-font";
 import { getAuthMethods } from "@/lib/auth/methods";
 import { getCurrentUser } from "@/lib/auth/session";
 import { env } from "@/lib/env";
+import { landingOnly } from "@/lib/landing-only";
 import { agentPrompt, setupPrompt } from "@/lib/prompts";
 import { homePathFor } from "@/lib/workspaces";
 
-const REPO = "https://github.com/tom-byrn/guided-prs";
+const REPO = "https://github.com/tom-byrn/omakaze";
 
 const TERMINAL_LINES: TerminalLine[] = [
   { text: `git clone ${REPO}.git`, command: true },
-  { text: "cd guided-prs", command: true },
+  { text: "cd omakaze", command: true },
   { text: "cp .env.example .env", command: true },
   { text: "docker compose up -d", command: true },
   { text: "# open http://localhost:3000", command: false },
@@ -50,16 +51,27 @@ const FEATURES = [
   },
 ];
 
-export default async function LandingPage() {
+/** Calls to action: the app for this instance, or the self-hosting guide on a landing-only deploy. */
+async function cta() {
+  if (landingOnly) {
+    const href = `${REPO}/blob/main/docs/self-hosting.md`;
+    return { href, label: "Self-host Omakaze", heroLabel: "Self-host Omakaze", appUrl: "http://localhost:3000" };
+  }
   const user = await getCurrentUser();
   const methods = await getAuthMethods();
   // Signed-in visitors go straight to their dashboard; everyone else to sign in.
-  const appHref = user ? await homePathFor(user) : "/login";
-  const appUrl = env().APP_URL;
+  const href = user ? await homePathFor(user) : "/login";
+  const label = user ? "Open the app" : "Sign In";
+  const heroLabel = user ? "Open the app" : methods.github ? "Sign In with GitHub" : "Sign In";
+  return { href, label, heroLabel, appUrl: env().APP_URL };
+}
+
+export default async function LandingPage() {
+  const { href: appHref, label: ctaLabel, heroLabel, appUrl } = await cta();
   const prompt = setupPrompt(appUrl);
   return (
     <div id="top" className={`${shipporiMincho.variable} bg-paper`}>
-      <SiteHeader signedIn={Boolean(user)} appHref={appHref} repoUrl={REPO} />
+      <SiteHeader ctaLabel={ctaLabel} appHref={appHref} repoUrl={REPO} />
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-dashed border-black/[0.08] grain">
@@ -82,7 +94,7 @@ export default async function LandingPage() {
             </p>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
               <Link href={appHref} className="btn btn-primary btn-lg w-[260px]">
-                {user ? "Open the app" : methods.github ? "Sign In with GitHub" : "Sign In"}
+                {heroLabel}
               </Link>
               <CopyButton text={prompt} label="Copy Setup Prompt" copiedLabel="Setup Prompt Copied" className="btn btn-secondary btn-lg w-[260px]" />
             </div>
@@ -252,7 +264,7 @@ export default async function LandingPage() {
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Link href={appHref} className="btn btn-primary btn-lg w-[260px]">
-              {user ? "Open the app" : "Sign In"}
+              {ctaLabel}
             </Link>
           </div>
           <pre
@@ -268,7 +280,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <Footer signedIn={Boolean(user)} appHref={appHref} repoUrl={REPO} />
+      <Footer ctaLabel={ctaLabel} appHref={appHref} repoUrl={REPO} />
     </div>
   );
 }
