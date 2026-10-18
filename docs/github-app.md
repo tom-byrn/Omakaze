@@ -99,9 +99,9 @@ The setup URL only links an installation when all of these hold:
 - the `state` parameter is valid and was issued to the signed-in user for the workspace;
 - the user is still an admin or owner of that workspace;
 - the user has a linked GitHub credential (otherwise: "Sign in with GitHub to finish connecting the app.");
-- that credential can manage the installation: the installation appears in `GET /user/installations`, or the installation belongs to the user's own GitHub account, or the user is an active admin of the organization it belongs to (`GET /user/memberships/orgs/<org>`).
+- that credential can manage the installation: the installation appears in `GET /user/installations`, or the installation belongs to the user's own GitHub account, or the user is an owner of the organization it belongs to (an active membership with the `admin` role in `GET /user/memberships/orgs/<org>`).
 
-These checks stop someone from linking another account's installation by guessing an `installation_id`. `GET /user/installations` only works with user tokens of the GitHub App itself; credentials linked with a personal access token or through an OAuth App rely on the account and organization checks. If all checks fail, the page shows "Your GitHub account can't manage the installation on <account>." Installations started directly on GitHub, without the **Install on GitHub** button, arrive without a `state` and are not connected.
+These checks stop someone from linking another account's installation by guessing an `installation_id`. `GET /user/installations` only works with user tokens of the GitHub App itself; credentials linked with a personal access token or through an OAuth App rely on the account and organization checks. If all checks fail, **Settings → GitHub** shows the error `Your GitHub account can't manage the installation on <account>.` Installations started directly on GitHub, without the **Install on GitHub** button, arrive without a `state` and are not connected.
 
 ### Private apps and organizations
 
@@ -156,7 +156,7 @@ A repository is reconnected when:
 - The `X-Hub-Signature-256` header must match an HMAC-SHA256 of the body with either the app's webhook secret or the repository webhook secret; otherwise the response is `401`.
 - Deliveries are de-duplicated by `X-GitHub-Delivery` and recorded; `/admin` shows the last 15.
 - `pull_request` updates the cached pull request. The actions `opened`, `reopened`, `synchronize` and `ready_for_review` also check whether a guide should be generated automatically (see [ai.md](ai.md#automation)).
-- `pull_request_review` and `pull_request_review_comment` update the cached pull request and drop the cached review comments, so reviews and comments made on GitHub appear in Guided PRs.
+- `pull_request_review` and `pull_request_review_comment` update the cached pull request and drop its cached review comments, so the next request reads them from GitHub.
 - `installation` handles `deleted`, `suspend` and `unsuspend` as described above.
 - Other events and actions are recorded as ignored.
 
