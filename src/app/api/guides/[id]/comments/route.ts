@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getRepoContext } from "@/lib/github/connections";
+import { ConnectionError, getRepoContext } from "@/lib/github/connections";
 import { createReviewComment, deleteReviewComment, listReviewComments, ownCommentIds, replyToReviewComment } from "@/lib/github/review";
 import { getGitHubAccount } from "@/lib/auth/users";
 import { requireGuideAccess } from "@/lib/guides/access";
@@ -12,7 +12,12 @@ export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comm
   try {
     const { id } = await ctx.params;
     const { guide, principal } = await requireGuideAccess(req, id);
-    const rc = await getRepoContext(guide.repositoryId);
+    const rc = await getRepoContext(guide.repositoryId).catch((err) => {
+      if (err instanceof ConnectionError) return null;
+      throw err;
+    });
+    // Without a GitHub connection there is nothing to read; the guide itself stays available.
+    if (!rc) return Response.json({ comments: [], disconnected: true });
     const fresh = new URL(req.url).searchParams.get("fresh") === "1";
     const [list, mine, account] = await Promise.all([
       listReviewComments(rc, guide.prNumber, fresh),

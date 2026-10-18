@@ -49,7 +49,7 @@ What the permissions are used for:
 | Issues: read and write | The summary comment in the pull request conversation (`issues/<number>/comments`) |
 | Email addresses: read | The verified email addresses of users who sign in with GitHub: the address of a new account, confirmation for email-restricted invites, and `AUTH_ALLOWED_EMAIL_DOMAINS` |
 
-Without the email permission (for example in an app created before it was added to the manifest), only the public email of a user's GitHub profile is used. It can be added in the app's settings on GitHub.
+Without the email permission (for example in an app created before it was added to the manifest), only the public email of a user's GitHub profile is used. `/admin` points this out with a link to the app's permission settings on GitHub, where it can be added.
 
 Guided PRs acts on the `pull_request`, `pull_request_review` and `pull_request_review_comment` events, and on `installation` events, which GitHub sends to every app. Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
 
@@ -142,8 +142,8 @@ Without webhooks, the pull request list is refreshed when members open the works
 
 A repository loses its connection when the connection is removed, when the GitHub App is uninstalled, or when the user behind a linked-account connection deletes their account. The **Repositories** page then shows "No GitHub connection" for it.
 
-- Guides, sections and the cached pull requests are kept, and section text stays readable.
-- Everything that needs GitHub fails until the repository is reconnected: the diff and file views, comments and reviews, syncing, polling and AI generation. API and MCP calls get the error `<owner>/<name> has no GitHub connection` (HTTP 409 in the REST API).
+- Guides, sections and the cached pull requests are kept. Sections stay readable, and the diff is shown from the stored snapshot, without expandable context.
+- Comments are not loaded, and everything else that needs GitHub fails until the repository is reconnected: posting comments and reviews, syncing, polling and AI generation. API and MCP calls get the error `<owner>/<name> has no GitHub connection` (HTTP 409 in the REST API).
 
 A repository is reconnected when:
 

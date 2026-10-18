@@ -163,6 +163,27 @@ export async function getInstallation(installationId: number): Promise<GhInstall
   return gh<GhInstallation>(appJwt(app), `/app/installations/${installationId}`);
 }
 
+/**
+ * Permissions the app has on GitHub and where to change them, or null when GitHub can't be asked.
+ * Used to point out permissions that older apps were created without.
+ */
+export async function getAppGrant(app: GitHubAppConfig): Promise<{ permissions: Record<string, string>; settingsUrl: string } | null> {
+  try {
+    const info = await gh<{ slug: string; permissions: Record<string, string>; owner?: { login: string; type: string } }>(
+      appJwt(app),
+      "/app",
+    );
+    const base = env().GITHUB_URL;
+    const settingsUrl =
+      info.owner?.type === "Organization"
+        ? `${base}/organizations/${info.owner.login}/settings/apps/${info.slug}/permissions`
+        : `${base}/settings/apps/${info.slug}/permissions`;
+    return { permissions: info.permissions ?? {}, settingsUrl };
+  } catch {
+    return null;
+  }
+}
+
 export function installUrl(app: GitHubAppConfig, state: string): string {
   const base = app.htmlUrl ?? `${env().GITHUB_URL}/apps/${app.slug}`;
   return `${base}/installations/new?state=${encodeURIComponent(state)}`;

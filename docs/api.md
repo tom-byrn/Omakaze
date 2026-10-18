@@ -228,7 +228,7 @@ Errors are JSON objects with an `error` message:
 | 400 | The body is not valid JSON (`The request body must be valid JSON.`), the body or query does not match the expected fields, `version` is not a positive integer, or `pr` is not a pull request reference |
 | 401 | Missing, invalid, expired or revoked token, or a browser session instead of a token (`Use an API token: Authorization: Bearer <token>`) |
 | 404 | The repository is not followed and the token's user cannot add it, no GitHub connection can access it, the `repo` filter names a repository that is not followed, the pull request has no guide, or the requested version does not exist |
-| 409 | `POST /api/v1/guides`: `head_sha` does not match the pull request's current head. `POST /api/v1/generate`: no AI provider is configured for the workspace. Any request that reads from GitHub: the repository has no usable GitHub connection, for example because the connection was removed or suspended, or its linked account has to sign in again. |
+| 409 | `POST /api/v1/guides`: `head_sha` does not match the pull request's current head. `POST /api/v1/generate`: no AI provider is configured for the workspace, or the latest guide of the pull request is still being generated. Any request that reads from GitHub: the repository has no usable GitHub connection, for example because the connection was removed or suspended, or its linked account has to sign in again. |
 | 422 | `POST /api/v1/guides`: invalid diff references. The message lists each problem, prefixed with the section number and title. |
 | 500 | Other errors, including errors returned by GitHub. The message contains the cause. |
 

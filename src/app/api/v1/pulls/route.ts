@@ -1,4 +1,5 @@
 import { apiPrincipal } from "@/lib/api-v1";
+import { findWorkspaceRepo } from "@/lib/github/connections";
 import { loadDashboard, parseStateFilter } from "@/lib/dashboard";
 import { errorResponse, HttpError } from "@/lib/http";
 
@@ -8,13 +9,17 @@ export async function GET(req: Request) {
     const p = await apiPrincipal(req);
     const params = new URL(req.url).searchParams;
     const state = parseStateFilter(params.get("state"));
-    const data = await loadDashboard(p.workspaceId, { state });
-    const names = new Map(data.repos.map((r) => [r.id, r.fullName]));
-    const repo = params.get("repo")?.trim().toLowerCase();
-    if (repo && !data.repos.some((r) => r.fullName.toLowerCase() === repo)) {
-      throw new HttpError(404, `${params.get("repo")} is not followed by this workspace`);
+    const repoParam = params.get("repo")?.trim();
+    let repositoryId: string | undefined;
+    if (repoParam) {
+      const [owner, name] = repoParam.split("/");
+      const repo = owner && name ? await findWorkspaceRepo(p.workspaceId, owner, name) : null;
+      if (!repo) throw new HttpError(404, `${repoParam} is not followed by this workspace`);
+      repositoryId = repo.id;
     }
-    const pulls = repo ? data.pulls.filter((pr) => names.get(pr.repositoryId)?.toLowerCase() === repo) : data.pulls;
+    const data = await loadDashboard(p.workspaceId, { state, repositoryId });
+    const names = new Map(data.repos.map((r) => [r.id, r.fullName]));
+    const pulls = data.pulls;
     return Response.json({
       pulls: pulls.map((pr) => {
         const g = data.guides.get(`${pr.repositoryId}:${pr.number}`);

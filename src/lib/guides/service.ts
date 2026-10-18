@@ -439,10 +439,17 @@ export async function failGuide(guideId: string, error: string): Promise<void> {
 /** Fail guides that were left in `generating` (see STALE_GUIDE_MINUTES). Returns how many. */
 export async function failStaleGuides(): Promise<number> {
   const cutoff = new Date(Date.now() - STALE_GUIDE_MINUTES * 60_000);
+  // Built-in generation can spend a long time in one model call; its job is the judge there.
   const stale = await db
     .select({ id: guides.id })
     .from(guides)
-    .where(and(eq(guides.status, "generating"), lt(guides.updatedAt, cutoff)));
+    .where(
+      and(
+        eq(guides.status, "generating"),
+        lt(guides.updatedAt, cutoff),
+        sql`not exists (select 1 from jobs j where j.type = 'generate_guide' and j.status in ('queued', 'running') and j.payload->>'guideId' = ${guides.id})`,
+      ),
+    );
   for (const g of stale) {
     await failGuide(g.id, `Nothing changed for ${STALE_GUIDE_MINUTES} minutes, so the guide was marked as abandoned. Start a new version.`);
   }

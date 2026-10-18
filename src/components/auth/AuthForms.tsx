@@ -198,8 +198,9 @@ export function AuthForms({
               />
             </div>
             <p className="text-[12px] leading-[18px] text-body">
-              Classic tokens need the <code className="font-mono">repo</code> scope. Fine-grained tokens need Contents
-              (read) and Pull requests (read and write). The token is encrypted at rest.
+              Classic tokens need the <code className="font-mono">repo</code> scope, and{" "}
+              <code className="font-mono">user:email</code> to use your verified email addresses. Fine-grained tokens need
+              Contents (read), Pull requests (read and write) and Email addresses (read). The token is encrypted at rest.
             </p>
             <ErrorNote message={tokenState?.error} />
             <SubmitButton className="btn btn-secondary btn-md w-full" pendingText="Verifying with GitHub…">

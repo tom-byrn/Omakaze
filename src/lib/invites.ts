@@ -107,15 +107,17 @@ async function checkInviteEmail(token: string, invite: Invite, workspaceName: st
       `This invite is for ${invite.email}, and that address isn't confirmed on your account. Sign in with a GitHub account that has it verified, or ask for an invite without an email address.`,
     );
   }
-  if (rateLimit(`invite-confirm:${user.id}:${invite.id}`, 3, 60 * 60 * 1000)) {
-    const sig = signPayload({ uid: user.id, email: invite.email }, INVITE_EMAIL_PURPOSE, 24 * 60 * 60);
-    const link = `${env().APP_URL}/invite/${token}/confirm?sig=${encodeURIComponent(sig)}`;
-    await sendMail({
-      to: invite.email,
-      subject: `Confirm your email address to join ${workspaceName}`,
-      text: `Open this link to confirm ${invite.email} and join the ${workspaceName} workspace on Guided PRs:\n\n${link}\n\nThe link expires in 24 hours. If you didn't ask for it, ignore this email.`,
-    });
+  if (!rateLimit(`invite-confirm:${user.id}:${invite.id}`, 3, 60 * 60 * 1000)) {
+    throw new InviteError(`We already sent confirmation links to ${invite.email}. Use the latest one, or try again in an hour.`);
   }
+  const sig = signPayload({ uid: user.id, email: invite.email }, INVITE_EMAIL_PURPOSE, 24 * 60 * 60);
+  const link = `${env().APP_URL}/invite/${token}/confirm?sig=${encodeURIComponent(sig)}`;
+  const sent = await sendMail({
+    to: invite.email,
+    subject: `Confirm your email address to join ${workspaceName}`,
+    text: `Open this link to confirm ${invite.email} and join the ${workspaceName} workspace on Guided PRs:\n\n${link}\n\nThe link expires in 24 hours. If you didn't ask for it, ignore this email.`,
+  });
+  if (!sent) throw new InviteError(`We couldn't send a confirmation link to ${invite.email}. Try again later.`);
   throw new InviteError(`To join, confirm ${invite.email}: we sent a link to that address.`);
 }
 

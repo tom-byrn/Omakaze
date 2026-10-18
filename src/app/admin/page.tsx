@@ -10,7 +10,7 @@ import { requireUser } from "@/lib/auth/session";
 import { signPayload } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { formatInterval, timeAgo } from "@/lib/format";
-import { buildAppManifest, getGitHubApp } from "@/lib/github/app";
+import { buildAppManifest, getAppGrant, getGitHubApp } from "@/lib/github/app";
 import { listUserWorkspaces } from "@/lib/workspaces";
 import { removeStoredAppAction } from "./actions";
 import { OrgSubmit } from "./OrgSubmit";
@@ -22,6 +22,7 @@ export default async function AdminPage(props: PageProps<"/admin">) {
   if (!user.isInstanceAdmin) notFound();
   const sp = await props.searchParams;
   const app = await getGitHubApp();
+  const grant = app ? await getAppGrant(app) : null;
   const list = await listUserWorkspaces(user.id);
   const e = env();
   const [[u], [w], [g], deliveries, failedJobs] = await Promise.all([
@@ -72,6 +73,18 @@ export default async function AdminPage(props: PageProps<"/admin">) {
               <dd className="text-body">{app.clientId ? "Enabled" : "Missing client id/secret"}</dd>
               <dt className="mono-label pt-0.5">Webhooks</dt>
               <dd className="text-body">{app.webhookSecret ? `${e.APP_URL}/api/github/webhook` : "No webhook secret configured"}</dd>
+              {grant && !grant.permissions.email_addresses ? (
+                <>
+                  <dt className="mono-label pt-0.5">Email</dt>
+                  <dd className="text-body">
+                    The app can&apos;t read email addresses, so sign-in only sees public profile emails.{" "}
+                    <a className="link" href={grant.settingsUrl} target="_blank" rel="noreferrer">
+                      Add Email addresses (read-only)
+                    </a>{" "}
+                    under Account permissions.
+                  </dd>
+                </>
+              ) : null}
             </dl>
           ) : (
             <div className="flex flex-col gap-4">

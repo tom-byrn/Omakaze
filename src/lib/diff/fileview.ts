@@ -70,7 +70,8 @@ function splitLines(content: string): string[] {
  * syntax-highlighted full contents (for expanding context) when available.
  */
 export async function buildFileView(
-  ctx: RepoContext,
+  /** Without a repository context (no GitHub connection) the view is built from the patch alone. */
+  ctx: RepoContext | null,
   file: DiffFile,
   shas: { head: string; mergeBase: string; snapshotId: string },
 ): Promise<FileView> {
@@ -100,14 +101,13 @@ export async function buildFileView(
   let hunkTokens: Tok[][][] | null = null;
 
   if (!binary) {
-    const { owner, name } = ctx.repo;
     const wantNew = file.status !== "removed";
     const wantOld = file.status !== "added" && hunks.some((h) => h.lines.some((l) => l.type === "del"));
+    const fetchContent = (path: string, ref: string) =>
+      ctx ? ghFileContent(ctx.token, ctx.repo.owner, ctx.repo.name, path, ref).catch(() => null) : Promise.resolve(null);
     const [newContent, oldContent] = await Promise.all([
-      wantNew ? ghFileContent(ctx.token, owner, name, file.path, shas.head).catch(() => null) : Promise.resolve(null),
-      wantOld
-        ? ghFileContent(ctx.token, owner, name, file.previousPath ?? file.path, shas.mergeBase).catch(() => null)
-        : Promise.resolve(null),
+      wantNew ? fetchContent(file.path, shas.head) : Promise.resolve(null),
+      wantOld ? fetchContent(file.previousPath ?? file.path, shas.mergeBase) : Promise.resolve(null),
     ]);
 
     let newOk = false;
@@ -184,6 +184,7 @@ export async function buildFileView(
     hunkTokens,
     palette: palette.colors,
   };
-  remember(key, view);
+  // A patch-only view is not cached, so full contents load once a connection is back.
+  if (ctx) remember(key, view);
   return view;
 }

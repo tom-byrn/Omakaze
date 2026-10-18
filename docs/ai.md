@@ -73,7 +73,7 @@ The progress log of a failed guide shows the error, and **Copy agent prompt** on
 
 ### Abandoned guides
 
-A guide that stays in the `generating` state with no change (no new section, progress message, title or summary) for 60 minutes is marked as failed with the message "Nothing changed for 60 minutes, so the guide was marked as abandoned. Start a new version." The worker checks every 30 seconds. This covers guides from agents that never call `finish_guide` as well as generation that stopped. Abandoned guides are not treated as being generated: **Generate with AI** and **Regenerate** start a new version, and automation applies its usual rules.
+A guide that stays in the `generating` state with no change (no new section, progress message, title or summary) for 60 minutes is marked as failed with the message "Nothing changed for 60 minutes, so the guide was marked as abandoned. Start a new version." The worker checks every 30 seconds. This covers guides from agents that never call `finish_guide` as well as generation that stopped. Guides with a built-in generation job that is still queued or running are left alone, since one model call can take a long time. Abandoned guides are not treated as being generated: **Generate with AI** and **Regenerate** start a new version, and automation applies its usual rules.
 
 ## Workspace instructions
 

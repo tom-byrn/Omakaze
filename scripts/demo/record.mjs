@@ -354,8 +354,9 @@ await d.sleep(3200);
 
 await openSection(6, null);
 const queryFile = page.locator('[data-path="server/src/lib/listingQuery.ts"]');
-const enclosing = queryFile.getByRole("button", { name: /Enclosing block/ }).first();
-await d.scrollTo(RIGHT, queryFile.locator("tr.diff-gap", { has: enclosing }), { offset: 300, duration: 1800 });
+const enclosingGap = queryFile.locator("tr.diff-gap").filter({ has: page.getByRole("button", { name: /Enclosing block/ }) }).first();
+const enclosing = enclosingGap.getByRole("button", { name: /Enclosing block/ });
+await d.scrollTo(RIGHT, enclosingGap, { offset: 300, duration: 1800 });
 await d.caption("Context", "Unchanged lines stay folded. Expand 20 lines at a time, to the enclosing function, or to the whole file.");
 await d.sleep(2600);
 await d.click(enclosing);

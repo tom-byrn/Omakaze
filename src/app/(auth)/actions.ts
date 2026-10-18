@@ -92,10 +92,15 @@ export async function loginAction(_prev: AuthState, form: FormData): Promise<Aut
   const invite = (form.get("invite") as string) || null;
   const next = (form.get("next") as string) || null;
   if (!email || !password) return { error: "Enter your email and password.", fields: { email } };
-  // Limit per account (whatever the address) and per address (whatever the account).
-  const perAccount = rateLimit(`login:${email.toLowerCase()}`, 10, 15 * 60 * 1000);
-  const perAddress = rateLimit(`login-ip:${await clientKey()}`, 50, 15 * 60 * 1000);
-  if (!perAccount || !perAddress) {
+  // Per account and address, per address, and a higher per-account cap for attempts spread over
+  // many addresses (high enough that locking someone out takes a sustained flood).
+  const ip = await clientKey();
+  const account = email.toLowerCase();
+  const allowed =
+    rateLimit(`login:${account}:${ip}`, 10, 15 * 60 * 1000) &&
+    rateLimit(`login-ip:${ip}`, 50, 15 * 60 * 1000) &&
+    rateLimit(`login:${account}`, 100, 15 * 60 * 1000);
+  if (!allowed) {
     return { error: "Too many attempts. Wait a few minutes and try again.", fields: { email } };
   }
   const user = await findUserByEmail(email);

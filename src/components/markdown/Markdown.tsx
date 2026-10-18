@@ -5,6 +5,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+import { escapeCurrencyDollars } from "@/lib/markdown/dollars";
 import { highlightToHtml } from "@/lib/diff/highlight";
 import { CodeCopy } from "./CodeCopy";
 import { CodeRefLink } from "./CodeRefLink";
@@ -151,7 +152,7 @@ export function Markdown({ source, className = "guide-prose" }: { source: string
         components={components}
         urlTransform={(url) => url}
       >
-        {source}
+        {escapeCurrencyDollars(source)}
       </ReactMarkdown>
     </div>
   );

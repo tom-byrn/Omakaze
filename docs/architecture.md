@@ -164,7 +164,7 @@ With full contents, the viewer can show more context in steps of 20 lines, the e
 | Action | Limit |
 | --- | --- |
 | Email sign-up | 10 per hour per client address |
-| Email sign-in | 10 per 15 minutes per email address, and 50 per 15 minutes per client address |
+| Email sign-in | 10 per 15 minutes per email address and client address, 50 per 15 minutes per client address, and 100 per 15 minutes per email address |
 | Token sign-in | 20 per 15 minutes per client address |
 | OAuth client registration | 30 per hour per client address, and 500 per hour in total |
 | Invite confirmation emails | 3 per hour per user and invite |
@@ -187,7 +187,7 @@ Jobs are rows in the `jobs` table (`src/lib/jobs`):
 - **Retries.** A failed job is queued again after 15 seconds, doubling with each further attempt up to 10 minutes, until it reaches its maximum attempts. Errors marked as permanent are not retried.
 - **Generation jobs.** A `generate_guide` job from automation creates its guide version when it first runs and stores the guide ID in the job, so a retry continues the same version. Every attempt starts by removing the sections of earlier attempts. When the job gives up, the guide is marked as failed.
 - **De-duplication.** Jobs can carry a key; only one queued or running job per key is allowed. Automatic generation uses one key per repository, pull request and head commit. Polling uses one key per interval window, and a key that has already run is not queued again.
-- **Recovery and cleanup.** Jobs that have been running for more than 20 minutes are assumed to belong to a stopped process and are queued again. Guides left in the `generating` state with no change for 60 minutes are marked as failed (`STALE_GUIDE_MINUTES` in `src/lib/guides/service.ts`). Finished and failed jobs older than 14 days are deleted from time to time.
+- **Recovery and cleanup.** Jobs that have been running for more than 20 minutes are assumed to belong to a stopped process and are queued again. Guides left in the `generating` state with no change for 60 minutes are marked as failed (`STALE_GUIDE_MINUTES` in `src/lib/guides/service.ts`), unless a `generate_guide` job for the guide is still queued or running. Finished and failed jobs older than 14 days are deleted from time to time.
 - **Scheduler.** Each process with the worker enabled runs a scheduler every 30 seconds. It requeues stuck jobs, fails abandoned guides and, when `POLL_INTERVAL_SECONDS` is greater than 0, queues the `poll_repos` job of the current interval window, so polling runs once per interval across all processes.
 
 ## Caches

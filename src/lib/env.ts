@@ -61,8 +61,8 @@ const schema = z.object({
 
   /**
    * How many reverse proxies in front of the app append to X-Forwarded-For. The client address used
-   * for rate limits is the entry this many places from the right; 1 also fits a direct deployment,
-   * where Next.js fills in the connection's address.
+   * for rate limits is the entry this many places from the right. Without a proxy, Next.js fills in
+   * the connection's address only when the header is missing, so a client could set its own.
    */
   TRUST_PROXY_HOPS: z.coerce.number().int().min(1).max(10).default(1),
 

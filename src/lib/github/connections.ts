@@ -12,8 +12,8 @@ export type Repository = typeof repositories.$inferSelect;
 
 /** A repository can't be reached through its GitHub connection (missing, suspended, signed out). */
 export class ConnectionError extends HttpError {
-  constructor(message: string) {
-    super(409, message);
+  constructor(message: string, status = 409) {
+    super(status, message);
   }
 }
 
@@ -58,7 +58,7 @@ export async function getRepoContext(repoId: string): Promise<RepoContext> {
     .leftJoin(githubConnections, eq(githubConnections.id, repositories.connectionId))
     .where(eq(repositories.id, repoId))
     .limit(1);
-  if (!row) throw new ConnectionError("Repository not found");
+  if (!row) throw new ConnectionError("Repository not found", 404);
   if (!row.connection) {
     throw new ConnectionError(
       `${row.repo.fullName} has no GitHub connection. Add a connection that can access it, or add the repository again on the Repositories page.`,
@@ -128,12 +128,12 @@ export async function listConnectionRepos(conn: Connection): Promise<{ repos: Gh
 export async function lookupRepo(conn: Connection, fullName: string): Promise<GhRepo> {
   const token = await getConnectionToken(conn);
   const [owner, name] = fullName.trim().replace(/^https?:\/\/[^/]+\//, "").split("/");
-  if (!owner || !name) throw new ConnectionError("Use the owner/name format, e.g. acme/web.");
+  if (!owner || !name) throw new ConnectionError("Use the owner/name format, e.g. acme/web.", 400);
   try {
     return await gh<GhRepo>(token, `/repos/${owner}/${name.replace(/\.git$/, "")}`, { noCache: true });
   } catch (err) {
     if (err instanceof GitHubError && (err.status === 404 || err.status === 403)) {
-      throw new ConnectionError(`${owner}/${name} was not found or this connection cannot access it.`);
+      throw new ConnectionError(`${owner}/${name} was not found or this connection cannot access it.`, 404);
     }
     throw err;
   }
