@@ -287,7 +287,7 @@ rec.pause();
 let resumed;
 const writing = new Promise((r) => (resumed = r));
 const agentRun = runAgent(client, {
-  pause: () => new Promise((r) => setTimeout(r, 2600)),
+  pause: () => new Promise((r) => setTimeout(r, 1800)),
   beforeWrite: () => {
     rec.resume();
     resumed();
@@ -334,13 +334,7 @@ await d.scroll(640, { container: LEFT, duration: 2000 });
 await d.sleep(1200);
 await d.caption("Code links", "Links in the explanation jump to the lines they describe.");
 await d.click(page.locator(`${LEFT} .code-ref`, { hasText: "idx_offers_one_open" }));
-await d.sleep(3200);
-const migrateFile = page.locator('[data-path="server/db/migrate.ts"]');
-await d.scrollTo(RIGHT, migrateFile, { duration: 1600 });
-await d.caption("Context", "Unchanged lines stay folded. Expand 20 at a time, to the enclosing block, or the whole file.");
-await d.sleep(1800);
-await d.click(migrateFile.getByRole("button", { name: /Enclosing block/ }).first());
-await d.sleep(3200);
+await d.sleep(3600);
 await markReviewed();
 await d.sleep(2600);
 
@@ -357,6 +351,17 @@ await openSection(5, null);
 await d.sleep(1200);
 await d.scroll(700, { container: LEFT, duration: 2200 });
 await d.sleep(3200);
+
+await openSection(6, null);
+const queryFile = page.locator('[data-path="server/src/lib/listingQuery.ts"]');
+const enclosing = queryFile.getByRole("button", { name: /Enclosing block/ }).first();
+await d.scrollTo(RIGHT, queryFile.locator("tr.diff-gap", { has: enclosing }), { offset: 300, duration: 1800 });
+await d.caption("Context", "Unchanged lines stay folded. Expand 20 lines at a time, to the enclosing function, or to the whole file.");
+await d.sleep(2600);
+await d.click(enclosing);
+await d.sleep(2200);
+await d.scroll(-260, { container: RIGHT, duration: 1600 });
+await d.sleep(3000);
 
 // SKIP_GITHUB_WRITES=1 leaves out the steps that post to the pull request (for trying out the script).
 const WRITE = process.env.SKIP_GITHUB_WRITES !== "1";
@@ -420,9 +425,11 @@ await d.sleep(3000);
 
 // 11. Invite a teammate
 await mark("invite");
-await d.click(page.getByRole("link", { name: "Settings" }));
+const workspaceNav = page.getByRole("navigation", { name: "Workspace" });
+const settingsNav = page.getByRole("navigation", { name: "Settings" });
+await d.click(workspaceNav.getByRole("link", { name: "Settings", exact: true }));
 await d.sleep(1200);
-await d.click(page.getByRole("link", { name: "Members" }));
+await d.click(settingsNav.getByRole("link", { name: "Members", exact: true }));
 await d.caption("Members", "Invite teammates with a link. Everyone sees the same repositories and guides.");
 await d.sleep(1500);
 await d.click(page.getByRole("button", { name: "Create invite link" }));
@@ -458,8 +465,8 @@ await d2.sleep(2500);
 await d2.click(page2.getByRole("link", { name: "Open guide" }).first());
 await page2.waitForURL(/\/pull\//);
 await d2.sleep(2200);
-await d2.click(page2.locator('nav[aria-label="Guide sections"] button').nth(GUIDE.teammateSection ?? 1));
-await d2.caption("Teammate", "Review progress and comments are shared.");
+await d2.click(page2.locator('nav[aria-label="Guide sections"] button').nth(9));
+await d2.caption("Teammate", "Review progress and comments are shared with everyone in the workspace.");
 await d2.sleep(3000);
 rec.pause();
 await rec.use(page);
@@ -470,16 +477,16 @@ await ctx2.close();
 // 12. Settings tour
 await mark("settings");
 await d.caption("Settings", "AI provider for built-in generation: OpenRouter, Anthropic, OpenAI or a local model.");
-await d.click(page.getByRole("link", { name: "AI provider" }));
+await d.click(settingsNav.getByRole("link", { name: "AI provider", exact: true }));
 await d.sleep(2200);
 await d.click(page.locator("#provider"));
 await d.sleep(1200);
 await page.keyboard.press("Escape");
 await d.sleep(800);
-await d.click(page.getByRole("link", { name: "Automation" }));
+await d.click(settingsNav.getByRole("link", { name: "Automation", exact: true }));
 await d.caption("Automation", "Create a guide for every new pull request and a new version on every push.");
 await d.sleep(3200);
-await d.click(page.getByRole("link", { name: "API tokens & MCP" }));
+await d.click(settingsNav.getByRole("link", { name: "API tokens & MCP", exact: true }));
 await d.caption("Agents", "MCP server URL, client setup and API tokens. OAuth clients appear here too.");
 await d.sleep(2000);
 for (const tab of ["Codex", "Cursor", "VS Code", "Claude Code"]) {
@@ -488,7 +495,7 @@ for (const tab of ["Codex", "Cursor", "VS Code", "Claude Code"]) {
 }
 await d.scroll(700, { duration: 1600 });
 await d.sleep(2200);
-await d.click(page.getByRole("link", { name: "Activity" }));
+await d.click(workspaceNav.getByRole("link", { name: "Activity", exact: true }));
 await d.caption("Activity", "Every guide, comment, review and membership change in the workspace.");
 await d.sleep(3500);
 

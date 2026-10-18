@@ -96,9 +96,13 @@ export function RepoPicker({
         </div>
         {repos === null && !listError ? <p className="px-3 py-4 text-[13px] text-muted">Loading repositories…</p> : null}
         {listError ? (
-          <p className="px-3 py-4 text-[13px] text-body">
-            This connection cannot list repositories ({listError}). Enter the repository name above.
-          </p>
+          <div className="px-3 py-4 text-[13px] text-body">
+            <p>This connection can&apos;t list repositories. Enter a repository as owner/name above.</p>
+            <details className="mt-1.5 text-[12px] text-muted">
+              <summary className="cursor-pointer select-none">Details from GitHub</summary>
+              <p className="mt-1 font-mono text-[11px] break-words">{listError}</p>
+            </details>
+          </div>
         ) : null}
         {repos && !listError && shown.length === 0 ? <p className="px-3 py-4 text-[13px] text-muted">No repositories found.</p> : null}
         <ul className="max-h-80 overflow-auto">
