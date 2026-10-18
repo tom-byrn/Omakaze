@@ -51,17 +51,6 @@
 
 Guided PRs is an open-source, self-hostable web app that turns GitHub pull requests into guided walkthroughs. A guide splits a pull request into ordered sections. Each section has a markdown explanation on the left and the parts of the diff it covers on the right, so reviewers read the change in a planned order instead of file by file. Guides are written by coding agents through the built-in MCP server, by the built-in AI generator, through the REST API, or by hand in the editor. Comments and reviews made in Guided PRs are posted to the pull request on GitHub.
 
-<table align="center">
-  <tr>
-    <td align="center"><strong>17</strong><br><sub>MCP tools</sub></td>
-    <td align="center"><strong>4</strong><br><sub>AI providers</sub></td>
-    <td align="center"><strong>4</strong><br><sub>REST endpoints</sub></td>
-    <td align="center"><strong>3</strong><br><sub>ways to connect GitHub</sub></td>
-    <td align="center"><strong>1</strong><br><sub>container + PostgreSQL</sub></td>
-    <td align="center"><strong>MIT</strong><br><sub>license</sub></td>
-  </tr>
-</table>
-
 ## Demo
 
 [guided-prs-demo.mp4](docs/demo/guided-prs-demo.mp4) (6½ minutes, no sound) is a recording of a self-hosted instance and a real pull request, [tom-byrn/Guided-PRs#1](https://github.com/tom-byrn/Guided-PRs/pull/1), which adds home buying to a small rental listings app. It shows connecting GitHub, a coding agent writing the guide through the MCP server, reviewing it section by section, a line comment and a review posted to GitHub, a teammate joining through an invite link, and the settings. The recording script is in [scripts/demo](scripts/demo).
