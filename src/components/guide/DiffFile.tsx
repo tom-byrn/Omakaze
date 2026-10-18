@@ -5,14 +5,19 @@ import {
   RiArrowDownSLine,
   RiArrowUpSLine,
   RiBracesLine,
+  RiCornerDownRightLine,
+  RiCornerRightUpLine,
   RiExpandUpDownLine,
   RiExternalLinkLine,
+  RiFileCopy2Line,
 } from "@remixicon/react";
 import clsx from "clsx";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { FileView } from "@/lib/diff/fileview";
 import type { Tok } from "@/lib/diff/highlight";
+import type { MoveLink } from "@/lib/diff/moves";
 import type { SectionRef } from "@/lib/guides/refs";
+import type { CodeTarget } from "@/components/markdown/CodeRefLink";
 import { CommentThread, Composer } from "./CommentThread";
 import { blocksOf, buildRows, functionRange, layoutItems, selectRows, type Row } from "./diff-model";
 import { threadKey, type FocusTarget, type Thread } from "./types";
@@ -45,6 +50,32 @@ function Code({ tokens, palette }: { tokens: Tok[]; palette: string[] }) {
         </span>
       ))}
     </>
+  );
+}
+
+function MoveBanner({ move, path }: { move: MoveLink; path: string }) {
+  const o = move.other;
+  const lines = o.start === o.end ? `line ${o.start}` : `lines ${o.start}–${o.end}`;
+  const where = o.path === path ? lines : `${o.path}:${o.start === o.end ? o.start : `${o.start}–${o.end}`}`;
+  const Icon = move.side === "old" ? RiCornerRightUpLine : move.kind === "copied" ? RiFileCopy2Line : RiCornerDownRightLine;
+  const label = move.side === "old" ? "Moved to" : move.kind === "copied" ? "Copied from" : "Moved from";
+  return (
+    <tr className="diff-move">
+      <td colSpan={2} />
+      <td>
+        <button
+          type="button"
+          className="diff-move-link"
+          title={`Go to ${o.path}`}
+          onClick={() =>
+            window.dispatchEvent(new CustomEvent<CodeTarget>("guide:goto", { detail: { path: o.path, start: o.start, end: o.end, side: o.side } }))
+          }
+        >
+          <Icon size={13} />
+          {label} <span className="font-mono">{where}</span>
+        </button>
+      </td>
+    </tr>
   );
 }
 
@@ -120,6 +151,17 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
   }, [flash]);
 
   const items = useMemo(() => layoutItems(rows, visible, view, full), [rows, visible, view, full]);
+  // Rows of a block moved or copied elsewhere in the pull request: added lines carry where they came from, deleted lines where they went.
+  const moveOf = useMemo(() => {
+    const out = new Map<number, MoveLink>();
+    for (const m of view.moves ?? []) {
+      rows.forEach((r, i) => {
+        const n = m.side === "new" ? (r.kind === "add" ? r.new : null) : r.kind === "del" ? r.old : null;
+        if (n !== null && n >= m.start && n <= m.end) out.set(i, m);
+      });
+    }
+    return out;
+  }, [rows, view.moves]);
   const blocks = useMemo(() => blocksOf(visible), [visible]);
   const reveal = (from: number, to: number) =>
     setVisible((v) => {
@@ -268,8 +310,12 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
                 const rowThreads = threadsFor(row);
                 const inFlash = flash?.range && i >= flash.range[0] && i <= flash.range[1];
                 const inRange = rangeStart !== null && composer && i >= Math.min(rangeStart, composer.index) && i <= Math.max(rangeStart, composer.index);
+                const move = moveOf.get(i);
+                const prev = items[idx - 1];
+                const moveStarts = move && !(prev?.type === "row" && moveOf.get(prev.index) === move);
                 return (
                   <Fragment key={i}>
+                    {moveStarts ? <MoveBanner move={move} path={view.path} /> : null}
                     <tr
                       data-row={i}
                       className={clsx(
@@ -277,6 +323,7 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
                         row.kind === "add" && "row-add",
                         row.kind === "del" && "row-del",
                         !row.inHunk && "row-expanded",
+                        move && "row-moved",
                         inFlash && "row-flash",
                         inRange && "row-selected",
                       )}
