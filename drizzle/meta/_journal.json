@@ -50,6 +50,13 @@
       "when": 1792442328209,
       "tag": "0006_review_carryover",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792443464335,
+      "tag": "0007_mcp_review_tools",
+      "breakpoints": true
     }
   ]
 }

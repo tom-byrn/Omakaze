@@ -114,7 +114,8 @@ Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vite
 - detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments;
 - the pull request filters and tab counts (`src/lib/dashboard.ts`), and review requests and assignees from GitHub payloads and webhooks (`src/lib/github/people.ts`);
 - suggested changes: parsing ```` ```suggestion ```` blocks, inserting them, the commented lines from `diff_hunk` and the rows of the suggestion diff (`src/lib/github/suggestions.ts`);
-- the GraphQL endpoint for github.com and GitHub Enterprise Server, GraphQL errors, and the mapping of review comments to review threads (`src/lib/github/graphql.ts`, `src/lib/github/threads.ts`).
+- the GraphQL endpoint for github.com and GitHub Enterprise Server, GraphQL errors, and the mapping of review comments to review threads (`src/lib/github/graphql.ts`, `src/lib/github/threads.ts`);
+- the MCP review tools: `get_diff` line numbers mapped to GitHub review comment positions, the guide section of a commented line, and the conversation list of `list_review_comments` (`src/lib/mcp/review.ts`).
 
 Add tests for logic in `src/lib` and other code that can run without a database. Flows through the browser are covered by the end-to-end tests below; Vitest only picks up `tests/`.
 

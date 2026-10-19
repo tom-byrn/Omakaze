@@ -90,6 +90,8 @@ export async function warmUp(): Promise<void> {
     demoPaths.activity,
     demoPaths.settings,
     `${demoPaths.settings}/template`,
+    `${demoPaths.settings}/tokens`,
+    "/api/mcp",
     `${demoPaths.repo}/settings`,
     demoPaths.account,
     // More routes for a feature, e.g. E2E_WARMUP_PATHS=/w/demo/insights,/api/w/demo/export

@@ -28,7 +28,7 @@
 </p>
 
 <p align="center">
-  <a href="docs/mcp.md"><img src="https://img.shields.io/badge/MCP-17_tools-25fff9?style=flat-square&logo=modelcontextprotocol&logoColor=white&labelColor=141518" alt="MCP: 17 tools"></a>
+  <a href="docs/mcp.md"><img src="https://img.shields.io/badge/MCP-22_tools-25fff9?style=flat-square&logo=modelcontextprotocol&logoColor=white&labelColor=141518" alt="MCP: 22 tools"></a>
   <a href="docs/development.md"><img src="https://img.shields.io/badge/Next.js-16-141518?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
   <a href="docs/development.md"><img src="https://img.shields.io/badge/React-19-141518?style=flat-square&logo=react&logoColor=61dafb" alt="React 19"></a>
   <a href="docs/development.md"><img src="https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"></a>
@@ -65,7 +65,8 @@ Omakaze is an open-source, self-hostable web app that turns GitHub pull requests
 - **Guide templates.** An ordered outline of sections, required or optional, with guidance and writing instructions, set per workspace and overridden per repository. Starters for features, bug fixes and migrations. The built-in AI, MCP agents, the REST API and the editor follow it, and members see which required sections a guide is missing.
 - **Needs my review.** The pull request list filters by what needs your review (your review is requested on GitHub, or a published guide has sections you haven't reviewed), pull requests you opened and ones assigned to you. Each row shows the requested reviewers and how many sections you reviewed.
 - **Versions.** Every new guide for a pull request is a new version; older versions stay available. A guide written for an older head commit is marked as outdated.
-- **MCP server.** 17 tools and one prompt over Streamable HTTP at `/api/mcp`. Clients authenticate with OAuth 2.1 (dynamic client registration and PKCE) or an API token.
+- **MCP server.** 22 tools and two prompts over Streamable HTTP at `/api/mcp`. Clients authenticate with OAuth 2.1 (dynamic client registration and PKCE) or an API token.
+- **Reviews by agents.** Over MCP, an agent can read the review conversations, reply in them, comment on lines with suggested changes, resolve conversations and submit reviews, as the member whose token it uses. Approvals by agents are off unless an admin allows them.
 - **Optional built-in AI generation.** Anthropic, OpenAI, Google, OpenRouter, local models with Ollama or LM Studio, or any OpenAI-compatible server such as vLLM or LiteLLM. Not needed if you write guides with your own agent over MCP.
 - **REST API.** List pull requests (all of them, or the ones that need the token user's review), read and create guides, and start AI generation.
 - **Automation.** Generate a guide when a pull request opens, create a new version when commits are pushed, skip drafts, and post a summary comment on the pull request.
@@ -148,6 +149,12 @@ For each pull request, give the agent this prompt:
 
 ```text
 Create a guided PR for <PR URL> using the Omakaze MCP.
+```
+
+To have it answer the review comments, improve the guide where it was unclear and resolve the conversations it answered:
+
+```text
+Address the review comments on <PR URL> using the Omakaze MCP.
 ```
 
 **Settings → API tokens & MCP** also shows a setup prompt that asks an agent to add the server itself. The tools, reference syntax and authentication details are in [docs/mcp.md](docs/mcp.md).

@@ -1,6 +1,6 @@
 # MCP server
 
-Omakaze includes a Model Context Protocol (MCP) server. A coding agent connected to it can read a pull request, write the guide section by section, upload screenshots and publish the result. The agent uses its own model; Omakaze stores what the agent sends and validates every diff reference.
+Omakaze includes a Model Context Protocol (MCP) server. A coding agent connected to it can read a pull request, write the guide section by section, upload screenshots and publish the result. It can also take part in the review: read the review conversations, reply in them, comment on lines with suggested changes, resolve conversations and submit reviews, posting to GitHub as the user (see [Reviewing over MCP](#reviewing-over-mcp)). The agent uses its own model; Omakaze stores what the agent sends and validates every diff reference.
 
 The implementation is in `src/lib/mcp/server.ts` (tools, prompt, instructions) and `src/app/api/mcp/route.ts` (transport and authentication).
 
@@ -90,6 +90,7 @@ For clients without OAuth support, create a token in **Settings → API tokens &
 
 - Tools that take a `pr` work only with repositories the workspace follows. If an admin or owner passes a pull request from a repository that is not followed yet, or one that [has no GitHub connection](github-app.md#repositories-without-a-connection), Omakaze adds or reconnects the repository with the first GitHub connection of the workspace that can access it. For members, a repository that is not followed is an error with a link to the **Repositories** page, and a repository without a connection is an error that says so.
 - Every member can create and edit guides. The editing tools work on any guide of the workspace, including published ones.
+- The review tools post to GitHub as the token's user, with the same rules as the review tools of the guide viewer. See [Reviewing over MCP](#reviewing-over-mcp).
 
 ## Client configuration
 
@@ -166,6 +167,14 @@ Create a guided PR for <PR URL> using the Omakaze MCP.
 
 The server also provides this as the MCP prompt [`create_guided_pr`](#prompt-create_guided_pr).
 
+**Review comments.** To have an agent answer the review comments on a pull request:
+
+```text
+Address the review comments on <PR URL> using the Omakaze MCP.
+```
+
+The MCP prompt [`address_review_comments`](#prompt-address_review_comments) starts with this sentence and adds the steps.
+
 ## Tools
 
 The `pr` parameter accepts a pull request URL such as `https://github.com/owner/repo/pull/123` (GitHub Enterprise Server URLs work the same way) or the short form `owner/repo#123`.
@@ -188,13 +197,18 @@ The `pr` parameter accepts a pull request URL such as `https://github.com/owner/
 | [`check_coverage`](#check_coverage) | List changed lines that no section covers | Yes |
 | [`finish_guide`](#finish_guide) | Publish a guide started with `start_guide` | No |
 | [`upload_asset`](#upload_asset) | Upload an image, video or PDF for use in section bodies | No |
-| [`list_review_comments`](#list_review_comments) | Read the line comments on a pull request | Yes |
+| [`list_review_comments`](#list_review_comments) | Read the review conversations with thread IDs, resolved state and guide sections | Yes |
+| [`reply_to_review_comment`](#reply_to_review_comment) | Reply in a review thread on GitHub | No |
+| [`post_review_comment`](#post_review_comment) | Comment on lines of the diff, optionally with a suggested change | No |
+| [`resolve_review_thread`](#resolve_review_thread) | Resolve or unresolve a review thread | No |
+| [`submit_review`](#submit_review) | Submit a review: comment, request changes or (if allowed) approve | No |
+| [`post_pr_comment`](#post_pr_comment) | Comment in the pull request conversation | No |
 
 `get_pull_request` and `get_diff` are read-only for the pull request, but they store a diff snapshot (see [head_sha](#head_sha-and-changing-pull-requests)). Errors are returned as tool results with `isError: true` and a message (see [Errors](#errors)).
 
 ### whoami
 
-Shows the signed-in user, the workspace with its URL, the workspace's repositories and the instance URL. No parameters.
+Shows the signed-in user, the workspace with its URL, the workspace's repositories, the user's linked GitHub account (which the review tools post as), whether agents may approve pull requests in the workspace, and the instance URL. No parameters.
 
 ### list_pull_requests
 
@@ -204,6 +218,7 @@ Lists pull requests from the workspace's cached pull request data, newest update
 | --- | --- | --- | --- |
 | `repository` | string | No | `owner/name` of a followed repository |
 | `state` | `open`, `closed`, `merged`, `all` | No | Default `open`. `closed` means closed without merging. |
+| `filter` | `needs-review`, `mine`, `assigned`, `all` | No | For the token's user, as on the pull request list: `needs-review` (review requested on GitHub, or a published guide has sections the user hasn't reviewed), `mine` (authored), `assigned`. Default `all`. Review requests, authors and assignees are matched through the user's linked GitHub account. |
 | `limit` | integer, 1 to 200 | No | Default 50 |
 
 The cache is refreshed by webhooks, by polling and when members open the workspace. If it is empty, the tool says so.
@@ -382,11 +397,117 @@ Uploads a screenshot, image, screen recording or PDF and returns its URL and a m
 
 ### list_review_comments
 
-Reads the line comments on the pull request from GitHub, including comments posted from Omakaze: author, `path:line`, the comment it replies to, and the body (first 400 characters).
+Reads the review conversations (threads of line comments) on the pull request from GitHub, including comments posted from Omakaze. Thread IDs and resolved state come from GitHub's GraphQL API.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `pr` | string | Yes | Pull request URL or `owner/repo#number` |
+| `state` | `open`, `resolved`, `all` | No | Which conversations to show. Default `all`. |
+
+Open conversations come first, then by file and line. Each conversation has its location in the [string form of refs](#diff-references), its state, its `thread_id`, the guide section that shows the lines (from the latest published guide, when it was written for the commit the comment refers to) and every comment with its `comment_id`, author and age. Bodies are shown with their line breaks, up to 1,500 characters each. Comments the user posted through Omakaze, or with their linked GitHub account, are marked `(you)`:
+
+```text
+acme/storefront#128: 7 conversations, 4 open and 3 resolved. Showing the open ones.
+Comments marked (you) are yours: posted through Omakaze, or by your GitHub account mayachen.
+
+## src/lib/promo.ts:37 · open
+thread_id: PRRT_kwDOAbc123
+Guide section 2 "Validating a code" (section_id E2Ed-5KMa0jfBBcl)
+- comment_id 1834001 · samokafor · just now
+  Is `ends_at` inclusive? A code that ends on Sunday should still work on Sunday.
+
+## src/lib/cart.ts:48 · open
+thread_id: PRRT_kwDOAbc456
+Guide section 3 "Discounts in cart totals" (section_id 69r-sW6BhLph8a8X)
+- comment_id 1833870 · samokafor · 3 h ago
+  Nit: `discountFor` already caps the discount at the subtotal, so this `Math.max` only matters for other callers. Worth a comment?
+- comment_id 1833902 · mayachen (you) · 2 h ago
+  I'd keep it: `totals` is exported and the guard is cheap.
+
+Answer in a thread with reply_to_review_comment and resolve answered threads with resolve_review_thread.
+```
+
+A conversation on lines that changed since is marked `outdated (the code changed since)` and shows its original lines. If the GraphQL API can't be read, the comments are still listed, without thread IDs and with `state unknown`; use `comment_id` with the other tools then.
+
+### reply_to_review_comment
+
+Replies in a review thread on GitHub, as the user. The reply goes to the thread's first comment, as GitHub requires, so any `comment_id` of the thread works.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `pr` | string | Yes | Pull request URL or `owner/repo#number` |
+| `thread_id` | string | One of these two | `thread_id` from `list_review_comments` |
+| `comment_id` | integer | One of these two | The `comment_id` of any comment in the thread |
+| `body` | string | Yes | GitHub markdown, up to 65,000 characters. May contain a ```` ```suggestion ```` block. |
+
+Returns the location, how the reply was posted (`as <login>`, or through the workspace connection), the new `comment_id`, the `thread_id` and the URL. Threads and comments of other pull requests are refused.
+
+### post_review_comment
+
+Comments on a line or a range of lines of the diff, as the user. Lines are numbered as `get_diff` shows them, so nothing needs translating:
+
+- `side: "new"` (the default) uses new-version line numbers: added lines (`+  12 |`) and context lines (`   12 |`).
+- `side: "old"` uses the `o` numbers of removed lines (`-  o12 |`).
+- `start_line` makes a multi-line comment from `start_line` to `line`. Both must be in the same hunk, and `start_line` must come first. `start_side` can differ from `side`, for a range that starts on a removed line.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `pr` | string | Yes | Pull request URL or `owner/repo#number` |
+| `path` | string | Yes | File path as listed by `get_pull_request` |
+| `line` | integer | Yes | The last (or only) commented line |
+| `side` | `new`, `old` | No | Default `new` |
+| `start_line` | integer | No | The first line of a multi-line comment |
+| `start_side` | `new`, `old` | No | Defaults to `side` |
+| `body` | string | One or both | GitHub markdown |
+| `suggestion` | string | One or both | Replacement text for the commented lines. It is added to `body` as a ```` ```suggestion ```` block, which GitHub shows as a suggested change the author can commit. An empty string suggests deleting the lines. |
+| `head_sha` | string | No | `head_sha` from `get_pull_request`; the call fails if the pull request has new commits, as for [`create_guide`](#head_sha-and-changing-pull-requests) |
+
+The comment is posted on the pull request's current head commit and mapped to GitHub's `line`, `side` (`RIGHT` for new, `LEFT` for old), `start_line` and `start_side`. Lines outside the diff are refused before anything is sent, with the line ranges of the file's hunks:
+
+```text
+Line 99 of src/lib/promo.ts is not in the diff. GitHub accepts comments only on lines of a hunk: #1 new 1-54, old none.
+```
+
+Suggested changes replace lines of the new version, so a suggestion on `old` lines is refused. Returns the location in ref form (for example `src/lib/promo.ts:36-37`), how it was posted, the `comment_id`, the new conversation's `thread_id` and the URL. The comment is linked to the section of the latest guide that shows the line.
+
+### resolve_review_thread
+
+Resolves a review thread on GitHub, or unresolves it with `resolved: false`. Marked as idempotent.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `pr` | string | Yes | Pull request URL or `owner/repo#number` |
+| `thread_id` | string | One of these two | `thread_id` from `list_review_comments` |
+| `comment_id` | integer | One of these two | The `comment_id` of any comment in the thread |
+| `resolved` | boolean | No | Default `true` |
+
+This needs the user's own linked GitHub account and is never done through the workspace connection, as in the guide viewer: branch protection can require resolved conversations, so GitHub's rules on who may resolve apply to the user, and GitHub shows them as the one who resolved it.
+
+### submit_review
+
+Submits a review of the pull request on GitHub, as the user, on the current head commit.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `pr` | string | Yes | Pull request URL or `owner/repo#number` |
+| `event` | `COMMENT`, `REQUEST_CHANGES`, `APPROVE` | Yes | |
+| `body` | string | For `COMMENT` and `REQUEST_CHANGES` | Summary in GitHub markdown |
+| `head_sha` | string | No | The commit the agent reviewed; the call fails if the pull request has new commits |
+
+- `COMMENT` posts with the user's linked account, or through the workspace connection with a `Posted by` line.
+- `REQUEST_CHANGES` needs the user's linked account.
+- `APPROVE` needs the user's linked account, and is refused unless a workspace admin turned on **Allow agents to approve pull requests** (see [Approvals by agents](#approvals-by-agents)).
+
+Line comments are separate: post them with `post_review_comment` first. A review the user submits settles their pending review request, as on GitHub.
+
+### post_pr_comment
+
+Posts a comment in the pull request's conversation on GitHub (not on a line of the diff), as the user.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `pr` | string | Yes | Pull request URL or `owner/repo#number` |
+| `body` | string | Yes | GitHub markdown, up to 65,000 characters |
 
 ## Prompt: create_guided_pr
 
@@ -395,6 +516,43 @@ Reads the line comments on the pull request from GitHub, including comments post
 | `pr_url` | Yes | Pull request URL |
 
 Returns one user message: `Create a guided PR for <pr_url> using the Omakaze MCP.` followed by the workflow below and, when there is one, the [guide template](#guide-templates) of the pull request's repository (the workspace's for a repository that is not followed).
+
+## Prompt: address_review_comments
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `pr_url` | Yes | Pull request URL |
+
+Returns one user message: `Address the review comments on <pr_url> using the Omakaze MCP.` followed by these steps:
+
+1. `list_review_comments` with `state: "open"` to read the open conversations, their `thread_id`, the commented lines and the guide section that shows them.
+2. Read the code a conversation is about with `get_diff` or `read_file` before answering.
+3. Answer questions in their own thread with `reply_to_review_comment`, briefly and from the code, and say so when unsure.
+4. Where a question shows that the guide explained something badly or left it out, improve the section with `get_guide` and `update_section`, and mention it in the reply.
+5. Resolve a thread with `resolve_review_thread` only when the reply or the guide change fully answers it. Threads that ask for a code change the agent hasn't made, need a decision from a person, or that it couldn't answer stay open.
+6. Don't approve or request changes unless asked. Everything is posted to GitHub as the user.
+7. Reply with a summary: threads answered and resolved, sections changed, and threads still open with what each needs.
+
+The server instructions also tell agents that the review tools post as the user, so they only post what the user asked for.
+
+## Reviewing over MCP
+
+The review tools (`reply_to_review_comment`, `post_review_comment`, `resolve_review_thread`, `submit_review`, `post_pr_comment`) post to GitHub as the user the token belongs to, the same way the review tools of the guide viewer do (see [github-app.md](github-app.md#posting-comments-and-reviews)):
+
+| Action | Posted with |
+| --- | --- |
+| Reply, line comment, PR comment, `COMMENT` review | The user's linked GitHub account. Without one, or if GitHub refuses it, the workspace connection, with the footer `Posted by <name> via Omakaze` that links to the guide. |
+| Resolve or unresolve a conversation, `REQUEST_CHANGES` | Only the user's linked GitHub account |
+| `APPROVE` | Only the user's linked GitHub account, and only when the workspace allows approvals by agents |
+
+- Tool results say how a post went out: `as mayachen`, or `through the workspace connection (storefront-bot)`. `whoami` shows the linked account.
+- Everything posted is recorded like posts from the guide viewer (`comments` rows with the user as author), so line comments and replies show as the user's own in the guide and the user can delete them there.
+- The activity log names the client: `Maya Chen replied on src/lib/promo.ts in acme/storefront#128 via Claude Code`. The name is the OAuth client's registered name, or the name of the API token.
+- Posts go out immediately; there are no pending reviews. Read-only tools are annotated with `readOnlyHint`; the review tools are not.
+
+### Approvals by agents
+
+An approval from an agent counts as the user's own approval on GitHub, including for branch protection rules, so `submit_review` with `APPROVE` is off by default. Admins and owners can allow it in **Settings → API tokens & MCP → Reviews by agents** with **Allow agents to approve pull requests**. The setting applies to every agent in the workspace, over OAuth and API tokens, and changes are recorded in the activity log. Members see whether it is on. Without it, the call fails with a message that tells the agent to ask the user.
 
 ## Writing a guide
 
@@ -647,6 +805,35 @@ An agent asked to "Create a guided PR for https://github.com/acme/web/pull/412 u
 
 The same guide can be written with one `create_guide` call that contains the summary and all sections.
 
+### Addressing review comments
+
+The author of acme/storefront#128 asks their agent to "Address the review comments on https://github.com/acme/storefront/pull/128 using the Omakaze MCP." The agent might:
+
+1. Call `list_review_comments` with `{ "pr": "acme/storefront#128", "state": "open" }` and find Sam's question on `src/lib/promo.ts:37`, shown in section 2 of the guide.
+2. Read the lines with `get_diff` (`{ "pr": "acme/storefront#128", "hunks": ["src/lib/promo.ts#1"] }`).
+3. Answer in the thread:
+
+   ```json
+   { "pr": "acme/storefront#128", "thread_id": "PRRT_kwDOAbc123", "body": "No, `ends_at` is exclusive: a code is expired once `endsAt <= now`. For a code that should work all of Sunday, set `ends_at` to Monday 00:00." }
+   ```
+
+4. Make section 2 clearer: `get_guide` for its `section_id` and body, then `update_section` with the new body.
+5. Resolve the thread with `resolve_review_thread` and `{ "pr": "acme/storefront#128", "thread_id": "PRRT_kwDOAbc123" }`.
+6. Suggest a code comment on lines 36 and 37:
+
+   ```json
+   {
+     "pr": "acme/storefront#128",
+     "path": "src/lib/promo.ts",
+     "start_line": 36,
+     "line": 37,
+     "body": "Say it in the code too:",
+     "suggestion": "  // ends_at is exclusive: a code ending Monday 00:00 works all of Sunday.\n  if (promo.startsAt && promo.startsAt > now) return { ok: false, reason: \"not_started\" };\n  if (promo.endsAt && promo.endsAt <= now) return { ok: false, reason: \"expired\" };"
+   }
+   ```
+
+7. Reply to the user with what it answered, changed and resolved, and the threads still open.
+
 ## Errors
 
 Tool errors are returned as results with `isError: true`. Common messages:
@@ -665,4 +852,10 @@ Tool errors are returned as results with `isError: true`. Common messages:
 | Incomplete `section_ids` | `Provide every section id of the guide exactly once.` |
 | Finishing without sections and `auto_cover: false` | `Add at least one section before finishing the guide.` |
 | Upload problems | `Unsupported file type. Allowed: ...`, `Files are limited to 50 MB.`, `Provide content_base64 or url.` |
+| Line not in the diff | `Line 99 of src/lib/promo.ts is not in the diff. GitHub accepts comments only on lines of a hunk: ...` |
+| Range across hunks | `start_line 13 is in hunk #1 and line 42 in hunk #2. A comment can only span lines of one hunk.` |
+| Suggestion on removed lines | `A suggested change replaces lines of the new version. Comment on side "new" lines to suggest one.` |
+| Thread of another pull request | `Thread <id> is not part of owner/repo#123. Use a thread_id from list_review_comments.` |
+| No linked GitHub account (resolve, request changes, approve) | `Resolving conversations needs the user's own linked GitHub account; Omakaze never does it through the workspace connection. Link one at <APP_URL>/account, or ask the user to do it on GitHub.` |
+| Approvals by agents are off | `Agents can't approve pull requests in the "<workspace>" workspace. Ask the user to approve it themselves; a workspace admin can allow approvals by agents at <APP_URL>/w/<slug>/settings/tokens.` |
 | Download problems (`url`) | `Private network addresses are not allowed`, `<host> resolves to a private network address`, `URLs with credentials are not supported`, `Too many redirects`, `Download failed (404)`, `Download timed out` |

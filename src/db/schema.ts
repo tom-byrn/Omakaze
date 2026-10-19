@@ -162,6 +162,8 @@ export const workspaces = pgTable(
     guideTemplate: jsonb("guide_template").$type<TemplateOutline>(),
     /** Members may generate guides with their own ChatGPT plan instead of the workspace provider. */
     allowChatgptPlans: boolean("allow_chatgpt_plans").default(false).notNull(),
+    /** Agents over MCP may approve pull requests as the member whose token they use. */
+    allowAgentApprovals: boolean("allow_agent_approvals").default(false).notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

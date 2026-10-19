@@ -122,7 +122,7 @@ These are read by `docker-compose.yml` itself:
 | **Guide template** | The outline of sections guides follow (from the **Feature**, **Bug fix** or **Migration** starter, or your own), and writing instructions. Applies to built-in generation, MCP agents, the REST API and the editor; repositories can override it. See [ai.md](ai.md#guide-templates). |
 | **AI provider** | Provider, model, API key (encrypted, never shown again) and base URL for built-in generation, with **Test connection** and **Remove provider**. The page shows whether the workspace or the instance default is in effect. |
 | **Automation** | The four automation switches below. |
-| **API tokens & MCP** | MCP server URL, client configuration, setup prompt, API tokens and OAuth clients. |
+| **API tokens & MCP** | MCP server URL, client configuration, setup prompt, API tokens and OAuth clients. **Reviews by agents** says how agents post on GitHub, and admins can allow agents to approve pull requests (off by default; see [mcp.md](mcp.md#approvals-by-agents)). |
 
 The **Repositories** page lists followed repositories. Admins add and remove them, create repository webhooks for token and account connections, and override automatic guides per repository (**Workspace default**, **On** or **Off**). **Settings** next to a repository opens its own page with the same switch and the repository's [guide template](ai.md#guide-templates). Repositories whose connection was removed show "No GitHub connection"; see [github-app.md](github-app.md#repositories-without-a-connection).
 

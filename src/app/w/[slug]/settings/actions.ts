@@ -417,6 +417,19 @@ export async function saveChatgptPlansAction(slug: string, _prev: FormState, for
   }
 }
 
+/** Whether agents over MCP may approve pull requests as the member whose token they use. */
+export async function saveAgentApprovalsAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
+  try {
+    const { user, ws } = await ctx(slug, "admin");
+    const allowAgentApprovals = form.get("allowAgentApprovals") === "on";
+    await db.update(workspaces).set({ allowAgentApprovals }).where(eq(workspaces.id, ws.id));
+    await logActivity({ workspaceId: ws.id, type: "settings.updated", actorUserId: user.id, data: { section: "agent review", allowAgentApprovals } });
+    return done(ws, "/settings/tokens", "Saved.");
+  } catch (err) {
+    return fail(err);
+  }
+}
+
 export async function saveAutomationAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
   try {
     const { user, ws } = await ctx(slug, "admin");

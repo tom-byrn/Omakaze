@@ -9,7 +9,7 @@ Omakaze is a single Next.js 16 application (App Router, TypeScript) backed by Po
 | Next.js server | `src/app` | Pages, Server Actions for forms, and route handlers under `src/app/api` |
 | PostgreSQL | `src/db` | All state: users, workspaces, cached GitHub data, diff snapshots, guides, the job queue, OAuth clients and tokens, and uploads when `STORAGE_DRIVER=database` |
 | Job worker | `src/lib/jobs` | Runs inside the server process (started from `src/instrumentation.ts` when `WORKER_ENABLED` is true): AI generation, summary comments and polling |
-| MCP endpoint | `src/app/api/mcp`, `src/lib/mcp` | Stateless Streamable HTTP endpoint with 17 tools for coding agents |
+| MCP endpoint | `src/app/api/mcp`, `src/lib/mcp` | Stateless Streamable HTTP endpoint with 22 tools for coding agents |
 | OAuth server | `src/lib/oauth`, `src/app/.well-known`, `src/app/api/oauth`, `src/app/oauth` | OAuth 2.1 authorization server for MCP clients |
 | REST API | `src/app/api/v1` | Token-authenticated API for scripts and CI |
 | GitHub integration | `src/lib/github` | REST and GraphQL API client, GitHub App, connections, pull requests, reviews, review threads, suggestions, webhooks |
