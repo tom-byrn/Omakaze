@@ -217,7 +217,8 @@ export function ColumnChart({ label, series, columns, format = compactNumber, ti
   const max = Math.max(0, ...columns.map((c) => series.reduce((n, s) => n + (c.values[s.key] ?? 0), 0)));
   const render = (width: number) => {
     const f = frame(width, height, columns.length, max, integer);
-    const barW = Math.max(2, Math.min(24, f.band - 2));
+    // Bars leave air in their slot, at most 24px wide.
+    const barW = Math.max(2, Math.min(24, f.band * 0.7));
     return (
       <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label={label} className="block h-auto w-full overflow-visible">
         <Axes f={f} columns={columns} tick={tick} />
@@ -288,9 +289,12 @@ export function LineChart({ label, series, columns, format = compactNumber, tick
   return <Responsive render={render} name={label} />;
 }
 
-/** Legend for two or more series: the same mark as the chart, then the label in text color. */
-export function Legend({ series, className }: { series: ChartSeries[]; className?: string }) {
-  if (series.length < 2) return null;
+/**
+ * Legend: the same mark as the chart, then the label in text color. Shown for two or more series,
+ * or from `minimum` when one series still needs a name (a source among several possible ones).
+ */
+export function Legend({ series, className, minimum = 2 }: { series: ChartSeries[]; className?: string; minimum?: number }) {
+  if (series.length < minimum) return null;
   return (
     <ul className={clsx("flex flex-wrap gap-x-4 gap-y-1.5", className)} aria-label="Legend">
       {series.map((s) => (

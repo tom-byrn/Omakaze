@@ -38,6 +38,7 @@ import {
   type GuideSpeed,
   type InsightRange,
   type MemberStats,
+  type SpeedBucket,
 } from "./model";
 
 export type InsightScope = {
@@ -121,7 +122,7 @@ export async function guidesCreated(scope: InsightScope): Promise<GuidesCreated>
 
 export type ReviewSpeed = {
   unit: BucketUnit;
-  buckets: (ReturnType<typeof speedBuckets>[number] & { label: string })[];
+  buckets: (SpeedBucket & { label: string })[];
   published: number;
   firstMedian: number | null;
   allMedian: number | null;

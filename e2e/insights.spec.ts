@@ -44,7 +44,7 @@ async function addAdminRepo(): Promise<void> {
   await sql()`insert into section_reviews (section_id, guide_id, user_id, reviewed_at) values (${section}, ${guide}, ${sam}, now() - interval '22 hours')`;
   for (const [i, body] of ["Paginate this?", "Should this filter by status?", "Missing an index on store_id."].entries()) {
     await sql()`insert into comments (id, workspace_id, repository_id, pr_number, guide_id, section_id, author_user_id, kind, path, line, side, body, github_id, created_at)
-      values (${newId()}, ${ws.id}, ${repo}, ${ADMIN_REPO.pr}, ${guide}, ${section}, ${sam}, 'review', ${ADMIN_REPO.path}, ${i + 1}, 'RIGHT', ${body}, ${8_000_000 + i}, now() - interval '21 hours')`;
+      values (${newId()}, ${ws.id}, ${repo}, ${ADMIN_REPO.pr}, ${guide}, ${section}, ${sam}, 'review', ${ADMIN_REPO.path}, ${i + 1}, 'RIGHT', ${body}, ${4_090_000 + i}, now() - interval '21 hours')`;
   }
 }
 
@@ -267,7 +267,7 @@ test.describe("Insights", () => {
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow).toBe(0);
       await shot(page, "insights-mobile");
-      await panel(page, "guides").scrollIntoViewIfNeeded();
+      await page.evaluate(() => document.getElementById("guides")?.scrollIntoView({ block: "center" }));
       await shot(page, "insights-mobile-chart");
     });
   });

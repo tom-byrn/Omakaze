@@ -153,6 +153,8 @@ The exact conditions are in [ai.md](ai.md#automation).
 | See repositories, pull requests and guides; comment, review and mark sections as reviewed | Yes | Yes | Yes |
 | Create and edit guides (MCP, REST API, editor, **Generate with AI**) | Yes | Yes | Yes |
 | Create API tokens and authorize MCP clients; revoke their own tokens | Yes | Yes | Yes |
+| See **Insights** with their own numbers and the team's totals | Yes | Yes | Yes |
+| See every member's numbers in **Insights** | No | Yes | Yes |
 | Follow a new repository, or reconnect one without a connection, by passing its pull request to MCP or the REST API | No | Yes | Yes |
 | Manage connections, repositories, AI provider, guide templates, automation, invites and members; rename the workspace; see and revoke all tokens | No | Yes | Yes |
 | Make someone an owner, change or remove owners, delete the workspace | No | No | Yes |

@@ -20,6 +20,7 @@ import {
   share,
   shortDate,
   type CompletionState,
+  type GuideOrigin,
   type InsightRange,
 } from "@/lib/insights/model";
 import {
@@ -98,6 +99,7 @@ export default async function InsightsPage(props: PageProps<"/w/[slug]/insights"
     return `/w/${slug}/${repoFullName}/pull/${n}${qs ? `?${qs}` : ""}`;
   };
   const rangeLabel = `the last ${days} days`;
+  const maxReviewed = Math.max(1, ...members.rows.map((r) => r.reviewed));
   const fullShare = share(done.states.full, done.guides);
 
   return (
@@ -135,7 +137,7 @@ export default async function InsightsPage(props: PageProps<"/w/[slug]/insights"
         </p>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 border border-solid border-black/15 bg-white md:grid-cols-5" aria-label="Summary">
+      <div className="mt-6 grid grid-cols-2 border border-solid border-black/15 bg-white md:grid-cols-5" role="group" aria-label="Summary">
         {[
           { key: "guides", value: created.total.toLocaleString("en"), label: "Guides created", note: `${plural(speed.published, "version")} published` },
           { key: "first-review", value: formatDuration(speed.firstMedian), label: "To first review", note: `median of ${plural(speed.reviewed, "guide")}` },
@@ -164,7 +166,7 @@ export default async function InsightsPage(props: PageProps<"/w/[slug]/insights"
             <PanelEmpty>No guides were started in {rangeLabel}.</PanelEmpty>
           ) : (
             <>
-              <Legend series={SOURCE_SERIES} className="mb-3" />
+              <Legend series={SOURCE_SERIES.filter((x) => created.totals[x.key as GuideOrigin] > 0)} minimum={1} className="mb-3" />
               <ColumnChart
                 label="Guides created by source"
                 series={SOURCE_SERIES}
@@ -286,7 +288,7 @@ export default async function InsightsPage(props: PageProps<"/w/[slug]/insights"
                   Median <span className="font-medium text-ink">{percent(cov.median)}</span> · {percent(cov.otherShare)} of all changed lines went to “Other
                   changes”
                 </p>
-                <Legend series={SOURCE_SERIES.filter((s) => cov.bySource.some((b) => b.origin === s.key))} className="mb-3" />
+                <Legend series={SOURCE_SERIES.filter((x) => cov.bySource.some((b) => b.origin === x.key))} minimum={1} className="mb-3" />
                 <ColumnChart
                   label="Guides by share of changed lines covered"
                   series={SOURCE_SERIES}
@@ -425,7 +427,6 @@ export default async function InsightsPage(props: PageProps<"/w/[slug]/insights"
               head={["Member", "Sections reviewed", "Carried over", "Comments", "Reviews", "Resolved", "Guides started"]}
               rows={[...members.rows, members.total].map((m) => {
                 const isTotal = m === members.total;
-                const maxReviewed = Math.max(1, ...members.rows.map((r) => r.reviewed));
                 return [
                   <span key="who" className={clsx("flex items-center gap-2", isTotal && "font-medium text-ink")}>
                     {isTotal ? null : <Avatar src={m.avatarUrl} name={m.name} size={20} />}
@@ -433,7 +434,7 @@ export default async function InsightsPage(props: PageProps<"/w/[slug]/insights"
                     {m.userId === user.id ? <span className="tag h-[18px]">You</span> : null}
                   </span>,
                   <span key="r" className="flex items-center justify-end gap-3">
-                    {isTotal ? null : (
+                    {isTotal || !members.everyone ? null : (
                       <span className="hidden w-[90px] sm:block">
                         <InlineBar value={m.reviewed} max={maxReviewed} />
                       </span>

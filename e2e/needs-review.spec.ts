@@ -310,7 +310,9 @@ test.describe("Needs my review", () => {
       expect((await get("filter=mine")).body.pulls.map((p: { number: number }) => p.number)).toEqual([DEMO_OWNER_PR]);
       expect((await get("filter=assigned&repo=acme/storefront")).body.pulls.map((p: { number: number }) => p.number)).toEqual([DEMO_PRS.outdated, DEMO_OWNER_PR]);
       expect((await get("filter=needs-review&state=merged")).body.pulls).toEqual([]);
-      expect((await get("state=all")).body.pulls).toHaveLength(7);
+      // Every cached pull request, including the merged ones of the insights history.
+      const [cached] = await sql()`select count(*)::int as n from pull_requests p join repositories r on r.id = p.repository_id where r.full_name = ${DEMO_REPO.fullName}`;
+      expect((await get("state=all")).body.pulls).toHaveLength(cached.n);
       const bad = await get("filter=reviewed");
       expect(bad.status).toBe(400);
       expect(bad.body.error).toContain("needs-review");

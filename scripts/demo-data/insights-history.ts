@@ -544,7 +544,8 @@ export async function seedInsightsHistory(workspaceSlug: string): Promise<void> 
   const pullRows: (typeof s.pullRequests.$inferInsert)[] = [];
   const marks: (typeof s.sectionReviews.$inferInsert)[] = [];
   const commentRows: (typeof s.comments.$inferInsert)[] = [];
-  let githubId = 7_100_000;
+  // Below the IDs the mock GitHub API gives new comments (5000001 and up), which specs delete after themselves.
+  let githubId = 4_100_000;
   const counts = { guides: 0, marks: 0, comments: 0 };
 
   for (const [i, p] of PULLS.entries()) {
