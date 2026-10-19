@@ -84,7 +84,7 @@ The schema is in `src/db/schema.ts`; migrations are in `drizzle/`.
 | Users and sign-in | `users` (including `email_verified_at`, set when the address is confirmed), `sessions`, `github_accounts` (one linked GitHub identity per user) |
 | Workspaces | `workspaces` (including AI and automation settings and the guide template), `memberships` (role per user), `invites` |
 | GitHub | `github_connections` (app installation, token or linked account), `repositories` (followed per workspace, through one connection or none, with an optional guide template override), `pull_requests` (cache, including requested reviewers, requested teams and assignees, which are matched to members by the login of their `github_accounts` row) |
-| Guides | `diff_snapshots`, `guides` (one row per version, with a copy of the guide template it was started with), `guide_sections`, `section_reviews` (including `carried_from_version` for marks carried over from an earlier version), `guide_views` (including `previous_visit_at`) |
+| Guides | `diff_snapshots`, `guides` (one row per version, with a copy of the guide template it was started with, the AI configuration that wrote it in `ai_source`, and the coverage of the author's own sections in `changed_lines` and `covered_lines`), `guide_sections`, `section_reviews` (including `carried_from_version` for marks carried over from an earlier version), `guide_views` (including `previous_visit_at`) |
 | Reviews | `comments` (comments and reviews posted through Omakaze), `guide_checks` (the check run or commit status last posted for each pull request) |
 | Sharing | `share_links` (read-only links to one guide version or to the latest version of a pull request; only a hash of the secret); `workspaces.share_links_enabled` and `share_link_role` |
 | Notifications | `notification_preferences` (per user; no row means the defaults), `notification_mutes` (workspaces a user gets no email from), `notifications` (email notifications waiting to be sent, one per event and recipient, and recently sent ones), `notification_channels` (a workspace's Slack and JSON webhook) |
@@ -139,6 +139,23 @@ Review marks (`section_reviews`) belong to a section of one guide version. When 
 - **Re-review.** When the viewer reviewed the matching section of an earlier version but the code changed, the section is flagged. Its interdiff aligns the old and new changed lines per file (longest common subsequence) and lists rows that are only in the new version, rows that are gone, and files the section started or stopped covering. Lines new since then are also marked in the section's diff.
 
 **New since your last visit.** `guide_views.last_viewed_at` is updated on every page view. Before that, the app reads the viewer's rows for every version of the pull request: page views less than 30 minutes apart are one visit, and a new visit compares against the latest page view of the previous one. That time is stored in `guide_views.previous_visit_at`, so reloading during a visit keeps it. When a version was published after it, and the viewer had not opened that version before, the viewer sees a banner, sections that are new or changed compared to the version that was current at the time, and review comments by others that were posted after it.
+
+## Review insights
+
+`/w/<slug>/insights` (`src/lib/insights`) aggregates what the workspace already records, for a range of 7, 30 or 90 days (today in UTC and the days before it) and optionally one repository. Every count and median is computed in SQL or from one row per guide; marks and comments are never loaded one by one. The same functions produce the CSV files at `GET /api/w/<slug>/insights/<panel>?days=&repo=`, which check membership like the page.
+
+| Panel | Data |
+| --- | --- |
+| Guides created | Guide versions by `created_at`, per day (per week for 90 days), failed generations left out. The source comes from `source`, `created_via` and `ai_source`: MCP agent (`agent` over `mcp`), REST API (`agent` over `api`, a complete guide from `POST /api/v1/guides`), ChatGPT plan (`ai` with `ai_source = 'chatgpt'`), built-in AI (other `ai` guides, including `POST /api/v1/generate`) and manual. |
+| Review speed | Per version published in the range: time from `published_at` to the first `section_reviews` mark, and to the moment every section had one. Marks carried over from an earlier version (`carried_from_version`) are left out, since they were made before the version existed. Medians per week (per day for 7 days); each median counts the versions that got that far. |
+| Completion | The latest published version of each pull request, published in the range: fully, partly or not reviewed. Carried-over marks count here, since the code is the same as what the member reviewed. |
+| Sections left unreviewed | The same sections grouped by title (compared like template titles), most often without any mark. |
+| Template compliance | The same versions, when started with a template outline (`guides.template`): how many lack a required section, and which. |
+| Coverage | `covered_lines / changed_lines` of every version published in the range, binned and split by source; the rest went to "Other changes". |
+| Most discussed sections and files | `comments` rows of kind `review` and `reply` (comments posted through Omakaze; comments made only on GitHub are not stored), by `section_id` and by `path`. |
+| Members | Per member in the range: fresh and carried-over marks by `reviewed_at`, comments and replies, reviews (`review_submit`), `thread.resolved` activity and guides started. Owners and admins see every member; members see their own row and the team total, in the page and in the CSV. |
+
+`ai_source` is set by the `generate_guide` job when it picks the AI configuration (`workspace`, `instance` or `chatgpt`); the migration marks older built-in AI guides as `chatgpt` when their model is the model of their creator's ChatGPT connection in a workspace that allows plans, and leaves the rest unknown. `changed_lines` and `covered_lines` are written by `finishGuide`; versions published before they existed are measured from their snapshot when insights are loaded (a batch of 40 at a time).
 
 ## File views and highlighting
 

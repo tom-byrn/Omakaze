@@ -227,6 +227,8 @@ Repositories can override the mode on the **Repositories** page. Saving either s
 | Create API tokens and authorize MCP clients; revoke their own tokens | Yes | Yes | Yes |
 | Create share links and revoke their own | When allowed in **Settings → Share links** | Yes | Yes |
 | Revoke any share link; change the share link settings | No | Yes | Yes |
+| See **Insights** with their own numbers and the team's totals | Yes | Yes | Yes |
+| See every member's numbers in **Insights** | No | Yes | Yes |
 | Follow a new repository, or reconnect one without a connection, by passing its pull request to MCP or the REST API | No | Yes | Yes |
 | Turn their own email about the workspace on or off | Yes | Yes | Yes |
 | Manage connections, repositories, AI provider, guide templates, automation, Slack and JSON webhooks, invites and members; rename the workspace; see and revoke all tokens | No | Yes | Yes |

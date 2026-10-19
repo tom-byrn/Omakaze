@@ -140,7 +140,7 @@ test.describe("Suggested changes and conversations", () => {
     expect(resolve.user).toBe("alexmorgan");
     const { extra } = await mockGitHub.state();
     expect((extra.reviewThreads as Record<string, unknown>)["2002001"]).toEqual({ resolvedBy: "alexmorgan" });
-    const [logged] = await sql()`select data from activity where type = 'thread.resolved'`;
+    const [logged] = await sql()`select data from activity where type = 'thread.resolved' order by created_at desc limit 1`;
     expect(logged.data).toMatchObject({ path: PROMO, line: 19 });
     await shot(page, "conversation-resolved");
     await pause(page, 1500);

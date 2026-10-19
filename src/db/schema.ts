@@ -364,6 +364,7 @@ export const diffSnapshots = pgTable(
 
 export type GuideStatus = "draft" | "generating" | "ready" | "failed";
 export type GuideSource = "agent" | "ai" | "manual";
+export type GuideAiSource = "workspace" | "instance" | "chatgpt";
 
 export type GuideEvent = {
   at: string;
@@ -400,6 +401,11 @@ export const guides = pgTable(
     events: jsonb("events").$type<GuideEvent[]>().default([]).notNull(),
     /** The guide template in effect when the guide was started; null = none. */
     template: jsonb("template").$type<ResolvedTemplate>(),
+    /** Which AI configuration wrote a built-in AI guide ("chatgpt" = the creator's ChatGPT plan); null otherwise or unknown. */
+    aiSource: text("ai_source").$type<GuideAiSource>(),
+    /** Changed lines in the snapshot and how many the author's own sections covered, recorded when the guide is published. */
+    changedLines: integer("changed_lines"),
+    coveredLines: integer("covered_lines"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -407,6 +413,8 @@ export const guides = pgTable(
   (t) => [
     uniqueIndex("guides_repo_pr_version_unique").on(t.repositoryId, t.prNumber, t.version),
     index("guides_workspace_idx").on(t.workspaceId, t.updatedAt),
+    index("guides_workspace_created_idx").on(t.workspaceId, t.createdAt),
+    index("guides_workspace_published_idx").on(t.workspaceId, t.publishedAt),
   ],
 );
 
@@ -533,7 +541,7 @@ export const comments = pgTable(
     postedAs: text("posted_as").$type<"user" | "connection">(),
     createdAt: createdAt(),
   },
-  (t) => [index("comments_pr_idx").on(t.repositoryId, t.prNumber)],
+  (t) => [index("comments_pr_idx").on(t.repositoryId, t.prNumber), index("comments_workspace_created_idx").on(t.workspaceId, t.createdAt)],
 );
 
 /* ------------------------------------------------------------------ */

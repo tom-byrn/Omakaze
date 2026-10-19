@@ -5,7 +5,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { DEMO_PRS, DEMO_USERS, demoPaths, type DemoUserKey } from "../scripts/demo-data";
+import { DEMO_PRS, DEMO_USERS, DEMO_WORKSPACE, demoPaths, type DemoUserKey } from "../scripts/demo-data";
 import { DEMO_SHARE } from "../scripts/demo-data/share-links";
 import { appEnv, E2E, ROOT } from "./config";
 import { closeDb, createSession, ensureDatabase, guideId } from "./db";
@@ -118,6 +118,8 @@ export async function warmUp(): Promise<void> {
     `${demoPaths.settings}/notifications`,
     "/unsubscribe?token=warm-up",
     "/api/notifications/unsubscribe",
+    `/w/${DEMO_WORKSPACE.slug}/insights`,
+    `/api/w/${DEMO_WORKSPACE.slug}/insights/guides`,
     // More routes for a feature, e.g. E2E_WARMUP_PATHS=/w/demo/insights,/api/w/demo/export
     ...(process.env.E2E_WARMUP_PATHS ?? "").split(",").map((p) => p.trim()).filter(Boolean),
   ];
