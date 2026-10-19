@@ -722,7 +722,7 @@ export function ProductSchematic() {
                 }`}
               >
                 <span
-                  className={`absolute inset-x-0 top-0 h-[2px] ${done ? (on ? "bg-signal" : "bg-ink") : "bg-transparent"}`}
+                  className={`absolute inset-x-0 top-0 h-[2px] ${done ? "bg-ink" : "bg-transparent"}`}
                 />
                 <span
                   className={`flex items-center gap-1 font-mono text-[9px] tracking-[0.08em] uppercase ${on ? "text-white/60" : "text-black/45"}`}
