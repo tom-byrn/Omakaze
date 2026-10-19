@@ -13,6 +13,7 @@ import { parsePatch } from "../../src/lib/diff/parse";
 import type { DiffFile } from "../../src/lib/diff/types";
 import type { RefInput } from "../../src/lib/guides/refs";
 import { unifiedPatch } from "./patch";
+import { REVIEW_DEMO_PULLS } from "./review-requests";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.join(HERE, "repo");
@@ -355,6 +356,7 @@ export const DEMO_PULLS: PullDef[] = [
     heads: [],
     stats: { additions: 412, deletions: 167, changedFiles: 9 },
   },
+  ...REVIEW_DEMO_PULLS,
 ];
 
 /* ------------------------------------------------------------------ */

@@ -157,7 +157,7 @@ A repository is reconnected when:
 
 - The `X-Hub-Signature-256` header must match an HMAC-SHA256 of the body with either the app's webhook secret or the repository webhook secret; otherwise the response is `401`.
 - Deliveries are de-duplicated by `X-GitHub-Delivery` and recorded; `/admin` shows the last 15.
-- `pull_request` updates the cached pull request. The actions `opened`, `reopened`, `synchronize` and `ready_for_review` also check whether a guide should be generated automatically (see [ai.md](ai.md#automation)).
+- `pull_request` updates the cached pull request. The actions `opened`, `reopened`, `synchronize` and `ready_for_review` also check whether a guide should be generated automatically (see [ai.md](ai.md#automation)). `review_requested`, `review_request_removed`, `assigned` and `unassigned` update the cached requested reviewers, requested teams and assignees that the **Needs my review**, **Mine** and **Assigned** filters use. These actions are part of the `pull_request` event, so existing app installations and repository webhooks receive them without changes.
 - `pull_request_review` and `pull_request_review_comment` update the cached pull request and drop its cached review comments, so the next request reads them from GitHub.
 - `installation` handles `deleted`, `suspend` and `unsuspend` as described above.
 - Other events and actions are recorded as ignored.

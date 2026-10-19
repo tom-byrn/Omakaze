@@ -29,15 +29,26 @@ Endpoints that take a `pr` accept a pull request URL (`https://github.com/acme/w
 
 ### GET /api/v1/pulls
 
-Lists up to 500 pull requests from the workspace's followed repositories, most recently updated first.
+Lists up to 500 pull requests from the workspace's followed repositories, most recently updated first. The limit applies after `state`, `repo` and `filter`.
 
 | Query parameter | Description |
 | --- | --- |
 | `state` | `open` (default), `closed` (closed without merging), `merged` or `all` |
-| `repo` | Optional. `owner/name` of a followed repository (case does not matter); 404 if the workspace does not follow it. The filter is applied to the 500 most recently updated pull requests of the workspace. |
+| `repo` | Optional. `owner/name` of a followed repository (case does not matter); 404 if the workspace does not follow it. |
+| `filter` | Optional. `all` (default), `needs-review`, `mine` or `assigned`, for the user the token belongs to (see below). Other values return 400. |
+
+The filters match the token user's linked GitHub account (the **Account** page) against the requested reviewers, author and assignees GitHub reports:
+
+| `filter` | Pull requests |
+| --- | --- |
+| `needs-review` | Open pull requests where the user's review is requested, or whose latest published guide has sections the user hasn't marked as reviewed, unless the user opened the pull request. A pending request counts even when every section is marked, because the review on GitHub is still missing. |
+| `mine` | Opened by the user |
+| `assigned` | Assigned to the user |
+
+Requests to a team are listed in `requested_teams` but are not matched to the team's members. Without a linked GitHub account, `mine` and `assigned` are empty and `needs-review` only contains pull requests with unreviewed guide sections, including the user's own.
 
 ```sh
-curl -sS "$OMAKAZE_URL/api/v1/pulls?state=open&repo=acme/web" \
+curl -sS "$OMAKAZE_URL/api/v1/pulls?filter=needs-review&repo=acme/web" \
   -H "Authorization: Bearer $OMAKAZE_TOKEN"
 ```
 
@@ -53,13 +64,19 @@ curl -sS "$OMAKAZE_URL/api/v1/pulls?state=open&repo=acme/web" \
       "author": "octocat",
       "url": "https://github.com/acme/web/pull/412",
       "updated_at": "2026-10-17T09:12:44.000Z",
-      "guide": { "version": 2, "status": "ready", "head_sha": "9f2c1e0b..." }
+      "guide": { "version": 2, "status": "ready", "head_sha": "9f2c1e0b..." },
+      "requested_reviewers": ["hubot"],
+      "requested_teams": ["Frontend"],
+      "assignees": ["octocat"],
+      "review_progress": { "version": 2, "sections": 6, "reviewed": 2 }
     }
   ]
 }
 ```
 
-`guide` is `null` when the pull request has no guide. Guide statuses are `draft`, `generating`, `ready` and `failed`.
+- `guide` is `null` when the pull request has no guide. Guide statuses are `draft`, `generating`, `ready` and `failed`.
+- `requested_reviewers` and `assignees` are GitHub logins; `requested_teams` are team names. GitHub removes a reviewer from `requested_reviewers` once they submit a review.
+- `review_progress` is the token user's progress on the latest published guide: its `version`, its number of `sections` (including "Other changes") and how many of them the user marked as `reviewed`. It is `null` when the pull request has no published guide.
 
 The list comes from Omakaze's cache of GitHub data. The cache is refreshed by webhooks, by polling (for repositories with automatic guides) and when members open the workspace in the browser, so recent pull requests can be missing if none of these has run.
 
@@ -225,7 +242,7 @@ Errors are JSON objects with an `error` message:
 
 | Status | Cause |
 | --- | --- |
-| 400 | The body is not valid JSON (`The request body must be valid JSON.`), the body or query does not match the expected fields, `version` is not a positive integer, or `pr` is not a pull request reference |
+| 400 | The body is not valid JSON (`The request body must be valid JSON.`), the body or query does not match the expected fields, `version` is not a positive integer, `filter` is not one of the listed values, or `pr` is not a pull request reference |
 | 401 | Missing, invalid, expired or revoked token, or a browser session instead of a token (`Use an API token: Authorization: Bearer <token>`) |
 | 404 | The repository is not followed and the token's user cannot add it, no GitHub connection can access it, the `repo` filter names a repository that is not followed, the pull request has no guide, or the requested version does not exist |
 | 409 | `POST /api/v1/guides`: `head_sha` does not match the pull request's current head. `POST /api/v1/generate`: no AI provider is configured for the workspace, or the latest guide of the pull request is still being generated. Any request that reads from GitHub: the repository has no usable GitHub connection, for example because the connection was removed or suspended, or its linked account has to sign in again. |

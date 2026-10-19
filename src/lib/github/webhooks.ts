@@ -5,6 +5,7 @@ import { githubConnections, repositories } from "@/db/schema";
 import { maybeAutoGenerate } from "@/lib/automation";
 import { safeEqual } from "@/lib/crypto";
 import type { GhPull } from "./client";
+import { applyPeopleEvent, type PeopleEvent } from "./people";
 import { upsertPull } from "./pulls";
 import { invalidateReviewComments } from "./review";
 
@@ -14,7 +15,7 @@ export function verifySignature(body: string, signature: string | null, secret: 
   return safeEqual(expected, signature);
 }
 
-type Payload = {
+type Payload = PeopleEvent & {
   action?: string;
   installation?: { id: number };
   repository?: { id: number; full_name: string };
@@ -43,7 +44,8 @@ export async function handleWebhook(event: string, payload: Payload): Promise<"p
       return "ignored";
     }
     case "pull_request": {
-      const pr = payload.pull_request;
+      // review_requested, review_request_removed, assigned and unassigned name the person they changed.
+      const pr = payload.pull_request ? applyPeopleEvent(payload.pull_request, payload) : undefined;
       const repoId = payload.repository?.id;
       if (!pr || !repoId) return "ignored";
       const repos = await db.select().from(repositories).where(eq(repositories.githubId, repoId));

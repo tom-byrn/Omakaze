@@ -2,11 +2,12 @@ import { RiExternalLinkLine, RiGitBranchLine, RiLock2Line } from "@remixicon/rea
 import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
 import { CopyButton } from "@/components/ui/CopyButton";
-import type { LatestGuide } from "@/lib/dashboard";
+import type { LatestGuide, ReviewProgress } from "@/lib/dashboard";
 import { timeAgo } from "@/lib/format";
 import { agentPrompt } from "@/lib/prompts";
 import { DiffStat, GuideChip, PrStateTag, prStateOf } from "./Badges";
 import { GenerateButton } from "./GenerateButton";
+import { ReviewLine } from "./ReviewLine";
 
 type Repo = { id: string; fullName: string; htmlUrl: string; private: boolean; syncError: string | null };
 type Pull = {
@@ -26,7 +27,13 @@ type Pull = {
   deletions: number | null;
   htmlUrl: string;
   githubUpdatedAt: Date;
+  requestedReviewers?: { login: string; avatarUrl: string | null }[];
+  requestedTeams?: string[];
+  assignees?: { login: string; avatarUrl: string | null }[];
 };
+
+/** The viewer's guide progress and linked GitHub login. Without it, rows only show the requested reviewers. */
+type ReviewContext = { progress: Map<string, ReviewProgress>; viewerLogin: string | null };
 
 export function PullRow({
   slug,
@@ -34,12 +41,16 @@ export function PullRow({
   pull,
   guide,
   aiDisabledReason,
+  progress,
+  viewerLogin,
 }: {
   slug: string;
   repo: Repo;
   pull: Pull;
   guide?: LatestGuide;
   aiDisabledReason: string | null;
+  progress?: ReviewProgress | null;
+  viewerLogin?: string | null;
 }) {
   const href = `/w/${slug}/${repo.fullName}/pull/${pull.number}`;
   const outdated = guide?.status === "ready" && guide.headSha !== pull.headSha;
@@ -65,6 +76,7 @@ export function PullRow({
           <span>updated {timeAgo(pull.githubUpdatedAt)}</span>
           <DiffStat additions={pull.additions} deletions={pull.deletions} />
         </div>
+        <ReviewLine pull={pull} progress={progress ?? null} viewerLogin={viewerLogin ?? null} />
       </div>
       <div className="col-span-2 flex flex-wrap items-center justify-end gap-2 md:col-span-1">
         {guide ? <GuideChip status={guide.status} version={guide.version} outdated={outdated} /> : null}
@@ -90,6 +102,7 @@ export function RepoGroup({
   guides,
   aiDisabledReason,
   emptyLabel,
+  review,
 }: {
   slug: string;
   repo: Repo;
@@ -97,6 +110,7 @@ export function RepoGroup({
   guides: Map<string, LatestGuide>;
   aiDisabledReason: string | null;
   emptyLabel: string;
+  review?: ReviewContext;
 }) {
   return (
     <section className="border border-solid border-black/15 bg-white">
@@ -129,6 +143,8 @@ export function RepoGroup({
               pull={p}
               guide={guides.get(`${repo.id}:${p.number}`)}
               aiDisabledReason={aiDisabledReason}
+              progress={review?.progress.get(`${repo.id}:${p.number}`)}
+              viewerLogin={review?.viewerLogin}
             />
           ))}
         </ul>

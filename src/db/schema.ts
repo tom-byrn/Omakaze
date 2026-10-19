@@ -270,6 +270,9 @@ export const repositories = pgTable(
   ],
 );
 
+/** A GitHub user cached on a pull request (requested reviewer or assignee). */
+export type GhPersonRef = { login: string; avatarUrl: string | null };
+
 export const pullRequests = pgTable(
   "pull_requests",
   {
@@ -301,6 +304,11 @@ export const pullRequests = pgTable(
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /** head sha for which additions/deletions were fetched */
     detailsSha: text("details_sha"),
+    /** Pending review requests and assignees as GitHub reports them; see src/lib/github/people.ts. */
+    requestedReviewers: jsonb("requested_reviewers").$type<GhPersonRef[]>().default([]).notNull(),
+    /** Names of requested teams. Team members are not resolved. */
+    requestedTeams: jsonb("requested_teams").$type<string[]>().default([]).notNull(),
+    assignees: jsonb("assignees").$type<GhPersonRef[]>().default([]).notNull(),
     summaryCommentId: bigint("summary_comment_id", { mode: "number" }),
     syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow().notNull(),
   },
