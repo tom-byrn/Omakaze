@@ -108,6 +108,7 @@ Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vite
 - unified diff parsing (`src/lib/diff/parse.ts`);
 - ref parsing, serialization, validation and coverage (`src/lib/guides/refs.ts`);
 - the viewer's row model: context rows, line selection and enclosing-block expansion (`src/components/guide/diff-model.ts`);
+- the Markdown export: the diff lines a section's refs select, recomputed hunk headers, absolute and embedded URLs, `diff:` links, heading levels and the coverage note (`src/lib/guides/export.ts`);
 - guide templates: resolution of workspace and repository templates, title matching, missing required sections, and the extra request when generation leaves one out (`src/lib/guides/templates.ts`);
 - encryption, signed payloads, password hashing, webhook signatures, pull request URL parsing, editor ref lines, redirects, slugs and the agent prompt;
 - detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments.

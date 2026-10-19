@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DiffStat, PrStateTag, prStateOf } from "@/components/app/Badges";
 import { GenerateButton } from "@/components/app/GenerateButton";
+import { ExportMenu } from "@/components/guide/ExportMenu";
 import { GuideViewer } from "@/components/guide/GuideViewer";
 import { VersionSelect } from "@/components/guide/VersionSelect";
 import { WatchLatestGuide } from "@/components/guide/WatchLatestGuide";
@@ -92,6 +93,13 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
             <Link href={`/w/${slug}/${repo.fullName}/pull/${pull.number}/edit?v=${guide.version}`} className="btn btn-ghost btn-sm">
               Edit
             </Link>
+          ) : null}
+          {guide ? (
+            <ExportMenu
+              version={guide.version}
+              markdownHref={`/api/guides/${guide.id}/export?format=md`}
+              printHref={`/w/${slug}/${repo.fullName}/pull/${pull.number}/print?v=${guide.version}&autoprint=1`}
+            />
           ) : null}
           {guide ? (
             <GenerateButton

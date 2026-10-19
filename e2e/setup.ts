@@ -83,6 +83,8 @@ export async function warmUp(): Promise<void> {
     `/api/w/demo/latest-guide?number=${DEMO_PRS.main}`,
     demoPaths.pull(DEMO_PRS.noGuide),
     demoPaths.edit(DEMO_PRS.main),
+    `${demoPaths.pull(DEMO_PRS.main)}/print`,
+    `/api/guides/${v2}/export?format=md`,
     demoPaths.repo,
     demoPaths.repos,
     demoPaths.activity,
