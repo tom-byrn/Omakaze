@@ -281,7 +281,10 @@ test.describe("Guide check", () => {
     await page.reload();
     await expect(guideCheckPanel(page)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    // Tall enough that the panel needs no scrolling, so the sticky header doesn't cover it.
+    await page.setViewportSize({ width: 390, height: 3200 });
     await shot(page, "guide-check-settings-mobile", { locator: guideCheckPanel(page) });
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(demoPaths.pull(DEMO_PRS.main));
     await expect(page.getByTestId("guide-check-status")).toBeVisible();
     await shot(page, "guide-check-header-mobile");
