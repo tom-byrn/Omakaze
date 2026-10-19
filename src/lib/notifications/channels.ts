@@ -195,7 +195,7 @@ export async function previewEvents(workspace: { id: string; name: string; slug:
     .innerJoin(repositories, eq(repositories.id, guides.repositoryId))
     .leftJoin(pullRequests, and(eq(pullRequests.repositoryId, guides.repositoryId), eq(pullRequests.number, guides.prNumber)))
     .where(and(eq(guides.workspaceId, workspace.id), eq(guides.status, "ready")))
-    .orderBy(desc(guides.publishedAt))
+    .orderBy(desc(guides.updatedAt))
     .limit(1);
   const sections = row ? await db.select({ title: guideSections.title, generated: guideSections.generated }).from(guideSections).where(eq(guideSections.guideId, row.guide.id)).orderBy(asc(guideSections.position)) : [];
   const app = env().APP_URL;

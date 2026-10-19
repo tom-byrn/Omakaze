@@ -11,7 +11,7 @@ import { spawn } from "node:child_process";
 import { DEMO_PASSWORD, DEMO_PRS, DEMO_USERS, demoPaths } from "../scripts/demo-data";
 import { appEnv, E2E, ROOT } from "./config";
 import { closeDb, ensureDatabase } from "./db";
-import { ensureMockGitHub, seedDatabase, warmUp, writeStorageStates } from "./setup";
+import { ensureMockGitHub, ensureMockNotify, seedDatabase, warmUp, writeStorageStates } from "./setup";
 
 process.env.DEMO_NOW ??= String(Date.now());
 
@@ -32,6 +32,7 @@ async function waitForHealth(timeoutMs: number): Promise<void> {
 await ensureDatabase(E2E.databaseUrl);
 if (E2E.seed) seedDatabase();
 const mock = await ensureMockGitHub();
+const notify = await ensureMockNotify();
 
 const args = E2E.server === "start" ? ["exec", "next", "start", "--port", String(E2E.port)] : ["exec", "next", "dev", "--port", String(E2E.port)];
 const app = spawn("pnpm", args, { cwd: ROOT, env: { ...process.env, ...appEnv() }, stdio: "inherit" });
@@ -42,6 +43,7 @@ async function stop(code = 0) {
   stopping = true;
   app.kill("SIGTERM");
   await mock?.close();
+  await notify?.close();
   await closeDb();
   process.exit(code);
 }

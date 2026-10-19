@@ -81,6 +81,7 @@ src/
     guides/               guide service, refs and coverage, authoring guidelines, access checks
     jobs/                 job queue, worker and handlers
     mcp/                  MCP server: tools, prompt and instructions
+    notifications/        email notifications, Slack and JSON webhooks: recipients, grouping, emails, jobs
     oauth/                OAuth 2.1 authorization server
     storage/              uploads and downloads from public URLs
     env.ts                environment variable schema
@@ -114,7 +115,8 @@ Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vite
 - detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments;
 - the pull request filters and tab counts (`src/lib/dashboard.ts`), and review requests and assignees from GitHub payloads and webhooks (`src/lib/github/people.ts`);
 - suggested changes: parsing ```` ```suggestion ```` blocks, inserting them, the commented lines from `diff_hunk` and the rows of the suggestion diff (`src/lib/github/suggestions.ts`);
-- the GraphQL endpoint for github.com and GitHub Enterprise Server, GraphQL errors, and the mapping of review comments to review threads (`src/lib/github/graphql.ts`, `src/lib/github/threads.ts`).
+- the GraphQL endpoint for github.com and GitHub Enterprise Server, GraphQL errors, and the mapping of review comments to review threads (`src/lib/github/graphql.ts`, `src/lib/github/threads.ts`);
+- notifications: who hears about a published guide, a comment or a review, which reviewed sections changed, preferences, grouping into one email and its subject, the HTML and text email, Slack Block Kit messages, the JSON webhook body, webhook URL checks and unsubscribe links (`src/lib/notifications`).
 
 Add tests for logic in `src/lib` and other code that can run without a database. Flows through the browser are covered by the end-to-end tests below; Vitest only picks up `tests/`.
 
@@ -171,7 +173,7 @@ pnpm exec playwright show-report       # the HTML report of the last run
 A run:
 
 1. starts the app with `next dev` on `E2E_PORT` (default 3100) against `E2E_DATABASE_URL` (default `postgres://omakaze:omakaze@localhost:5432/omakaze_e2e`), creating the database if it does not exist. A server already listening on the port is reused, except in CI;
-2. migrates and seeds the database (`scripts/seed-demo.ts --github=mock`), starts the mock GitHub API, creates a session for each demo user and requests the main pages once so `next dev` compiles them;
+2. migrates and seeds the database (`scripts/seed-demo.ts --github=mock`), starts the mock GitHub API and the fake SMTP server and webhook receiver (see [Email and webhooks](#email-and-webhooks)), creates a session for each demo user and requests the main pages once so `next dev` compiles them;
 3. runs the specs in `e2e/*.spec.ts` one at a time (they share the database) at a 1440×900 viewport, with a video of every test and a trace and screenshot of every failure in `test-results/`.
 
 For repeated runs, keep the app running in another terminal; `pnpm test:e2e` then reuses it and starts in seconds:
@@ -225,7 +227,7 @@ MEDIA_DIR=media E2E_DEMO=1 pnpm test:e2e e2e/guide.spec.ts
 
 ### Running several copies at once
 
-Each copy needs its own port and database. Setting `E2E_PORT` is enough: the database name and the mock GitHub port are derived from it.
+Each copy needs its own port and database. Setting `E2E_PORT` is enough: the database name, the mock GitHub port and the ports of the fake SMTP server and webhook receiver are derived from it.
 
 ```sh
 E2E_PORT=3110 pnpm e2e:serve     # database omakaze_e2e_3110, mock GitHub on 3209
@@ -279,6 +281,21 @@ graphqlResolvers.push(({ query, variables }, ctx) =>
 
 To run the suite without a GitHub connection, set `E2E_GITHUB=none`; specs that need the mock skip themselves with `test.skip(E2E.github !== "mock")`.
 
+### Email and webhooks
+
+`e2e/mock-notify.ts` runs two stand-ins next to the mock GitHub API: an SMTP server on `E2E_SMTP_PORT` (default `E2E_PORT` + 400) that keeps every email it receives, and an HTTP server on `E2E_NOTIFY_PORT` (default `E2E_PORT` + 300) that records every POST as a webhook delivery and answers `200 ok`. The app under test sends email to the SMTP server (`SMTP_URL`), may post webhooks to `127.0.0.1` (`WEBHOOKS_ALLOW_PRIVATE_NETWORK`) and groups notifications for 30 seconds (`NOTIFICATIONS_GROUP_SECONDS`). In a spec, use `mockNotify` from `e2e/fixtures.ts`:
+
+| Call | Effect |
+| --- | --- |
+| `mockNotify.mail({ to })` | Received emails, oldest first, parsed: envelope, headers (lower case), `subject`, `text` and `html` |
+| `mockNotify.mailUrl(id)` | A page that shows one email as a mail client would, for screenshots; `/__mock/mail/<id>.html` is the HTML part alone |
+| `mockNotify.hooks({ path })` | Received webhook deliveries (path, headers, parsed body, status) |
+| `mockNotify.slackUrl` | A Slack webhook URL the receiver answers |
+| `mockNotify.failHooks(status, times)` | Answer the next deliveries with an error, e.g. Slack's 404 |
+| `mockNotify.clearMail()`, `clearHooks()`, `reset()` | Forget what was received |
+
+Emails wait for their grouping delay in the job queue; `e2e/notifications.spec.ts` sends them right away by moving the queued `send_notification_email` jobs' `run_at` to now. Set `E2E_SMTP=none` to run without SMTP, for the parts of the settings that explain why email is off.
+
 ### Settings
 
 | Variable | Default | Meaning |
@@ -287,6 +304,9 @@ To run the suite without a GitHub connection, set `E2E_GITHUB=none`; specs that 
 | `E2E_DATABASE_URL` | `…/omakaze_e2e`, or `…/omakaze_e2e_<port>` for another port | Database of the app under test; created, migrated and seeded by each run |
 | `E2E_GITHUB_PORT` | `E2E_PORT` + 99 | Port of the mock GitHub API |
 | `E2E_GITHUB` | `mock` | `none` seeds the repository without a GitHub connection |
+| `E2E_SMTP` | `sink` | `none` runs the app without SMTP, so email notifications are off |
+| `E2E_SMTP_PORT` | `E2E_PORT` + 400 | Port of the fake SMTP server |
+| `E2E_NOTIFY_PORT` | `E2E_PORT` + 300 | Port of the webhook receiver and of the fake SMTP server's HTTP API |
 | `E2E_SERVER` | `dev` | `start` runs `next start` (build first) |
 | `E2E_SEED` | `1` | `0` keeps the database as it is |
 | `E2E_WORKERS` | `1` | Parallel workers |
@@ -299,7 +319,7 @@ To run the suite without a GitHub connection, set `E2E_GITHUB=none`; specs that 
 | `E2E_SERVER_LOG` | | `1` prints the app's output |
 | `E2E_CHROMIUM_PATH` | | Chromium executable, if Playwright can't find its own |
 
-The app under test always runs with the e2e database, the e2e `APP_SECRET`, `GITHUB_API_URL` pointing at the mock and polling turned off; variables in your `.env` that would change this are overridden. Sign-in through the form is rate limited per address (10 attempts in 15 minutes per account), and the limit lives in the server's memory, so a reused server keeps counting; the fixtures sign in through stored sessions to avoid it.
+The app under test always runs with the e2e database, the e2e `APP_SECRET`, `GITHUB_API_URL` pointing at the mock, `SMTP_URL` pointing at the fake SMTP server and polling turned off; variables in your `.env` that would change this are overridden. Sign-in through the form is rate limited per address (10 attempts in 15 minutes per account), and the limit lives in the server's memory, so a reused server keeps counting; the fixtures sign in through stored sessions to avoid it.
 
 ## Adding a migration
 

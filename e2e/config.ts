@@ -29,6 +29,12 @@ export const E2E = {
     `postgres://omakaze:omakaze@localhost:5432/${defaultPort ? "omakaze_e2e" : `omakaze_e2e_${port}`}`,
   /** "mock" (default): the repository has a token connection served by the mock GitHub API. "none": no connection. */
   github: (process.env.E2E_GITHUB || "mock") as "mock" | "none",
+  /** Fake SMTP server that keeps notification email (default: E2E_PORT + 400). See e2e/mock-notify.ts. */
+  smtpPort: Number(process.env.E2E_SMTP_PORT || port + 400),
+  /** Receiver of Slack and JSON webhooks, and the HTTP API of the fake SMTP server (default: E2E_PORT + 300). */
+  notifyPort: Number(process.env.E2E_NOTIFY_PORT || port + 300),
+  /** "sink" (default): the app sends email to the fake SMTP server. "none": no SMTP, so email notifications are off. */
+  smtp: (process.env.E2E_SMTP || "sink") as "sink" | "none",
   /** "dev" (default) runs `next dev`; "start" runs `next start` and needs `pnpm build` first. */
   server: (process.env.E2E_SERVER || "dev") as "dev" | "start",
   /** Slower, watchable runs for recordings: slowMo, pauses, a visible cursor and captions. */
@@ -71,7 +77,13 @@ export function appEnv(): Record<string, string> {
     AUTH_SIGNUP_ENABLED: "true",
     AUTH_GITHUB_TOKEN_ENABLED: "false",
     AUTH_ALLOWED_EMAIL_DOMAINS: "",
-    SMTP_URL: "",
+    SMTP_URL: E2E.smtp === "sink" ? `smtp://127.0.0.1:${E2E.smtpPort}` : "",
+    SMTP_FROM: "Omakaze <notifications@omakaze.dev>",
+    NOTIFICATIONS_ENABLED: "true",
+    // Long enough for a burst in one test to share an email; specs send it right away with flushEmail().
+    NOTIFICATIONS_GROUP_SECONDS: "30",
+    // The fake Slack webhook listens on 127.0.0.1.
+    WEBHOOKS_ALLOW_PRIVATE_NETWORK: "true",
     STORAGE_DRIVER: "database",
     LANDING_ONLY: "false",
     RUN_MIGRATIONS_ON_START: "true",

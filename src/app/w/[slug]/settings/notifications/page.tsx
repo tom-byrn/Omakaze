@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChannelForm } from "@/components/settings/ChannelForm";
 import { blockerText, CheckRow, Note } from "@/components/settings/NotificationFields";
 import { Panel } from "@/components/settings/Panel";
 import { SlackPreview } from "@/components/settings/SlackPreview";
@@ -10,7 +11,7 @@ import { timeAgo } from "@/lib/format";
 import { getChannel, maskUrl, previewEvents, type Channel, type ChannelKind } from "@/lib/notifications/channels";
 import { emailBlockerFor, mutedWorkspaces, notificationsEnabled } from "@/lib/notifications/prefs";
 import { slackMessage } from "@/lib/notifications/slack";
-import { CHANNEL_EVENT_LABELS, CHANNEL_EVENTS } from "@/lib/notifications/types";
+import { CHANNEL_EVENT_LABELS } from "@/lib/notifications/types";
 import { requireWorkspace, roleAtLeast } from "@/lib/workspaces";
 import { saveChannelAction, saveWorkspaceEmailAction } from "./actions";
 
@@ -32,57 +33,8 @@ function ChannelStatus({ channel, kind }: { channel: Channel | null; kind: Chann
   );
 }
 
-function ChannelForm({ slug, kind, channel }: { slug: string; kind: ChannelKind; channel: Channel | null }) {
-  const slack = kind === "slack";
-  return (
-    <ActionForm action={saveChannelAction.bind(null, slug, kind)} className="flex flex-col gap-5">
-      <div>
-        <label className="field-label" htmlFor={`${kind}-url`}>
-          {slack ? "Incoming webhook URL" : "Webhook URL"}
-        </label>
-        <input
-          id={`${kind}-url`}
-          name="url"
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          className="input font-mono"
-          placeholder={channel ? "Saved. Enter a new URL to replace it." : slack ? "https://hooks.slack.com/services/…" : "https://example.com/omakaze-webhook"}
-        />
-        <p className="mt-1.5 text-[12px] leading-[18px] text-muted">
-          {slack ? (
-            <>
-              Create one in Slack under <span className="text-ui">Apps → Incoming Webhooks</span> and pick the channel. Compatible
-              webhooks (Mattermost, Rocket.Chat) work too.
-            </>
-          ) : (
-            "Omakaze POSTs a JSON body for each event. Requests are signed; see the signing secret below."
-          )}
-        </p>
-      </div>
-      <fieldset>
-        <legend className="field-label">Events</legend>
-        <div>
-          {CHANNEL_EVENTS.map((e) => (
-            <CheckRow key={e} name="events" value={e} label={CHANNEL_EVENT_LABELS[e].label} help={CHANNEL_EVENT_LABELS[e].help} defaultChecked={channel ? channel.events.includes(e) : true} />
-          ))}
-        </div>
-      </fieldset>
-      <div className="flex flex-wrap gap-2">
-        <SubmitButton name="intent" value="save" pendingText="Saving…">
-          Save
-        </SubmitButton>
-        <SubmitButton name="intent" value="test" className="btn btn-secondary btn-md" pendingText="Sending…">
-          Send test message
-        </SubmitButton>
-        {channel ? (
-          <SubmitButton name="intent" value="remove" className="btn btn-ghost btn-md" pendingText="Removing…">
-            Remove
-          </SubmitButton>
-        ) : null}
-      </div>
-    </ActionForm>
-  );
+function Form({ slug, kind, channel }: { slug: string; kind: ChannelKind; channel: Channel | null }) {
+  return <ChannelForm kind={kind} action={saveChannelAction.bind(null, slug, kind)} saved={channel?.events ?? null} />;
 }
 
 export default async function NotificationSettingsPage(props: PageProps<"/w/[slug]/settings/notifications">) {
@@ -141,7 +93,7 @@ export default async function NotificationSettingsPage(props: PageProps<"/w/[slu
         <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-6">
             <ChannelStatus channel={slack} kind="slack" />
-            {admin ? <ChannelForm slug={slug} kind="slack" channel={slack} /> : <p className="text-[13px] text-muted">Admins can change this.</p>}
+            {admin ? <Form slug={slug} kind="slack" channel={slack} /> : <p className="text-[13px] text-muted">Admins can change this.</p>}
           </div>
           <div className="flex min-w-0 flex-col gap-2">
             <span className="field-label">Preview</span>
@@ -165,7 +117,7 @@ export default async function NotificationSettingsPage(props: PageProps<"/w/[slu
               </div>
             </div>
           ) : null}
-          {admin ? <ChannelForm slug={slug} kind="webhook" channel={webhook} /> : <p className="text-[13px] text-muted">Admins can change this.</p>}
+          {admin ? <Form slug={slug} kind="webhook" channel={webhook} /> : <p className="text-[13px] text-muted">Admins can change this.</p>}
           <details className="border-t border-dashed border-line pt-4">
             <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.08em] text-black/60">Example body</summary>
             <pre className="mt-3 overflow-auto bg-wash p-3 font-mono text-[11px] leading-[16px] text-alt-ink">

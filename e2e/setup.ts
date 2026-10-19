@@ -9,6 +9,7 @@ import { DEMO_PRS, DEMO_USERS, demoPaths, type DemoUserKey } from "../scripts/de
 import { appEnv, E2E, ROOT } from "./config";
 import { closeDb, createSession, ensureDatabase, guideId } from "./db";
 import { mockGitHub, startMockGitHub, type MockServer } from "./mock-github";
+import { mockNotify, startMockNotify, type MockNotifyServer } from "./mock-notify";
 
 export const USER_KEYS = Object.keys(DEMO_USERS) as DemoUserKey[];
 
@@ -40,6 +41,18 @@ export async function ensureMockGitHub(): Promise<MockServer | null> {
   }
   const server = await startMockGitHub({ port: E2E.githubPort, now });
   log(`mock GitHub API on ${server.url}`);
+  return server;
+}
+
+/** Start the fake SMTP server and webhook receiver (e2e/mock-notify.ts), or empty the ones already running. */
+export async function ensureMockNotify(): Promise<MockNotifyServer | null> {
+  if (await mockNotify.isRunning()) {
+    await mockNotify.reset();
+    log(`reset the fake SMTP server and webhook receiver on ${mockNotify.url}`);
+    return null;
+  }
+  const server = await startMockNotify({ smtpPort: E2E.smtpPort, httpPort: E2E.notifyPort });
+  log(`fake SMTP server on port ${E2E.smtpPort}, webhook receiver on ${server.url}`);
   return server;
 }
 
@@ -92,6 +105,9 @@ export async function warmUp(): Promise<void> {
     `${demoPaths.settings}/template`,
     `${demoPaths.repo}/settings`,
     demoPaths.account,
+    `${demoPaths.settings}/notifications`,
+    "/unsubscribe?token=warm-up",
+    "/api/notifications/unsubscribe",
     // More routes for a feature, e.g. E2E_WARMUP_PATHS=/w/demo/insights,/api/w/demo/export
     ...(process.env.E2E_WARMUP_PATHS ?? "").split(",").map((p) => p.trim()).filter(Boolean),
   ];
@@ -107,10 +123,12 @@ export async function prepareRun(opts: { warmUp: boolean }): Promise<() => Promi
   await ensureDatabase(E2E.databaseUrl);
   if (E2E.seed) seedDatabase();
   const mock = await ensureMockGitHub();
+  const notify = await ensureMockNotify();
   await writeStorageStates();
   if (opts.warmUp) await warmUp();
   await closeDb();
   return async () => {
     await mock?.close();
+    await notify?.close();
   };
 }

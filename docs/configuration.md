@@ -52,8 +52,16 @@ See [github-app.md](github-app.md) for how these fit together.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `SMTP_URL` | none | SMTP connection URL, for example `smtps://user:password@smtp.example.com:465`. Used for invite emails and for links that confirm an address for an email-restricted invite. Without it, invites are shared as links only, and an email-restricted invite can only be accepted with an address that is verified on GitHub. |
+| `SMTP_URL` | none | SMTP connection URL, for example `smtps://user:password@smtp.example.com:465`. Used for invite emails, for links that confirm an address, and for [email notifications](#notifications). Without it, invites are shared as links only, an email-restricted invite can only be accepted with an address that is verified on GitHub, and email notifications are off (the account page says so). |
 | `SMTP_FROM` | `Omakaze <no-reply@localhost>` | Sender address for these emails. |
+
+### Notifications
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `NOTIFICATIONS_ENABLED` | `true` | Email notifications, Slack and JSON webhooks for the whole instance. When false, nothing is sent and the settings pages say so. |
+| `NOTIFICATIONS_GROUP_SECONDS` | `300` | How long the first email notification waits for others, for members who get email "within a few minutes". Notifications that arrive in that time are sent as one email. A whole number from 0 to 3600. |
+| `WEBHOOKS_ALLOW_PRIVATE_NETWORK` | `false` | Let Slack and JSON webhooks reach loopback and private network addresses, for example a Mattermost server on your network. By default, like downloads for `upload_asset`, only public addresses are allowed, so workspace admins can't use webhooks to probe your network. |
 
 ### Storage
 
@@ -110,7 +118,7 @@ These are read by `docker-compose.yml` itself:
 | --- | --- |
 | Environment variables, read at startup | Changed in the app by workspace admins |
 | `/admin` for instance admins: create or remove the GitHub App, status, webhook deliveries, recent jobs | **Settings** and **Repositories** in each workspace |
-| GitHub App and OAuth credentials, sign-in methods, SMTP, storage, worker and polling, default AI provider | Name and URL, members and invites, GitHub connections, guide template, AI provider, automation, API tokens, followed repositories |
+| GitHub App and OAuth credentials, sign-in methods, SMTP and notifications, storage, worker and polling, default AI provider | Name and URL, members and invites, GitHub connections, guide template, AI provider, automation, Slack and JSON webhooks, API tokens, followed repositories |
 
 ### Workspace settings pages
 
@@ -122,6 +130,7 @@ These are read by `docker-compose.yml` itself:
 | **Guide template** | The outline of sections guides follow (from the **Feature**, **Bug fix** or **Migration** starter, or your own), and writing instructions. Applies to built-in generation, MCP agents, the REST API and the editor; repositories can override it. See [ai.md](ai.md#guide-templates). |
 | **AI provider** | Provider, model, API key (encrypted, never shown again) and base URL for built-in generation, with **Test connection** and **Remove provider**. The page shows whether the workspace or the instance default is in effect. |
 | **Automation** | The four automation switches below. |
+| **Notifications** | Every member: whether they get email about this workspace. Admins: a Slack incoming webhook and a JSON webhook, the events each one receives, **Send test message** and a preview of the Slack messages. See [Notifications](#notifications). |
 | **API tokens & MCP** | MCP server URL, client configuration, setup prompt, API tokens and OAuth clients. |
 
 The **Repositories** page lists followed repositories. Admins add and remove them, create repository webhooks for token and account connections, and override automatic guides per repository (**Workspace default**, **On** or **Off**). **Settings** next to a repository opens its own page with the same switch and the repository's [guide template](ai.md#guide-templates). Repositories whose connection was removed show "No GitHub connection"; see [github-app.md](github-app.md#repositories-without-a-connection).
@@ -146,6 +155,38 @@ Admins create invite links on **Members** with the member or admin role. Each li
 
 The exact conditions are in [ai.md](ai.md#automation).
 
+### Notifications
+
+**Email** goes to members, about pull requests in workspaces they belong to. Each member chooses on the **Account** page which of these they get (all are on by default):
+
+| Notification | Who gets it |
+| --- | --- |
+| A guide is ready | Members whose review is requested on GitHub, or who are assigned to the pull request, when a guide version is published. Matched through their linked GitHub account. |
+| A new version of a guide I reviewed | Members who marked sections as reviewed in an earlier version, or submitted a review through Omakaze, when a new version is published. The email lists the sections they reviewed whose code changed (with links) and how many carried over unchanged, using the same comparison as the guide viewer (see [architecture.md](architecture.md#review-progress-across-versions)). |
+| Replies to my comments | Everyone who wrote in a review conversation before, when someone replies in Omakaze or on GitHub (through `pull_request_review_comment` webhooks). |
+| Comments and reviews on my pull requests | The pull request's author, for line comments, replies, conversation comments and reviews posted in its guide. GitHub tells authors about activity on GitHub itself. |
+
+- Nobody is told about what they did themselves, and each member gets one notification per event.
+- Email is only sent to a confirmed address (`users.email_verified_at`): a verified GitHub email, or one confirmed with **Send confirmation link** on the **Account** page (a signed link, valid 24 hours, opened by the same signed-in user).
+- **Grouping.** The first notification waits `NOTIFICATIONS_GROUP_SECONDS` (default 5 minutes), an hour or a day, as the member chooses, and everything that arrives meanwhile is one email, grouped by pull request. Of several new versions of one guide, only the newest is mentioned.
+- **Muting.** A member can turn off email for a workspace on the **Account** page or in the workspace's **Settings → Notifications**. Preferences and mutes are checked again when an email is sent.
+- **Unsubscribing.** Every email has a link to mute its workspace and one to stop all notification email, and `List-Unsubscribe` and `List-Unsubscribe-Post` headers for one-click unsubscribe in mail clients (RFC 8058). The links are signed (HMAC with a key derived from `APP_SECRET`), valid for a year and need no sign-in. The page they open asks before unsubscribing, so link scanners in mail filters can't unsubscribe anyone.
+- Emails are sent by the job worker and retried when the SMTP server fails. Pending notifications older than 7 days are dropped.
+
+**Slack and JSON webhooks** are set up per workspace by admins in **Settings → Notifications**, each with its own events:
+
+| Event | When |
+| --- | --- |
+| Guide published | The first guide for a pull request is published. |
+| New version | A new version of a guide is published. The message lists the sections whose code changed compared to the previous version and how many are new. |
+| Review completed | A review is submitted (approve, request changes, or comment with text), through Omakaze or on GitHub (`pull_request_review` webhooks). |
+
+- **Slack.** Paste an incoming webhook URL (Slack: **Apps → Incoming Webhooks**; Slack-compatible webhooks such as Mattermost's work too). Messages use Block Kit, with **Open the guide** and **View on GitHub** buttons. The panel shows a preview of each message built from the workspace's latest guide.
+- **JSON webhook.** Omakaze POSTs the event as JSON (`event`, `id`, `sent_at`, `workspace`, `repository`, `pull_request`, `guide`, `actor`, `review`; the settings page shows an example) with an `X-Omakaze-Event` header and `X-Omakaze-Signature-256: sha256=<HMAC-SHA256 of the body>`, keyed with the signing secret shown to admins. `id` is the same for a retried delivery.
+- **Send test message** posts to the URL being entered, or the saved one, and shows the answer.
+- Webhook URLs and the signing secret are encrypted at rest; the page shows only the start of a saved URL. Deliveries are retried on timeouts, HTTP 408, 429 and 5xx; other refusals (a deleted Slack webhook answers 404) are not, and the panel shows the last error.
+- Requests go only to public addresses unless `WEBHOOKS_ALLOW_PRIVATE_NETWORK` is set, and redirects are not followed.
+
 ### Roles
 
 | Action | Member | Admin | Owner |
@@ -154,7 +195,8 @@ The exact conditions are in [ai.md](ai.md#automation).
 | Create and edit guides (MCP, REST API, editor, **Generate with AI**) | Yes | Yes | Yes |
 | Create API tokens and authorize MCP clients; revoke their own tokens | Yes | Yes | Yes |
 | Follow a new repository, or reconnect one without a connection, by passing its pull request to MCP or the REST API | No | Yes | Yes |
-| Manage connections, repositories, AI provider, guide templates, automation, invites and members; rename the workspace; see and revoke all tokens | No | Yes | Yes |
+| Turn their own email about the workspace on or off | Yes | Yes | Yes |
+| Manage connections, repositories, AI provider, guide templates, automation, Slack and JSON webhooks, invites and members; rename the workspace; see and revoke all tokens | No | Yes | Yes |
 | Make someone an owner, change or remove owners, delete the workspace | No | No | Yes |
 
 A workspace always keeps at least one owner. Invites grant the member or admin role.
