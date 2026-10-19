@@ -18,6 +18,11 @@ type Row = {
 };
 
 function describe(r: Row): string {
+  // Posted by an agent over MCP as this member: name the agent.
+  return `${describeType(r)}${typeof r.data.agent === "string" ? ` via ${r.data.agent}` : ""}`;
+}
+
+function describeType(r: Row): string {
   const d = r.data;
   const pr = r.repoFullName && r.prNumber ? `${r.repoFullName}#${r.prNumber}` : "";
   switch (r.type) {
@@ -46,6 +51,7 @@ function describe(r: Row): string {
     case "guide.failed":
       return `could not generate a guide for ${pr}: ${String(d.error ?? "")}`;
     case "comment.posted":
+      if (d.conversation) return `commented on ${pr}`;
       return `${d.reply ? "replied on" : "commented on"} ${String(d.path ?? "")}${d.line ? `:${String(d.line)}` : ""} in ${pr}`;
     case "thread.resolved":
     case "thread.unresolved":

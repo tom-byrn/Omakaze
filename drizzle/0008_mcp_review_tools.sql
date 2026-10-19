@@ -1,0 +1,1 @@
+ALTER TABLE "workspaces" ADD COLUMN "allow_agent_approvals" boolean DEFAULT false NOT NULL;

@@ -57,6 +57,13 @@
       "when": 1792443349084,
       "tag": "0007_guide_check",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792446525386,
+      "tag": "0008_mcp_review_tools",
+      "breakpoints": true
     }
   ]
 }

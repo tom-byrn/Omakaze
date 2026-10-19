@@ -170,7 +170,7 @@ export async function setReviewThreadResolved(
   user: { id: string },
   ref: ThreadRef,
   resolved: boolean,
-  meta: { workspaceId: string; guideId: string | null },
+  meta: { workspaceId: string; guideId: string | null; agent?: string },
 ): Promise<{ thread: ReviewThread }> {
   const token = await getUserGitHubToken(user.id).catch(() => null);
   if (!token) throw new GitHubError("Link your GitHub account to resolve conversations.", 403, "graphql");
@@ -191,7 +191,7 @@ export async function setReviewThreadResolved(
     repositoryId: ctx.repo.id,
     prNumber,
     guideId: meta.guideId,
-    data: { path: root?.path, line: root?.line ?? root?.original_line, url: root?.html_url },
+    data: { path: root?.path, line: root?.line ?? root?.original_line, url: root?.html_url, ...(meta.agent ? { agent: meta.agent } : {}) },
   });
   return { thread: result };
 }

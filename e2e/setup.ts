@@ -92,6 +92,8 @@ export async function warmUp(): Promise<void> {
     demoPaths.activity,
     demoPaths.settings,
     `${demoPaths.settings}/template`,
+    `${demoPaths.settings}/tokens`,
+    "/api/mcp",
     `${demoPaths.repo}/settings`,
     `${demoPaths.settings}/automation`,
     `/api/w/demo/guide-check?number=${DEMO_PRS.main}`,

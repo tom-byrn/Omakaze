@@ -110,7 +110,7 @@ export default async function LandingPage() {
         <div className="mx-auto grid max-w-[1560px] grid-cols-1 md:grid-cols-3 md:px-[72px]">
           {[
             ["MIT", "Licensed. Run it anywhere."],
-            ["17", "MCP tools for coding agents."],
+            ["22", "MCP tools for coding agents."],
             ["4", "AI providers, including local models."],
           ].map(([n, c], i) => (
             <div key={c} className={`flex flex-col gap-2.5 px-6 py-8 ${i > 0 ? "border-t border-dashed border-line md:border-t-0 md:border-l" : ""}`}>

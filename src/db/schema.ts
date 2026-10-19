@@ -169,6 +169,8 @@ export const workspaces = pgTable(
     guideCheck: text("guide_check").$type<GuideCheckMode>().default("off").notNull(),
     /** Members who must review each section before a required guide check passes. */
     guideCheckReviewers: integer("guide_check_reviewers").default(1).notNull(),
+    /** Agents over MCP may approve pull requests as the member whose token they use. */
+    allowAgentApprovals: boolean("allow_agent_approvals").default(false).notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
