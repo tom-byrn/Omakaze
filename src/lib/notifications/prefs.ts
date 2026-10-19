@@ -1,11 +1,12 @@
 /** Email notification preferences, workspace mutes, unsubscribe links and confirming an address. */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { notificationMutes, notificationPreferences } from "@/db/schema";
+import { jobs, notificationMutes, notificationPreferences } from "@/db/schema";
 import { signPayload, verifyPayload } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { rateLimit } from "@/lib/http";
 import { mailEnabled, sendMail } from "@/lib/mail";
+import { digestDelaySeconds } from "./digest";
 import { emailBlocker, type EmailBlocker } from "./recipients";
 
 export type Preferences = Omit<typeof notificationPreferences.$inferSelect, "userId" | "updatedAt">;
@@ -50,6 +51,12 @@ export async function savePreferences(userId: string, prefs: Preferences): Promi
     .insert(notificationPreferences)
     .values({ userId, ...prefs })
     .onConflictDoUpdate({ target: notificationPreferences.userId, set: { ...prefs, updatedAt: new Date() } });
+  // A shorter delay also applies to the email that is already waiting.
+  const delay = digestDelaySeconds(prefs.digest, env().NOTIFICATIONS_GROUP_SECONDS);
+  await db
+    .update(jobs)
+    .set({ runAt: sql`least(${jobs.runAt}, now() + make_interval(secs => ${delay}))` })
+    .where(and(eq(jobs.type, "send_notification_email"), eq(jobs.status, "queued"), eq(jobs.dedupeKey, `notify-email:${userId}`)));
 }
 
 export async function mutedWorkspaces(userId: string): Promise<Set<string>> {

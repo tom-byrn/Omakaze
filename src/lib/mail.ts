@@ -9,7 +9,8 @@ export async function deliverMail(msg: MailMessage): Promise<void> {
   const { SMTP_URL, SMTP_FROM } = env();
   if (!SMTP_URL) throw new MailNotConfiguredError("SMTP is not configured");
   const nodemailer = await import("nodemailer");
-  const transport = nodemailer.createTransport(SMTP_URL);
+  // nodemailer waits up to 10 minutes for a silent server by default; jobs that send email retry instead.
+  const transport = nodemailer.createTransport({ url: SMTP_URL, connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 60_000 });
   await transport.sendMail({ from: SMTP_FROM, ...msg });
 }
 

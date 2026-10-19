@@ -35,9 +35,18 @@ export async function enqueueJob(
       .returning();
     return job;
   } catch (err) {
-    if (String(err).includes("jobs_dedupe_active_unique")) return null;
+    if (isDedupeConflict(err)) return null;
     throw err;
   }
+}
+
+/** A queued or running job has the key. Drizzle wraps the driver's error ("Failed query: …") and keeps it as `cause`. */
+export function isDedupeConflict(err: unknown): boolean {
+  let e: unknown = err;
+  for (let depth = 0; e && depth < 5; depth++, e = (e as { cause?: unknown }).cause) {
+    if ((e as { constraint_name?: string }).constraint_name === "jobs_dedupe_active_unique" || String(e).includes("jobs_dedupe_active_unique")) return true;
+  }
+  return false;
 }
 
 /** Atomically claim the next runnable job (SKIP LOCKED makes multiple workers safe). */

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SectionMatch } from "@/lib/guides/carryover";
 import { coalesce, digestDelaySeconds, digestSubject, excerpt, itemHeadline, type DigestItem } from "@/lib/notifications/digest";
 import { escapeHtml, renderDigestEmail } from "@/lib/notifications/email";
+import { isDedupeConflict } from "@/lib/jobs/queue";
 import { maskUrl, signBody, validateWebhookUrl } from "@/lib/notifications/channels";
 import { eventKey } from "@/lib/notifications/hooks";
 import { readUnsubscribeToken, unsubscribeToken } from "@/lib/notifications/prefs";
@@ -299,5 +300,15 @@ describe("events and links", () => {
     const [body] = unsubscribeToken("u1").split(".");
     expect(readUnsubscribeToken(`${body}.forged`)).toBeNull();
     expect(readUnsubscribeToken(null)).toBeNull();
+  });
+});
+
+describe("job queue", () => {
+  it("recognizes a dedupe conflict wrapped by drizzle", () => {
+    const pg = Object.assign(new Error('duplicate key value violates unique constraint "jobs_dedupe_active_unique"'), { constraint_name: "jobs_dedupe_active_unique" });
+    const wrapped = Object.assign(new Error('Failed query: insert into "jobs" …'), { cause: pg });
+    expect(isDedupeConflict(wrapped)).toBe(true);
+    expect(isDedupeConflict(pg)).toBe(true);
+    expect(isDedupeConflict(Object.assign(new Error("Failed query: insert"), { cause: new Error("connection refused") }))).toBe(false);
   });
 });

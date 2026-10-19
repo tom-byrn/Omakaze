@@ -144,7 +144,7 @@ async function notifyMembers(input: {
   const reachable = new Set(people.filter((p) => p.email && p.verifiedAt).map((p) => p.id));
   const rows = input.recipients.filter((r) => reachable.has(r.userId) && !muted.has(r.userId) && wantsEmail(prefs.get(r.userId)!, r.type));
   if (rows.length === 0) return;
-  const inserted = await db
+  await db
     .insert(notifications)
     .values(
       rows.map((r) => ({
@@ -160,9 +160,9 @@ async function notifyMembers(input: {
         eventKey: input.key,
       })),
     )
-    .onConflictDoNothing()
-    .returning({ userId: notifications.userId });
-  for (const { userId } of inserted) await scheduleEmail(userId, prefs.get(userId)!.digest);
+    .onConflictDoNothing();
+  // Also for rows a failed earlier attempt wrote: scheduling is de-duplicated per recipient.
+  for (const r of rows) await scheduleEmail(r.userId, prefs.get(r.userId)!.digest);
 }
 
 /** Queue the recipient's email for when their first pending notification has waited long enough. */

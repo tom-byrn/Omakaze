@@ -248,7 +248,10 @@ test.describe("Notifications", () => {
     for (const text of ["Good call. The preview route can set it with httpOnly.", "Pushed that: the client no longer writes the cookie."]) {
       await thread.getByRole("button", { name: "Reply…" }).click();
       await page.getByPlaceholder("Reply").fill(text);
+      // The reply shows before it is posted; its notification is queued when the POST returns.
+      const posted = page.waitForResponse((r) => r.request().method() === "POST" && /^\/api\/guides\/[^/]+\/comments$/.test(new URL(r.url()).pathname));
       await page.getByRole("button", { name: "Reply on GitHub" }).click();
+      expect((await posted).ok()).toBe(true);
       await expect(page.getByText(text)).toBeVisible();
     }
     const alexMail = await inbox("owner", 2);
