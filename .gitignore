@@ -21,8 +21,9 @@ data/
 
 # testing
 coverage/
-playwright-report/
-test-results/
+playwright-report*/
+test-results*/
+e2e/.auth/
 
 # demo recording output (scripts/demo)
 demo-output/

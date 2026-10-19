@@ -27,4 +27,5 @@ Initial release.
 - Rate limits for sign-in, sign-up and OAuth client registration, with `TRUST_PROXY_HOPS` to select the client address behind reverse proxies.
 - Uploads stored in PostgreSQL or on the file system.
 - Background job queue in PostgreSQL with retries, run inside the app process.
+- Demo data (`pnpm db:seed`): a workspace with three members, a repository with six pull requests, guides with two versions, review marks, comments and activity. End-to-end tests with Playwright (`pnpm test:e2e`, also in CI) against a seeded database and a mock GitHub API, with helpers for screenshots and videos.
 - Docker image, `docker-compose.yml` with PostgreSQL 16, migrations on start, a health check endpoint at `/api/health`, and a release workflow that publishes the image to GitHub Container Registry.
