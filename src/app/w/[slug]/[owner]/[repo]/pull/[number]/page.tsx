@@ -201,7 +201,12 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
           additions: s.stats.additions,
           deletions: s.stats.deletions,
           reviewedBy: s.reviewedBy,
+          carriedFrom: s.carriedFrom,
+          reviewChange: s.reviewChange,
+          visitChange: s.visitChange,
         }))}
+        lastVisitAt={data.lastVisitAt?.toISOString() ?? null}
+        sinceVisit={data.sinceVisit ? { ...data.sinceVisit, at: data.sinceVisit.at.toISOString() } : null}
         files={data.files.map((f) => ({
           path: f.path,
           status: f.status,

@@ -1,9 +1,10 @@
 "use client";
 
-import { RiCheckboxCircleFill, RiCheckboxBlankCircleLine } from "@remixicon/react";
+import { RiCheckboxCircleFill, RiCheckboxBlankCircleLine, RiErrorWarningLine } from "@remixicon/react";
 import Link from "next/link";
 import { useState } from "react";
 import type { ViewerSection } from "./GuideViewer";
+import type { SectionProgress } from "./ReviewChanges";
 
 type Event = "APPROVE" | "REQUEST_CHANGES" | "COMMENT" | "ISSUE_COMMENT";
 
@@ -11,6 +12,7 @@ export function ReviewPanel({
   guideId,
   sections,
   reviewed,
+  progress,
   me,
   prUrl,
   onGoto,
@@ -19,6 +21,8 @@ export function ReviewPanel({
   guideId: string;
   sections: ViewerSection[];
   reviewed: Set<string>;
+  /** Per section, in order: reviewed here, carried over from an earlier version, or changed since. */
+  progress?: SectionProgress[];
   me: { id: string; name: string; hasGitHub: boolean };
   prUrl: string;
   onGoto: (step: number) => void;
@@ -29,6 +33,8 @@ export function ReviewPanel({
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<string | null>(null);
   const done = sections.filter((s) => reviewed.has(s.id)).length;
+  const carried = progress?.filter((p) => p.kind === "carried").length ?? 0;
+  const rereview = progress?.filter((p) => p.kind === "rereview").length ?? 0;
 
   async function submit(event: Event) {
     setPending(event);
@@ -56,7 +62,10 @@ export function ReviewPanel({
       <span className="eyebrow">Finish</span>
       <h2 className="mt-6 font-serif text-[32px] leading-[1.04] tracking-[-0.03em] text-black lg:text-[38px]">Submit your review.</h2>
       <p className="lead mt-3">
-        You reviewed {done} of {sections.length} sections. The review is posted to the pull request on GitHub.
+        You reviewed {done} of {sections.length} sections.
+        {carried > 0 ? ` ${carried} of them carried over from an earlier version.` : ""}
+        {rereview > 0 ? ` ${rereview} changed since you reviewed ${rereview === 1 ? "it" : "them"}.` : ""}
+        {" "}The review is posted to the pull request on GitHub.
       </p>
       <ul className="mt-6 border-t border-dashed border-line">
         {sections.map((s, i) => (
@@ -67,12 +76,15 @@ export function ReviewPanel({
               className="flex w-full items-center gap-3 border-b border-dashed border-line py-2.5 text-left hover:bg-black/[0.02]"
             >
               {reviewed.has(s.id) ? (
-                <RiCheckboxCircleFill size={16} className="text-ink" />
+                <RiCheckboxCircleFill size={16} className={progress?.[i]?.kind === "carried" ? "text-black/35" : "text-ink"} />
+              ) : progress?.[i]?.kind === "rereview" ? (
+                <RiErrorWarningLine size={16} className="text-[#b08d00]" />
               ) : (
                 <RiCheckboxBlankCircleLine size={16} className="text-black/30" />
               )}
               <span className="font-mono text-[11px] text-black/45">{String(i + 1).padStart(2, "0")}</span>
               <span className="flex-1 text-[14px] text-ink">{s.title}</span>
+              <ProgressNote progress={progress?.[i]} />
             </button>
           </li>
         ))}
@@ -131,4 +143,14 @@ export function ReviewPanel({
       </div>
     </div>
   );
+}
+
+function ProgressNote({ progress }: { progress?: SectionProgress }) {
+  if (progress?.kind === "carried") {
+    return <span className="font-mono text-[10px] tracking-[0.08em] whitespace-nowrap text-black/45 uppercase">Reviewed in v{progress.version}, unchanged</span>;
+  }
+  if (progress?.kind === "rereview") {
+    return <span className="font-mono text-[10px] tracking-[0.08em] whitespace-nowrap text-[#8a6d00] uppercase">Changed since v{progress.version}</span>;
+  }
+  return null;
 }

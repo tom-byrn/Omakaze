@@ -84,7 +84,7 @@ The schema is in `src/db/schema.ts`; migrations are in `drizzle/`.
 | Users and sign-in | `users` (including `email_verified_at`, set when the address is confirmed), `sessions`, `github_accounts` (one linked GitHub identity per user) |
 | Workspaces | `workspaces` (including AI and automation settings and the guide template), `memberships` (role per user), `invites` |
 | GitHub | `github_connections` (app installation, token or linked account), `repositories` (followed per workspace, through one connection or none, with an optional guide template override), `pull_requests` (cache, including requested reviewers, requested teams and assignees, which are matched to members by the login of their `github_accounts` row) |
-| Guides | `diff_snapshots`, `guides` (one row per version, with a copy of the guide template it was started with), `guide_sections`, `section_reviews`, `guide_views` |
+| Guides | `diff_snapshots`, `guides` (one row per version, with a copy of the guide template it was started with), `guide_sections`, `section_reviews` (including `carried_from_version` for marks carried over from an earlier version), `guide_views` (including `previous_visit_at`) |
 | Reviews | `comments` (comments and reviews posted through Omakaze) |
 | API access | `api_tokens` (personal tokens and OAuth access tokens), `oauth_clients`, `oauth_codes`, `oauth_refresh_tokens` |
 | Uploads | `assets`, `asset_blobs` |
@@ -126,6 +126,17 @@ A diff snapshot is an immutable copy of a pull request's diff at one head commit
 Hunk numbers are the 1-based positions of the `@@` hunks in a file's stored patch. Every guide points to the snapshot it was written against, and snapshots are never changed. A ref such as `src/a.ts#2` therefore selects the same lines for as long as the guide exists, even after the pull request receives new commits: the next guide is written against a new snapshot, and the older guide is marked as outdated in the viewer. Agents pass `head_sha` so that a guide is only created while the pull request is still at the commit they read (see [mcp.md](mcp.md#head_sha-and-changing-pull-requests)).
 
 Coverage is computed from the same snapshot (`src/lib/guides/refs.ts`): every added and removed line is checked against the refs of all sections.
+
+## Review progress across versions
+
+Review marks (`section_reviews`) belong to a section of one guide version. When a new version is written for new commits, `src/lib/guides/progress.ts` carries marks forward and `src/lib/guides/carryover.ts` does the comparisons, which only use the two versions' snapshots:
+
+- **The code a section covers** is the list of changed lines (added and deleted, with their text) that its refs select in its version's snapshot. Line numbers and context lines are ignored, since other edits shift them and a rebase can change context without changing what was reviewed. A file without a patch (binary or too large) is compared by status, previous path and blob SHA.
+- **Matching sections.** Every section of the new version is paired with at most one section of the older version, best match first: identical code, otherwise a score from the changed lines they share (most weight), the files they reference, and the title (a weak hint). Pairs below a threshold are not matched, so the section is new. The automatic "Other changes" sections match each other; sections without code match only by exact title.
+- **Carrying marks.** A mark carries to the matching section when the code is identical. The copy keeps the original `reviewed_at` and sets `carried_from_version` to the version the member reviewed, so a mark carried twice still says v1. Marks carry for every member when a version is first published (`finishGuide`), and for the viewer when they open a version (marks they made on earlier versions since their previous view of it, so a mark they removed is not carried again). Changing a section's refs removes its carried marks and compares it again; publishing again compares only the recreated "Other changes" section.
+- **Re-review.** When the viewer reviewed the matching section of an earlier version but the code changed, the section is flagged. Its interdiff aligns the old and new changed lines per file (longest common subsequence) and lists rows that are only in the new version, rows that are gone, and files the section started or stopped covering. Lines new since then are also marked in the section's diff.
+
+**New since your last visit.** `guide_views.last_viewed_at` is updated on every page view. Before that, the app reads the viewer's rows for every version of the pull request: page views less than 30 minutes apart are one visit, and a new visit compares against the latest page view of the previous one. That time is stored in `guide_views.previous_visit_at`, so reloading during a visit keeps it. When a version was published after it, and the viewer had not opened that version before, the viewer sees a banner, sections that are new or changed compared to the version that was current at the time, and review comments by others that were posted after it.
 
 ## File views and highlighting
 

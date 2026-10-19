@@ -91,9 +91,11 @@ export type DiffFileProps = {
   onComment: (input: { path: string; line: number; side: "LEFT" | "RIGHT"; startLine?: number | null; body: string }) => Promise<string | null>;
   onReply: (rootId: number, body: string) => Promise<string | null>;
   onDelete?: (id: number) => Promise<string | null>;
+  /** Lines that are new since an earlier guide version: added lines by new-side number, deleted lines by old-side number. */
+  newSince?: { add: number[]; del: number[] };
 };
 
-export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onComment, onReply, onDelete }: DiffFileProps) {
+export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onComment, onReply, onDelete, newSince }: DiffFileProps) {
   const { rows, full } = useMemo(() => buildRows(view), [view]);
   const initial = useMemo(
     () => (mode === "all" ? selectRows(rows, [{ path: view.path }]) : selectRows(rows, refs)),
@@ -163,6 +165,7 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
     return out;
   }, [rows, view.moves]);
   const blocks = useMemo(() => blocksOf(visible), [visible]);
+  const sinceSets = useMemo(() => (newSince ? { add: new Set(newSince.add), del: new Set(newSince.del) } : null), [newSince]);
   const reveal = (from: number, to: number) =>
     setVisible((v) => {
       const next = v.slice();
@@ -324,6 +327,9 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
                         row.kind === "del" && "row-del",
                         !row.inHunk && "row-expanded",
                         move && "row-moved",
+                        sinceSets &&
+                          (row.kind === "add" ? row.new !== null && sinceSets.add.has(row.new) : row.kind === "del" && row.old !== null && sinceSets.del.has(row.old)) &&
+                          "row-since",
                         inFlash && "row-flash",
                         inRange && "row-selected",
                       )}

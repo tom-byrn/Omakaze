@@ -16,6 +16,7 @@ function CommentBody({ c, onDelete }: { c: ReviewComment; onDelete?: (id: number
         <div className="flex items-center gap-2 text-[12px]">
           <span className="font-medium text-ink">{c.user?.login ?? "unknown"}</span>
           <span className="text-muted">{timeAgo(c.createdAt)}</span>
+          {c.isNew ? <span className="tag border-blue-bright/40 text-blue-bright">New</span> : null}
           {c.mine && onDelete ? (
             <button
               type="button"

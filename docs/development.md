@@ -107,6 +107,7 @@ Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vite
 
 - unified diff parsing (`src/lib/diff/parse.ts`);
 - ref parsing, serialization, validation and coverage (`src/lib/guides/refs.ts`);
+- section matching, the unchanged test, interdiffs and visits across guide versions (`src/lib/guides/carryover.ts`);
 - the viewer's row model: context rows, line selection and enclosing-block expansion (`src/components/guide/diff-model.ts`);
 - guide templates: resolution of workspace and repository templates, title matching, missing required sections, and the extra request when generation leaves one out (`src/lib/guides/templates.ts`);
 - encryption, signed payloads, password hashing, webhook signatures, pull request URL parsing, editor ref lines, redirects, slugs and the agent prompt;
@@ -138,7 +139,7 @@ The workspace `Acme` (`/w/demo`) follows the repository `acme/storefront`, a fic
 
 | Pull request | State | Guide |
 | --- | --- | --- |
-| #128 Apply promo codes at checkout | open | Two versions. Version 1 was written for an older head commit and is outdated; version 2 matches the current head. Five sections and an automatic "Other changes" section, with refs to whole files, hunks and line ranges, Mermaid diagrams, `diff:` links and a block moved between files. Maya and Sam reviewed sections of version 1. |
+| #128 Apply promo codes at checkout | open | Two versions. Version 1 was written for an older head commit and is outdated; version 2 matches the current head. Five sections and an automatic "Other changes" section, with refs to whole files, hunks and line ranges, Mermaid diagrams, `diff:` links and a block moved between files. Maya and Sam reviewed sections of version 1; their marks on sections whose code did not change carried over to version 2, and Maya's "Validating a code" section is flagged for re-review. |
 | #129 Round sales tax per line item | open | One version, written for an older head commit (outdated). |
 | #127 Send order confirmation emails | merged | One version. |
 | #131 Serve product images through the CDN resizer | open | None. |
@@ -150,7 +151,7 @@ Review requests and assignees (`scripts/demo-data/review-requests.ts`) give ever
 
 The seed also adds the comments and the review that members posted on #128 through Omakaze (`comments` rows) and an activity log. Key pages: `/w/demo` (dashboard), `/w/demo/acme/storefront` (repository), `/w/demo/acme/storefront/pull/128` (guide), `?v=1` for the older version, `/w/demo/acme/storefront/pull/128/edit` (editor) and `/w/demo/settings`.
 
-The data lives in `scripts/demo-data/`: `index.ts` defines users, pull requests, guides, review marks and comments and exports the constants the tests use; `repo/` holds the base and head versions of the files the pull requests change, and the seed computes the diffs from them with `git diff --no-index`; `guides/` holds the guide texts, where `{{diff:name}}` placeholders become `diff:` links to line ranges found in the files. The seed checks every ref against the diff and fails on invalid ones.
+The data lives in `scripts/demo-data/`: `index.ts` defines users, pull requests, guides, review marks and comments and exports the constants the tests use; `repo/` holds the base and head versions of the files the pull requests change, and the seed computes the diffs from them with `git diff --no-index`; `guides/` holds the guide texts, where `{{diff:name}}` placeholders become `diff:` links to line ranges found in the files. The seed checks every ref against the diff and fails on invalid ones. `review-carryover.ts` carries review marks to later versions after the seed's transaction, as publishing them in the app does.
 
 Without `--github=mock` the repository has no GitHub connection, so the app never calls GitHub: the guides render from the stored diffs, without expandable context, and review comments are not shown. The repository's last sync time is set far in the future so the dashboard does not try to sync it.
 

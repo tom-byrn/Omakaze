@@ -427,6 +427,11 @@ export const sectionReviews = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }).defaultNow().notNull(),
+    /**
+     * Set when the mark was carried over from an earlier version that covered the same code: the
+     * version the member reviewed. null when the member marked the section in this version.
+     */
+    carriedFromVersion: integer("carried_from_version"),
   },
   (t) => [primaryKey({ columns: [t.sectionId, t.userId] }), index("section_reviews_guide_idx").on(t.guideId)],
 );
@@ -441,6 +446,11 @@ export const guideViews = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }).defaultNow().notNull(),
+    /**
+     * End of the viewer's previous visit to the pull request (any version), which "new since your
+     * last visit" compares against. Page views less than 30 minutes apart are one visit and keep it.
+     */
+    previousVisitAt: timestamp("previous_visit_at", { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.guideId, t.userId] })],
 );
