@@ -5,23 +5,20 @@ import { fileStatusLabel } from "@/lib/guides/export";
 import type { SectionRef } from "@/lib/guides/refs";
 import { buildRows, layoutItems, selectRows } from "./diff-model";
 
-function Code({ tokens, palette }: { tokens: Tok[]; palette: string[] }) {
-  return (
-    <>
-      {tokens.map((t, i) => (
-        <span
-          key={i}
-          style={{
-            color: t[1] ? palette[t[1]] : undefined,
-            fontStyle: t[2] && t[2] & 1 ? "italic" : undefined,
-            fontWeight: t[2] && t[2] & 2 ? 600 : undefined,
-          }}
-        >
-          {t[0]}
-        </span>
-      ))}
-    </>
-  );
+const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;" };
+
+/**
+ * A row's highlighted code as HTML. A guide prints thousands of tokens; one string per row instead
+ * of an element per token keeps the page quick to render.
+ */
+function codeHtml(tokens: Tok[], palette: string[]): string {
+  let html = "";
+  for (const [text, color, style] of tokens) {
+    const css = [color ? `color:${palette[color]}` : "", style && style & 1 ? "font-style:italic" : "", style && style & 2 ? "font-weight:600" : ""].filter(Boolean).join(";");
+    const escaped = text.replace(/[&<>]/g, (c) => ESCAPES[c]);
+    html += css ? `<span style="${css}">${escaped}</span>` : escaped;
+  }
+  return html;
 }
 
 function lines(n: number, what: string) {
@@ -113,9 +110,11 @@ export function PrintDiff({ view, refs }: { view: FileView; refs: SectionRef[] }
                 <tr key={it.index} className={clsx("diff-row", row.kind === "add" && "row-add", row.kind === "del" && "row-del", !row.inHunk && "row-expanded")}>
                   <td className="diff-num">{row.old ?? ""}</td>
                   <td className="diff-num">{row.new ?? ""}</td>
-                  <td className="diff-code" data-marker={row.kind === "add" ? "+" : row.kind === "del" ? "−" : " "}>
-                    <Code tokens={row.tokens} palette={view.palette} />
-                  </td>
+                  <td
+                    className="diff-code"
+                    data-marker={row.kind === "add" ? "+" : row.kind === "del" ? "−" : " "}
+                    dangerouslySetInnerHTML={{ __html: codeHtml(row.tokens, view.palette) }}
+                  />
                 </tr>
               );
             })

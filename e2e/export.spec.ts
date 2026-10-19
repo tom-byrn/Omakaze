@@ -69,6 +69,8 @@ async function scrollToTop(page: Page, selector: string) {
 
 test.describe("Export", () => {
   test("downloads a guide as Markdown and prints it as a PDF", async ({ page, context }) => {
+    // Renders the whole guide several times (popup, print layout, a 20-page PDF).
+    test.slow();
     videoName("export-walkthrough");
     // Count print dialogs instead of opening them.
     await context.addInitScript(() => {
