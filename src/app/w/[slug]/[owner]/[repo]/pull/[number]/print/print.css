@@ -1,0 +1,132 @@
+/*
+ * Print layout of a guide (pull/[number]/print). Everything is scoped to .print-guide, since global
+ * stylesheets stay loaded after client-side navigation.
+ */
+
+/* No app chrome: the workspace header is a sibling of the print layout. */
+header:has(~ .print-guide) {
+  display: none;
+}
+
+.print-guide {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.print-doc .print-page {
+  margin-top: 56px;
+  padding-top: 48px;
+  border-top: 1px dashed var(--color-line);
+}
+
+/* Diffs wrap instead of scrolling. */
+.print-doc .diff-table {
+  width: 100%;
+}
+.print-doc .diff-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.print-doc .print-file-head {
+  padding: 0;
+  text-align: left;
+  font-weight: normal;
+}
+.print-doc .print-file tr {
+  break-inside: avoid;
+}
+
+.print-doc .md-mermaid {
+  overflow: visible;
+}
+.print-doc .md-mermaid svg {
+  max-width: 100% !important;
+  height: auto;
+}
+.print-doc .md-code-bar button {
+  display: none;
+}
+
+@page {
+  margin: 16mm 14mm 18mm;
+  @bottom-left {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 7.5pt;
+    color: #898989;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 7.5pt;
+    color: #898989;
+  }
+}
+@page :first {
+  @bottom-left {
+    content: none;
+  }
+  @bottom-right {
+    content: none;
+  }
+}
+
+@media print {
+  html,
+  body,
+  .print-guide {
+    background: #fff !important;
+  }
+  nextjs-portal {
+    display: none !important;
+  }
+  .print-doc,
+  .print-sheet {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .print-doc .print-page {
+    break-before: page;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .print-doc .print-coverage {
+    break-inside: avoid;
+  }
+  .print-doc .guide-prose {
+    font-size: 10pt;
+    line-height: 1.5;
+  }
+  .print-doc .guide-prose :is(p, ul, ol, blockquote, .md-table-wrap, .md-code, figure, details, hr) {
+    margin-bottom: 0.8em;
+  }
+  .print-doc h1,
+  .print-doc h2,
+  .print-doc h3,
+  .print-doc h4 {
+    break-after: avoid;
+  }
+  .print-doc .md-code,
+  .print-doc .md-mermaid,
+  .print-doc .md-alert,
+  .print-doc .md-table-wrap,
+  .print-doc img {
+    break-inside: avoid;
+  }
+  /* Large diagrams are scaled down (the drawing keeps its proportions) so text and code share the page. */
+  .print-doc .md-mermaid svg {
+    max-height: 75mm;
+  }
+  .print-doc .diff-table {
+    font-size: 9pt;
+    line-height: 1.45;
+  }
+  .print-doc .diff-num {
+    font-size: 8pt;
+  }
+  .print-doc .grain {
+    background-image: none;
+  }
+}
