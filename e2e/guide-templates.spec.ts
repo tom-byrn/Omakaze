@@ -233,8 +233,14 @@ test.describe("Guide templates", () => {
     await caption(page, "Members can read the template but not change it");
     await pause(page);
 
-    // Narrow screens.
+    // The AI provider page points to the template, where the writing instructions now live.
     await loginAs("owner");
+    await page.goto(`${demoPaths.settings}/ai`);
+    await page.getByRole("link", { name: "Edit the guide template" }).click();
+    await expect(page).toHaveURL(TEMPLATE_SETTINGS);
+    await expect(page.getByLabel("Writing instructions")).toHaveValue("Write in British English.");
+
+    // Narrow screens.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(TEMPLATE_SETTINGS);
     await expect(page.getByRole("button", { name: /^Feature/ })).toHaveAttribute("aria-pressed", "true");
