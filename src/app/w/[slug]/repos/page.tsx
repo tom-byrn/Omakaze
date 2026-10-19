@@ -2,6 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { PageHeader, EmptyState } from "@/components/app/PageHeader";
 import { AutoGenerateSelect } from "@/components/settings/AutoGenerateSelect";
+import { GuideCheckSelect } from "@/components/settings/GuideCheckSelect";
 import { Panel } from "@/components/settings/Panel";
 import { RepoPicker } from "@/components/settings/RepoPicker";
 import { ConfirmButton } from "@/components/ui/ConfirmButton";
@@ -14,6 +15,7 @@ import {
   createRepoWebhookAction,
   removeRepositoryAction,
   setRepoAutoGenerateAction,
+  setRepoGuideCheckAction,
 } from "../settings/actions";
 
 export const metadata = { title: "Repositories" };
@@ -91,6 +93,12 @@ export default async function ReposPage(props: PageProps<"/w/[slug]/repos">) {
                     value={repo.autoGenerate}
                     inherited={workspace.autoGenerate}
                     action={setRepoAutoGenerateAction.bind(null, slug, repo.id)}
+                    disabled={!admin}
+                  />
+                  <GuideCheckSelect
+                    value={repo.guideCheck}
+                    inherited={workspace.guideCheck}
+                    action={setRepoGuideCheckAction.bind(null, slug, repo.id)}
                     disabled={!admin}
                   />
                   {admin && connection && connection.type !== "app" && !repo.webhookId ? (

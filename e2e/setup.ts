@@ -87,6 +87,9 @@ export async function warmUp(): Promise<void> {
     demoPaths.repos,
     demoPaths.activity,
     demoPaths.settings,
+    `${demoPaths.settings}/automation`,
+    `/api/w/demo/guide-check?number=${DEMO_PRS.main}`,
+    "/admin",
     demoPaths.account,
     // More routes for a feature, e.g. E2E_WARMUP_PATHS=/w/demo/insights,/api/w/demo/export
     ...(process.env.E2E_WARMUP_PATHS ?? "").split(",").map((p) => p.trim()).filter(Boolean),

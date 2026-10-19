@@ -173,6 +173,7 @@ export async function startGuide(input: StartGuideInput): Promise<{ guide: Guide
         guideId: guide.id,
         data: { version: guide.version, via: input.createdVia },
       });
+      await updateGuideCheckFor(guide);
       return { guide, snapshot, pull };
     } catch (err) {
       if (attempt < 4 && String(err).includes("guides_repo_pr_version_unique")) continue;
@@ -434,6 +435,7 @@ export async function failGuide(guideId: string, error: string): Promise<void> {
     guideId,
     data: { error: error.slice(0, 300) },
   });
+  await updateGuideCheckFor(g);
 }
 
 /** Fail guides that were left in `generating` (see STALE_GUIDE_MINUTES). Returns how many. */
@@ -457,7 +459,8 @@ export async function failStaleGuides(): Promise<number> {
 }
 
 export async function deleteGuide(guideId: string): Promise<void> {
-  await db.delete(guides).where(eq(guides.id, guideId));
+  const [g] = await db.delete(guides).where(eq(guides.id, guideId)).returning({ repositoryId: guides.repositoryId, prNumber: guides.prNumber });
+  if (g) await updateGuideCheckFor(g);
 }
 
 /** One-shot creation used by the MCP `create_guide` tool and the REST API. */
@@ -524,4 +527,12 @@ async function afterGuideReady(guide: Guide): Promise<void> {
     const { enqueueJob } = await import("@/lib/jobs/queue");
     await enqueueJob("post_pr_comment", { guideId: guide.id }, { dedupeKey: `pr-comment:${guide.id}` });
   }
+  await updateGuideCheckFor(guide);
+}
+
+/** Queue an update of the pull request's guide check on GitHub (src/lib/github/guide-check.ts). */
+async function updateGuideCheckFor(guide: { repositoryId: string; prNumber: number }): Promise<void> {
+  // Imported here: the guide check module imports this one.
+  const { requestGuideCheck } = await import("@/lib/github/guide-check");
+  await requestGuideCheck(guide.repositoryId, guide.prNumber);
 }

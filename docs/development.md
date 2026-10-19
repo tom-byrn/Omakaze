@@ -110,6 +110,7 @@ Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vite
 - the viewer's row model: context rows, line selection and enclosing-block expansion (`src/components/guide/diff-model.ts`);
 - encryption, signed payloads, password hashing, webhook signatures, pull request URL parsing, editor ref lines, redirects, slugs and the agent prompt;
 - detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments.
+- review progress and the guide check's conclusion, title and summary (`src/lib/guides/progress.ts`, `src/lib/guides/check.ts`).
 
 Add tests for logic in `src/lib` and other code that can run without a database. Flows through the browser are covered by the end-to-end tests below; Vitest only picks up `tests/`.
 
@@ -230,7 +231,7 @@ Results go to `test-results-3110/` and `playwright-report-3110/`. `next dev` all
 
 `e2e/mock-github.ts` is a small HTTP server that answers like the GitHub REST API for `acme/storefront`. The global setup starts it on `E2E_GITHUB_PORT` (default `E2E_PORT` + 99, so 3199), and the app under test gets `GITHUB_API_URL` pointing at it. The seed gives the repository a token connection and every demo user a linked GitHub account with fake tokens that the mock accepts, so pages work as they do with GitHub: the pull request list syncs, file views load full contents (context expands) and review comments appear.
 
-It serves users and repositories, pull requests and their files, compare, file contents, review comments (list, create, reply, edit, delete), reviews, issue comments, check runs and repository webhooks. A comment on a line outside the diff gets GitHub's 422. State such as comments lives in memory and starts from the demo data; objects the mock creates get IDs from 5000001 up. The tokens map to GitHub users: the connection to `storefront-bot`, and each member's linked account to `alexmorgan`, `mayachen` or `samokafor`. Requests it doesn't know get a 404 JSON response and a `[mock-github] no route` line in the test output.
+It serves users and repositories, pull requests and their files, compare, file contents, review comments (list, create, reply, edit, delete), reviews, issue comments, check runs, commit statuses (kept in `state.extra.statuses`), repository webhooks, and the GitHub App endpoints of the manifest flow on `/admin` (`/app-manifests/<code>/conversions`, `/app` and installation tokens, which act as the demo connection). A comment on a line outside the diff gets GitHub's 422. State such as comments lives in memory and starts from the demo data; objects the mock creates get IDs from 5000001 up. The tokens map to GitHub users: the connection to `storefront-bot`, and each member's linked account to `alexmorgan`, `mayachen` or `samokafor`. Requests it doesn't know get a 404 JSON response and a `[mock-github] no route` line in the test output.
 
 Add an endpoint to the `routes` table:
 

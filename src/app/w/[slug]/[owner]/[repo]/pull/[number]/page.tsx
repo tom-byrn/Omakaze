@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DiffStat, PrStateTag, prStateOf } from "@/components/app/Badges";
 import { GenerateButton } from "@/components/app/GenerateButton";
+import { GuideCheckStatus } from "@/components/guide/GuideCheckStatus";
 import { GuideViewer } from "@/components/guide/GuideViewer";
 import { VersionSelect } from "@/components/guide/VersionSelect";
 import { WatchLatestGuide } from "@/components/guide/WatchLatestGuide";
@@ -14,6 +15,7 @@ import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { getGitHubAccount } from "@/lib/auth/users";
 import { shortSha, timeAgo } from "@/lib/format";
 import { findWorkspaceRepo, getRepoContext } from "@/lib/github/connections";
+import { getGuideCheckView } from "@/lib/github/guide-check";
 import { getCachedPull, pullNeedsRefresh, syncPull } from "@/lib/github/pulls";
 import { listGuideVersions, getGuide } from "@/lib/guides/service";
 import { loadGuideData } from "@/lib/guides/view";
@@ -52,6 +54,7 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
   const prompt = agentPrompt(pull.htmlUrl);
   const outdated = guide && guide.headSha !== pull.headSha;
   const sectionParam = typeof sp.section === "string" ? sp.section : null;
+  const check = await getGuideCheckView(repo.id, pull.number);
 
   const bar = (
     <div className="border-b border-solid border-black/15 bg-paper">
@@ -78,6 +81,9 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
             <DiffStat additions={pull.additions} deletions={pull.deletions} />
             {pull.changedFiles !== null ? <span>{pull.changedFiles} files</span> : null}
             <span>updated {timeAgo(pull.githubUpdatedAt)}</span>
+            {pull.state === "open" && check.mode !== "off" ? (
+              <GuideCheckStatus slug={slug} repositoryId={repo.id} prNumber={pull.number} headSha={pull.headSha} pullUrl={pull.htmlUrl} initial={check} />
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

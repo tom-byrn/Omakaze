@@ -184,6 +184,14 @@ export async function getAppGrant(app: GitHubAppConfig): Promise<{ permissions: 
   }
 }
 
+/** Repository permissions the guide check needs that an app created before they were added lacks. */
+export function missingGuideCheckPermissions(permissions: Record<string, string>): string[] {
+  const missing: string[] = [];
+  if (permissions.checks !== "write") missing.push("Checks");
+  if (permissions.statuses !== "write") missing.push("Commit statuses");
+  return missing;
+}
+
 export function installUrl(app: GitHubAppConfig, state: string): string {
   const base = app.htmlUrl ?? `${env().GITHUB_URL}/apps/${app.slug}`;
   return `${base}/installations/new?state=${encodeURIComponent(state)}`;
@@ -208,6 +216,10 @@ export function buildAppManifest(name: string) {
       metadata: "read",
       pull_requests: "write",
       issues: "write",
+      // The guide check: a check run for installations, and commit statuses for linked accounts
+      // whose user token comes from this app.
+      checks: "write",
+      statuses: "write",
       // Lets "Sign in with GitHub" read the user's verified email address.
       email_addresses: "read",
     },

@@ -11,6 +11,7 @@
  * - State (comments, reviews, check runs) lives in memory and is rebuilt from the demo data by
  *   POST /__mock/reset.
  */
+import { generateKeyPairSync } from "node:crypto";
 import http from "node:http";
 import { pathToFileURL } from "node:url";
 import { parsePatch } from "../src/lib/diff/parse";
@@ -228,6 +229,45 @@ function strip<T extends { _pr: number }>(item: T): Omit<T, "_pr"> {
   void _pr;
   return rest;
 }
+
+/** A commit status as the mock stores it (GitHub's shape plus the commit). */
+export type MockStatus = {
+  id: number;
+  sha: string;
+  state: string | undefined;
+  description: string | null;
+  target_url: string | null;
+  context: string;
+  creator: GhUserJson | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export function mockStatuses(state: MockState): MockStatus[] {
+  state.extra.statuses ??= [];
+  return state.extra.statuses as MockStatus[];
+}
+
+/** The GitHub App the mock creates in the manifest flow (`GET /app`). Stub `GET /app` to change its permissions. */
+export function mockAppJson() {
+  return {
+    id: 424_242,
+    slug: "omakaze-e2e",
+    name: "Omakaze (e2e)",
+    owner: { login: DEMO_REPO.owner, type: "Organization" },
+    html_url: `${GITHUB}/apps/omakaze-e2e`,
+    permissions: { contents: "read", metadata: "read", pull_requests: "write", issues: "write", checks: "write", statuses: "write", email_addresses: "read" },
+  };
+}
+
+let appKey: string | null = null;
+/** A real RSA key, since the app signs its JWTs with it. */
+function mockAppPrivateKey(): string {
+  appKey ??= generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+  return appKey;
+}
+
+const isJwt = (ctx: MockContext) => (ctx.token ?? "").split(".").length === 3;
 
 /* ------------------------------------------------------------------ */
 /* State                                                               */
@@ -559,6 +599,63 @@ export const routes: MockRoute[] = [
       const runs = ctx.state.checkRuns.filter((r) => r.head_sha === ctx.params.ref);
       return { json: { total_count: runs.length, check_runs: runs } };
     },
+  },
+
+  /* Commit statuses (the guide check of token and account connections), kept in state.extra.statuses */
+  {
+    method: "POST",
+    pattern: `${REPO}/statuses/:sha`,
+    handle: (ctx) => {
+      if (!isDemoRepo(ctx)) return notFound();
+      const b = (ctx.body ?? {}) as { state?: string; target_url?: string; description?: string; context?: string };
+      if (!["error", "failure", "pending", "success"].includes(b.state ?? "")) return validationFailed("state is not included in the list");
+      const now = iso(new Date());
+      const status = {
+        id: ctx.state.nextId++,
+        sha: ctx.params.sha,
+        state: b.state,
+        description: b.description ?? null,
+        target_url: b.target_url ?? null,
+        context: b.context ?? "default",
+        creator: ctx.user,
+        created_at: now,
+        updated_at: now,
+      };
+      mockStatuses(ctx.state).push(status);
+      return { status: 201, json: status };
+    },
+  },
+  {
+    method: "GET",
+    pattern: `${REPO}/commits/:ref/statuses`,
+    handle: (ctx) => ({ json: mockStatuses(ctx.state).filter((s) => s.sha === ctx.params.ref).reverse() }),
+  },
+
+  /* GitHub App: the manifest flow on /admin, the app's permissions and installation tokens. They
+     authenticate with the app's JWT, which the mock doesn't verify. Installation tokens act as the demo connection. */
+  {
+    method: "POST",
+    pattern: "/app-manifests/:code/conversions",
+    public: true,
+    handle: () => ({
+      status: 201,
+      json: { ...mockAppJson(), pem: mockAppPrivateKey(), webhook_secret: "e2e-app-webhook-secret", client_id: null, client_secret: "e2e-app-client-secret" },
+    }),
+  },
+  {
+    method: "GET",
+    pattern: "/app",
+    public: true,
+    handle: (ctx) => (isJwt(ctx) ? { json: mockAppJson() } : { status: 401, json: { message: "A JSON web token could not be decoded" } }),
+  },
+  {
+    method: "POST",
+    pattern: "/app/installations/:id/access_tokens",
+    public: true,
+    handle: (ctx) =>
+      isJwt(ctx)
+        ? { status: 201, json: { token: DEMO_CONNECTION.token, expires_at: iso(new Date(Date.now() + 3600_000)), permissions: mockAppJson().permissions } }
+        : { status: 401, json: { message: "A JSON web token could not be decoded" } },
   },
 
   /* Repository webhooks (created from the Repositories page) */

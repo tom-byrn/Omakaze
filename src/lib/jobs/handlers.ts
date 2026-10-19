@@ -7,6 +7,7 @@ import { generateGuideWithAi } from "@/lib/ai/generate";
 import { AiError } from "@/lib/ai/providers";
 import { autoGenerateCandidates, maybeAutoGenerate } from "@/lib/automation";
 import { getRepoContext } from "@/lib/github/connections";
+import { runGuideCheckJob } from "@/lib/github/guide-check";
 import { syncRepositoryPulls } from "@/lib/github/pulls";
 import { postGuideSummaryComment } from "@/lib/github/summary-comment";
 import { appendGuideEvent, clearSections, failGuide, getGuide, startGuide } from "@/lib/guides/service";
@@ -101,6 +102,8 @@ export async function runJob(job: Job): Promise<void> {
       return postGuideSummaryComment(String(job.payload.guideId));
     case "poll_repos":
       return pollRepos();
+    case "update_guide_check":
+      return runGuideCheckJob(job);
     default:
       throw new PermanentJobError(`Unknown job type ${job.type}`);
   }

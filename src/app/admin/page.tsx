@@ -10,7 +10,7 @@ import { requireUser } from "@/lib/auth/session";
 import { signPayload } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { formatInterval, timeAgo } from "@/lib/format";
-import { buildAppManifest, getAppGrant, getGitHubApp } from "@/lib/github/app";
+import { buildAppManifest, getAppGrant, getGitHubApp, missingGuideCheckPermissions } from "@/lib/github/app";
 import { listUserWorkspaces } from "@/lib/workspaces";
 import { removeStoredAppAction } from "./actions";
 import { OrgSubmit } from "./OrgSubmit";
@@ -82,6 +82,18 @@ export default async function AdminPage(props: PageProps<"/admin">) {
                       Add Email addresses (read-only)
                     </a>{" "}
                     under Account permissions.
+                  </dd>
+                </>
+              ) : null}
+              {grant && missingGuideCheckPermissions(grant.permissions).length > 0 ? (
+                <>
+                  <dt className="mono-label pt-0.5">Guide check</dt>
+                  <dd className="text-body">
+                    The app can&apos;t post the guide check on pull requests.{" "}
+                    <a className="link" href={grant.settingsUrl} target="_blank" rel="noreferrer">
+                      Add {missingGuideCheckPermissions(grant.permissions).join(" and ")} (read and write)
+                    </a>{" "}
+                    under Repository permissions, then accept the new permissions for each installation.
                   </dd>
                 </>
               ) : null}

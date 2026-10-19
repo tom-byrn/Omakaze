@@ -5,6 +5,7 @@ import { githubConnections, repositories } from "@/db/schema";
 import { maybeAutoGenerate } from "@/lib/automation";
 import { safeEqual } from "@/lib/crypto";
 import type { GhPull } from "./client";
+import { reconcileGuideChecks } from "./guide-check";
 import { upsertPull } from "./pulls";
 import { invalidateReviewComments } from "./review";
 
@@ -53,6 +54,7 @@ export async function handleWebhook(event: string, payload: Payload): Promise<"p
         if (["opened", "reopened", "synchronize", "ready_for_review"].includes(payload.action ?? "")) {
           await maybeAutoGenerate(repo.id, row, "webhook");
         }
+        await reconcileGuideChecks(repo.id, [row.number]);
       }
       return "processed";
     }
