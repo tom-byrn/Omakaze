@@ -7,7 +7,7 @@ test.describe("Dashboard", () => {
     await expect(page.getByRole("heading", { name: "Pull requests." })).toBeVisible();
 
     const tabs = page.getByRole("navigation", { name: "Filter by state" });
-    await expect(tabs.getByRole("link", { name: /Open\s*4/ })).toBeVisible();
+    await expect(tabs.getByRole("link", { name: /Open\s*5/ })).toBeVisible();
 
     const row = (n: number) => page.getByRole("listitem").filter({ hasText: `#${n}` });
     await expect(row(DEMO_PRS.main)).toContainText("Apply promo codes at checkout");

@@ -4,6 +4,7 @@ import { diffSnapshots, pullRequests, repositories } from "@/db/schema";
 import type { DiffFile } from "@/lib/diff/types";
 import { gh, ghPaginate, GitHubError, type GhPull, type GhPullFile } from "./client";
 import type { RepoContext } from "./connections";
+import { pullPeopleValues } from "./people";
 
 export type PullRow = typeof pullRequests.$inferSelect;
 export type Snapshot = typeof diffSnapshots.$inferSelect;
@@ -35,6 +36,7 @@ function pullValues(repositoryId: string, p: GhPull) {
     githubUpdatedAt: new Date(p.updated_at),
     mergedAt: p.merged_at ? new Date(p.merged_at) : null,
     closedAt: p.closed_at ? new Date(p.closed_at) : null,
+    ...pullPeopleValues(p),
     syncedAt: new Date(),
   };
   const hasDetails = typeof p.additions === "number";

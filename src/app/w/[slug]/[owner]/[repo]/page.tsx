@@ -1,20 +1,14 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
-import clsx from "clsx";
+import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
+import { FilterEmptyState, FilterTabs, StateTabs, UnlinkedGitHubNotice } from "@/components/app/PullFilters";
 import { RepoGroup } from "@/components/app/PullList";
 import { SyncOnMount } from "@/components/app/SyncOnMount";
 import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
-import { isStale, loadDashboard, parseStateFilter, type StateFilter } from "@/lib/dashboard";
+import { isStale, loadDashboard, parsePullFilter, parseStateFilter, pullListHref } from "@/lib/dashboard";
 import { findWorkspaceRepo } from "@/lib/github/connections";
+import { githubLoginOf } from "@/lib/github/people";
 import { requireWorkspace } from "@/lib/workspaces";
-
-const TABS: { key: StateFilter; label: string }[] = [
-  { key: "open", label: "Open" },
-  { key: "merged", label: "Merged" },
-  { key: "closed", label: "Closed" },
-  { key: "all", label: "All" },
-];
 
 export async function generateMetadata(props: PageProps<"/w/[slug]/[owner]/[repo]">) {
   const { owner, repo } = await props.params;
@@ -28,8 +22,11 @@ export default async function RepoPage(props: PageProps<"/w/[slug]/[owner]/[repo
   const repo = await findWorkspaceRepo(workspace.id, owner, name);
   if (!repo) notFound();
   const state = parseStateFilter(sp.state);
-  const data = await loadDashboard(workspace.id, { state, repositoryId: repo.id });
+  const filter = parsePullFilter(sp.filter);
+  const login = await githubLoginOf(user.id);
+  const data = await loadDashboard(workspace.id, { state, filter, repositoryId: repo.id, viewer: { userId: user.id, login } });
   const aiDisabledReason = (await resolveAiConfigFor(workspace, user.id)) ? null : "Add an AI provider in Settings → AI to generate guides here.";
+  const base = `/w/${slug}/${repo.fullName}`;
   return (
     <main className="mx-auto max-w-[1240px] px-4 py-10 lg:px-8">
       <PageHeader
@@ -45,31 +42,29 @@ export default async function RepoPage(props: PageProps<"/w/[slug]/[owner]/[repo
           </>
         }
       />
-      <nav className="mt-8 flex w-fit border border-tab" aria-label="Filter by state">
-        {TABS.map((t, i) => (
-          <Link
-            key={t.key}
-            href={`/w/${slug}/${repo.fullName}${t.key === "open" ? "" : `?state=${t.key}`}`}
-            className={clsx(
-              "flex h-10 items-center gap-2 px-4 font-serif text-[15px]",
-              i > 0 && "border-l border-tab",
-              state === t.key ? "bg-ink text-[#f2f2f2]" : "bg-paper text-black hover:bg-black/[0.03]",
-            )}
-          >
-            {t.label}
-            <span className={clsx("font-mono text-[10px]", state === t.key ? "text-white/60" : "text-black/45")}>{data.counts[t.key]}</span>
-          </Link>
-        ))}
-      </nav>
+      <div className="mt-8">
+        <FilterTabs current={filter} counts={data.filterCounts} href={(f) => pullListHref(base, { state, filter: f })} />
+      </div>
+      {filter === "needs-review" && !login ? (
+        <div className="mt-4">
+          <UnlinkedGitHubNotice />
+        </div>
+      ) : null}
+      <StateTabs className="mt-4" current={state} counts={data.counts} href={(s) => pullListHref(base, { state: s, filter })} />
       <div className="mt-6">
-        <RepoGroup
-          slug={slug}
-          repo={repo}
-          pulls={data.pulls}
-          guides={data.guides}
-          aiDisabledReason={aiDisabledReason}
-          emptyLabel={repo.lastSyncedAt ? `No ${state === "all" ? "" : `${state} `}pull requests.` : "Loading pull requests from GitHub…"}
-        />
+        {filter !== "all" && data.pulls.length === 0 ? (
+          <FilterEmptyState filter={filter} state={state} login={login} />
+        ) : (
+          <RepoGroup
+            slug={slug}
+            repo={repo}
+            pulls={data.pulls}
+            guides={data.guides}
+            aiDisabledReason={aiDisabledReason}
+            review={{ progress: data.progress, viewerLogin: login }}
+            emptyLabel={repo.lastSyncedAt ? `No ${state === "all" ? "" : `${state} `}pull requests.` : "Loading pull requests from GitHub…"}
+          />
+        )}
       </div>
     </main>
   );

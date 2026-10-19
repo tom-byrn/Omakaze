@@ -62,10 +62,11 @@ Omakaze is an open-source, self-hostable web app that turns GitHub pull requests
 - **Reviews on GitHub.** Line and multi-line comments, replies, deleting your own comments, and approve, request changes or comment. Everything is posted to the pull request.
 - **Review progress.** Mark sections as reviewed and see which other members reviewed them.
 - **Guide templates.** An ordered outline of sections, required or optional, with guidance and writing instructions, set per workspace and overridden per repository. Starters for features, bug fixes and migrations. The built-in AI, MCP agents, the REST API and the editor follow it, and members see which required sections a guide is missing.
+- **Needs my review.** The pull request list filters by what needs your review (your review is requested on GitHub, or a published guide has sections you haven't reviewed), pull requests you opened and ones assigned to you. Each row shows the requested reviewers and how many sections you reviewed.
 - **Versions.** Every new guide for a pull request is a new version; older versions stay available. A guide written for an older head commit is marked as outdated.
 - **MCP server.** 17 tools and one prompt over Streamable HTTP at `/api/mcp`. Clients authenticate with OAuth 2.1 (dynamic client registration and PKCE) or an API token.
 - **Optional built-in AI generation.** Anthropic, OpenAI, Google, OpenRouter, local models with Ollama or LM Studio, or any OpenAI-compatible server such as vLLM or LiteLLM. Not needed if you write guides with your own agent over MCP.
-- **REST API.** List pull requests, read and create guides, and start AI generation.
+- **REST API.** List pull requests (all of them, or the ones that need the token user's review), read and create guides, and start AI generation.
 - **Automation.** Generate a guide when a pull request opens, create a new version when commits are pushed, skip drafts, and post a summary comment on the pull request.
 - **Workspaces.** Members with owner, admin and member roles, invite links (optionally limited to one confirmed email address) and an activity log.
 - **GitHub access.** A GitHub App installation (the app can be created from the admin page in one step), a personal access token, or a member's linked GitHub account. GitHub Enterprise Server is supported.

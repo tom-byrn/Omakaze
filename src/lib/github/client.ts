@@ -225,6 +225,9 @@ export type GhPull = {
   changed_files?: number;
   commits?: number;
   merged?: boolean;
+  requested_reviewers?: { login: string; avatar_url?: string | null }[];
+  requested_teams?: { name: string; slug?: string }[];
+  assignees?: { login: string; avatar_url?: string | null }[];
 };
 
 export type GhPullFile = {

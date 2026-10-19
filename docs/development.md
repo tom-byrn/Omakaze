@@ -110,7 +110,8 @@ Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vite
 - the viewer's row model: context rows, line selection and enclosing-block expansion (`src/components/guide/diff-model.ts`);
 - guide templates: resolution of workspace and repository templates, title matching, missing required sections, and the extra request when generation leaves one out (`src/lib/guides/templates.ts`);
 - encryption, signed payloads, password hashing, webhook signatures, pull request URL parsing, editor ref lines, redirects, slugs and the agent prompt;
-- detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments.
+- detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments;
+- the pull request filters and tab counts (`src/lib/dashboard.ts`), and review requests and assignees from GitHub payloads and webhooks (`src/lib/github/people.ts`).
 
 Add tests for logic in `src/lib` and other code that can run without a database. Flows through the browser are covered by the end-to-end tests below; Vitest only picks up `tests/`.
 
@@ -143,6 +144,9 @@ The workspace `Acme` (`/w/demo`) follows the repository `acme/storefront`, a fic
 | #131 Serve product images through the CDN resizer | open | None. |
 | #130 Share wishlists by link | draft | None. |
 | #124 Experiment: one-page checkout | closed | None. |
+| #126 Show an error when checkout can't reach the store | open | None. Opened by Alex. |
+
+Review requests and assignees (`scripts/demo-data/review-requests.ts`) give every demo user something under **Needs my review**, **Mine** and **Assigned**. Alex's review is requested on #128 and #131 (#131 also asks the Frontend team), Maya's on #129 and #126 and Sam's on #131 and #126; Alex is assigned #126 and #129. With `--github=mock` the members' linked GitHub accounts match them to these requests; without it they have no linked accounts, so the filters only find guides with unreviewed sections.
 
 The seed also adds the comments and the review that members posted on #128 through Omakaze (`comments` rows) and an activity log. Key pages: `/w/demo` (dashboard), `/w/demo/acme/storefront` (repository), `/w/demo/acme/storefront/pull/128` (guide), `?v=1` for the older version, `/w/demo/acme/storefront/pull/128/edit` (editor) and `/w/demo/settings`.
 
@@ -231,19 +235,19 @@ Results go to `test-results-3110/` and `playwright-report-3110/`. `next dev` all
 
 `e2e/mock-github.ts` is a small HTTP server that answers like the GitHub REST API for `acme/storefront`. The global setup starts it on `E2E_GITHUB_PORT` (default `E2E_PORT` + 99, so 3199), and the app under test gets `GITHUB_API_URL` pointing at it. The seed gives the repository a token connection and every demo user a linked GitHub account with fake tokens that the mock accepts, so pages work as they do with GitHub: the pull request list syncs, file views load full contents (context expands) and review comments appear.
 
-It serves users and repositories, pull requests and their files, compare, file contents, review comments (list, create, reply, edit, delete), reviews, issue comments, check runs and repository webhooks. A comment on a line outside the diff gets GitHub's 422. State such as comments lives in memory and starts from the demo data; objects the mock creates get IDs from 5000001 up. The tokens map to GitHub users: the connection to `storefront-bot`, and each member's linked account to `alexmorgan`, `mayachen` or `samokafor`. Requests it doesn't know get a 404 JSON response and a `[mock-github] no route` line in the test output.
+It serves users and repositories, pull requests and their files, compare, file contents, review comments (list, create, reply, edit, delete), reviews, issue comments, check runs and repository webhooks. Pull requests carry `requested_reviewers`, `requested_teams` and `assignees` from the demo data; `/pulls/:number/requested_reviewers` (GET, POST, DELETE) and `/issues/:number/assignees` (POST, DELETE) change them, and a submitted review removes the reviewer's request, as on GitHub. A comment on a line outside the diff gets GitHub's 422. State such as comments lives in memory and starts from the demo data; objects the mock creates get IDs from 5000001 up. The tokens map to GitHub users: the connection to `storefront-bot`, and each member's linked account to `alexmorgan`, `mayachen` or `samokafor`. Requests it doesn't know get a 404 JSON response and a `[mock-github] no route` line in the test output.
 
 Add an endpoint to the `routes` table:
 
 ```ts
 routes.push({
-  method: "POST",
-  pattern: "/repos/:owner/:repo/pulls/:number/requested_reviewers",
+  method: "PUT",
+  pattern: "/repos/:owner/:repo/pulls/:number/merge",
   handle: (ctx) => {
     const pull = findPull(ctx);
     if (!pull) return { status: 404, json: { message: "Not Found" } };
-    ctx.state.extra.reviewers = (ctx.body as { reviewers: string[] }).reviewers;
-    return { status: 201, json: { number: pull.number } };
+    ctx.state.extra.mergeMethod = (ctx.body as { merge_method?: string }).merge_method ?? "merge";
+    return { json: { merged: true, sha: pull.headSha } };
   },
 });
 ```

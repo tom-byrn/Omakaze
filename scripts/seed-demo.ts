@@ -31,6 +31,7 @@ import {
   githubAvatar,
   type DemoUserKey,
 } from "./demo-data";
+import { demoPeopleColumns } from "./demo-data/review-requests";
 
 type GitHubMode = "none" | "mock";
 
@@ -189,6 +190,7 @@ async function seed(opts: { github: GitHubMode }) {
         mergedAt: p.mergedAt,
         closedAt: p.closedAt,
         detailsSha: p.headSha,
+        ...demoPeopleColumns(p.number, githubAvatar),
         syncedAt: demo.now,
       });
       for (const snap of p.snapshots) {

@@ -25,6 +25,7 @@ import {
   type Demo,
   type DemoPull,
 } from "../scripts/demo-data";
+import { demoPeople, type DemoPeople } from "../scripts/demo-data/review-requests";
 import { E2E, githubApiUrl } from "./config";
 
 /* ------------------------------------------------------------------ */
@@ -179,7 +180,24 @@ function repoJson() {
   };
 }
 
-function pullJson(p: DemoPull, details: boolean) {
+/** Review requests and assignees of a pull request, kept in `state.extra.reviewRequests` and started from the demo data. */
+export function pullPeople(state: MockState, prNumber: number): DemoPeople {
+  const all = (state.extra.reviewRequests ??= {}) as Record<number, DemoPeople>;
+  return (all[prNumber] ??= demoPeople(prNumber));
+}
+
+function teamJson(name: string) {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return { id: 93_000_000 + [...slug].reduce((n, c) => n * 31 + c.charCodeAt(0), 7) % 1_000_000, name, slug, html_url: `${GITHUB}/orgs/${DEMO_REPO.owner}/teams/${slug}` };
+}
+
+function peopleJson(state: MockState, prNumber: number) {
+  const people = pullPeople(state, prNumber);
+  const assignees = people.assignees.map(ghUser);
+  return { assignee: assignees[0] ?? null, assignees, requested_reviewers: people.reviewers.map(ghUser), requested_teams: people.teams.map(teamJson) };
+}
+
+function pullJson(p: DemoPull, details: boolean, state: MockState) {
   const base = {
     id: 92_000_000 + p.number,
     number: p.number,
@@ -195,6 +213,7 @@ function pullJson(p: DemoPull, details: boolean) {
     user: ghUser(p.author),
     head: { ref: p.headRef, sha: p.headSha, repo: { full_name: DEMO_REPO.fullName } },
     base: { ref: DEMO_REPO.defaultBranch, sha: p.baseSha, repo: { full_name: DEMO_REPO.fullName } },
+    ...peopleJson(state, p.number),
   };
   if (!details) return base;
   return { ...base, merged: p.merged, additions: p.additions, deletions: p.deletions, changed_files: p.changedFiles, commits: p.commits };
@@ -305,7 +324,7 @@ export const routes: MockRoute[] = [
       const list = ctx.state.demo.pulls
         .filter((p) => state === "all" || p.state === state)
         .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-        .map((p) => pullJson(p, false));
+        .map((p) => pullJson(p, false, ctx.state));
       return { json: list };
     },
   },
@@ -314,7 +333,69 @@ export const routes: MockRoute[] = [
     pattern: `${REPO}/pulls/:number`,
     handle: (ctx) => {
       const p = findPull(ctx);
-      return p ? { json: pullJson(p, true) } : notFound();
+      return p ? { json: pullJson(p, true, ctx.state) } : notFound();
+    },
+  },
+
+  /* Review requests and assignees */
+  {
+    method: "GET",
+    pattern: `${REPO}/pulls/:number/requested_reviewers`,
+    handle: (ctx) => {
+      const p = findPull(ctx);
+      if (!p) return notFound();
+      const people = peopleJson(ctx.state, p.number);
+      return { json: { users: people.requested_reviewers, teams: people.requested_teams } };
+    },
+  },
+  {
+    method: "POST",
+    pattern: `${REPO}/pulls/:number/requested_reviewers`,
+    handle: (ctx) => {
+      const p = findPull(ctx);
+      if (!p) return notFound();
+      const b = (ctx.body ?? {}) as { reviewers?: string[]; team_reviewers?: string[] };
+      if (b.reviewers?.includes(p.author)) return validationFailed("Review cannot be requested from pull request author.");
+      const people = pullPeople(ctx.state, p.number);
+      people.reviewers = [...new Set([...people.reviewers, ...(b.reviewers ?? [])])];
+      people.teams = [...new Set([...people.teams, ...(b.team_reviewers ?? [])])];
+      return { status: 201, json: pullJson(p, false, ctx.state) };
+    },
+  },
+  {
+    method: "DELETE",
+    pattern: `${REPO}/pulls/:number/requested_reviewers`,
+    handle: (ctx) => {
+      const p = findPull(ctx);
+      if (!p) return notFound();
+      const b = (ctx.body ?? {}) as { reviewers?: string[]; team_reviewers?: string[] };
+      const people = pullPeople(ctx.state, p.number);
+      people.reviewers = people.reviewers.filter((l) => !b.reviewers?.includes(l));
+      people.teams = people.teams.filter((t) => !b.team_reviewers?.includes(t));
+      return { json: pullJson(p, false, ctx.state) };
+    },
+  },
+  {
+    method: "POST",
+    pattern: `${REPO}/issues/:number/assignees`,
+    handle: (ctx) => {
+      const p = findPull(ctx);
+      if (!p) return notFound();
+      const people = pullPeople(ctx.state, p.number);
+      people.assignees = [...new Set([...people.assignees, ...((ctx.body as { assignees?: string[] })?.assignees ?? [])])];
+      return { status: 201, json: pullJson(p, false, ctx.state) };
+    },
+  },
+  {
+    method: "DELETE",
+    pattern: `${REPO}/issues/:number/assignees`,
+    handle: (ctx) => {
+      const p = findPull(ctx);
+      if (!p) return notFound();
+      const remove = (ctx.body as { assignees?: string[] })?.assignees ?? [];
+      const people = pullPeople(ctx.state, p.number);
+      people.assignees = people.assignees.filter((l) => !remove.includes(l));
+      return { json: pullJson(p, false, ctx.state) };
     },
   },
   {
@@ -487,6 +568,9 @@ export const routes: MockRoute[] = [
         html_url: `${p.htmlUrl}#pullrequestreview-${id}`,
       };
       ctx.state.reviews.push(review);
+      // Like GitHub, a submitted review settles the reviewer's pending request.
+      const people = pullPeople(ctx.state, p.number);
+      people.reviewers = people.reviewers.filter((l) => l !== ctx.user!.login);
       return { json: strip(review) };
     },
   },
