@@ -17,6 +17,8 @@ export type ActivityType =
   | "guide.deleted"
   | "comment.posted"
   | "review.submitted"
+  | "thread.resolved"
+  | "thread.unresolved"
   | "settings.updated"
   | "token.created";
 

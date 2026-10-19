@@ -13,6 +13,9 @@ import { parsePatch } from "../../src/lib/diff/parse";
 import type { DiffFile } from "../../src/lib/diff/types";
 import type { RefInput } from "../../src/lib/guides/refs";
 import { unifiedPatch } from "./patch";
+import { THREAD_DEMO_COMMENTS } from "./review-threads";
+
+export { DEMO_RESOLVED_THREADS } from "./review-threads";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.join(HERE, "repo");
@@ -650,6 +653,7 @@ export const DEMO_COMMENTS: CommentDef[] = [
     hoursAgo: 1.5,
     viaOmakaze: "owner",
   },
+  ...THREAD_DEMO_COMMENTS,
 ];
 
 export type ReviewDef = {

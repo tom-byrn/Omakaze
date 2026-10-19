@@ -109,7 +109,9 @@ Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vite
 - ref parsing, serialization, validation and coverage (`src/lib/guides/refs.ts`);
 - the viewer's row model: context rows, line selection and enclosing-block expansion (`src/components/guide/diff-model.ts`);
 - encryption, signed payloads, password hashing, webhook signatures, pull request URL parsing, editor ref lines, redirects, slugs and the agent prompt;
-- detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments.
+- detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments;
+- suggested changes: parsing ```` ```suggestion ```` blocks, inserting them, the commented lines from `diff_hunk` and the rows of the suggestion diff (`src/lib/github/suggestions.ts`);
+- the GraphQL endpoint for github.com and GitHub Enterprise Server, GraphQL errors, and the mapping of review comments to review threads (`src/lib/github/graphql.ts`, `src/lib/github/threads.ts`).
 
 Add tests for logic in `src/lib` and other code that can run without a database. Flows through the browser are covered by the end-to-end tests below; Vitest only picks up `tests/`.
 
@@ -145,7 +147,7 @@ The workspace `Acme` (`/w/demo`) follows the repository `acme/storefront`, a fic
 
 The seed also adds the comments and the review that members posted on #128 through Omakaze (`comments` rows) and an activity log. Key pages: `/w/demo` (dashboard), `/w/demo/acme/storefront` (repository), `/w/demo/acme/storefront/pull/128` (guide), `?v=1` for the older version, `/w/demo/acme/storefront/pull/128/edit` (editor) and `/w/demo/settings`.
 
-The data lives in `scripts/demo-data/`: `index.ts` defines users, pull requests, guides, review marks and comments and exports the constants the tests use; `repo/` holds the base and head versions of the files the pull requests change, and the seed computes the diffs from them with `git diff --no-index`; `guides/` holds the guide texts, where `{{diff:name}}` placeholders become `diff:` links to line ranges found in the files. The seed checks every ref against the diff and fails on invalid ones.
+The data lives in `scripts/demo-data/`: `index.ts` defines users, pull requests, guides, review marks and comments and exports the constants the tests use; `review-threads.ts` adds a suggestion made on GitHub and a resolved conversation to section 2 of #128 and says which conversations are resolved; `repo/` holds the base and head versions of the files the pull requests change, and the seed computes the diffs from them with `git diff --no-index`; `guides/` holds the guide texts, where `{{diff:name}}` placeholders become `diff:` links to line ranges found in the files. The seed checks every ref against the diff and fails on invalid ones.
 
 Without `--github=mock` the repository has no GitHub connection, so the app never calls GitHub: the guides render from the stored diffs, without expandable context, and review comments are not shown. The repository's last sync time is set far in the future so the dashboard does not try to sync it.
 
@@ -230,7 +232,7 @@ Results go to `test-results-3110/` and `playwright-report-3110/`. `next dev` all
 
 `e2e/mock-github.ts` is a small HTTP server that answers like the GitHub REST API for `acme/storefront`. The global setup starts it on `E2E_GITHUB_PORT` (default `E2E_PORT` + 99, so 3199), and the app under test gets `GITHUB_API_URL` pointing at it. The seed gives the repository a token connection and every demo user a linked GitHub account with fake tokens that the mock accepts, so pages work as they do with GitHub: the pull request list syncs, file views load full contents (context expands) and review comments appear.
 
-It serves users and repositories, pull requests and their files, compare, file contents, review comments (list, create, reply, edit, delete), reviews, issue comments, check runs and repository webhooks. A comment on a line outside the diff gets GitHub's 422. State such as comments lives in memory and starts from the demo data; objects the mock creates get IDs from 5000001 up. The tokens map to GitHub users: the connection to `storefront-bot`, and each member's linked account to `alexmorgan`, `mayachen` or `samokafor`. Requests it doesn't know get a 404 JSON response and a `[mock-github] no route` line in the test output.
+It serves users and repositories, pull requests and their files, compare, file contents, review comments (list, create, reply, edit, delete), reviews, issue comments, check runs, repository webhooks and, over GraphQL (`POST /graphql`), review threads with `resolveReviewThread` and `unresolveReviewThread`. A comment on a line outside the diff gets GitHub's 422. State such as comments lives in memory and starts from the demo data; objects the mock creates get IDs from 5000001 up. The tokens map to GitHub users: the connection to `storefront-bot`, and each member's linked account to `alexmorgan`, `mayachen` or `samokafor`. Requests it doesn't know get a 404 JSON response and a `[mock-github] no route` line in the test output.
 
 Add an endpoint to the `routes` table:
 
@@ -257,9 +259,17 @@ Every request is recorded. In a spec, use `mockGitHub` from `e2e/fixtures.ts`:
 | `mockGitHub.clear()` | Forget recorded requests |
 | `mockGitHub.reset()` | Rebuild the state from the demo data and drop requests and stubs |
 | `mockGitHub.stub({ method, path, status, json, times })` | Answer matching requests with a fixed response, e.g. a 422 or 500; `path` is exact or `re:<regexp>` |
-| `mockGitHub.state()` | Review comments, issue comments, reviews, check runs and hooks as the mock holds them |
+| `mockGitHub.state()` | Review comments, issue comments, reviews, check runs, hooks and `extra` (state of feature routes, such as `extra.reviewThreads`) as the mock holds them |
 
-Over HTTP: `GET /__mock/requests` (`DELETE` clears), `POST /__mock/reset`, `POST /__mock/stub`, `GET /__mock/state`, `GET /__mock/health`. The app caches review comments for 10 seconds, so assert on what a page shows or on the requests the app sends rather than on the number of reads. GraphQL endpoints are not implemented.
+Over HTTP: `GET /__mock/requests` (`DELETE` clears), `POST /__mock/reset`, `POST /__mock/stub`, `GET /__mock/state`, `GET /__mock/health`. The app caches review comments for 10 seconds, so assert on what a page shows or on the requests the app sends rather than on the number of reads.
+
+GraphQL requests go to `POST /graphql` (`e2e/mock-github-graphql.ts`). The mock doesn't parse GraphQL: the endpoint asks each function in `graphqlResolvers` in turn, and each one looks at the query text and returns a reply or null. Queries no resolver answers get a GraphQL error and a `[mock-github] no GraphQL resolver` line. Review threads are built from the review comments: a root comment and its replies form the thread `PRRT_mock<root comment id>`, and `extra.reviewThreads` holds who resolved which thread, starting from `DEMO_RESOLVED_THREADS` in `scripts/demo-data/review-threads.ts`. To answer another query:
+
+```ts
+graphqlResolvers.push(({ query, variables }, ctx) =>
+  query.includes("reviewRequests") ? { json: { data: { repository: null } } } : null,
+);
+```
 
 To run the suite without a GitHub connection, set `E2E_GITHUB=none`; specs that need the mock skip themselves with `test.skip(E2E.github !== "mock")`.
 

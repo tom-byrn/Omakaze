@@ -47,6 +47,9 @@ function describe(r: Row): string {
       return `could not generate a guide for ${pr}: ${String(d.error ?? "")}`;
     case "comment.posted":
       return `${d.reply ? "replied on" : "commented on"} ${String(d.path ?? "")}${d.line ? `:${String(d.line)}` : ""} in ${pr}`;
+    case "thread.resolved":
+    case "thread.unresolved":
+      return `${r.type === "thread.resolved" ? "resolved" : "unresolved"} a conversation${d.path ? ` on ${String(d.path)}${d.line ? `:${String(d.line)}` : ""}` : ""} in ${pr}`;
     case "review.submitted":
       return `${d.event === "APPROVE" ? "approved" : d.event === "REQUEST_CHANGES" ? "requested changes on" : "reviewed"} ${pr}`;
     case "settings.updated":

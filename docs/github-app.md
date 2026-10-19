@@ -37,7 +37,7 @@ The settings come from `buildAppManifest` in `src/lib/github/app.ts`:
 | Visibility | Private (`public: false`) |
 | Repository permissions | Contents: read, Metadata: read, Pull requests: read and write, Issues: read and write |
 | Account permissions | Email addresses: read |
-| Events | Pull request, Pull request review, Pull request review comment |
+| Events | Pull request, Pull request review, Pull request review comment, Pull request review thread |
 
 What the permissions are used for:
 
@@ -45,13 +45,25 @@ What the permissions are used for:
 | --- | --- |
 | Contents: read | File contents at the pull request head and merge base (context expansion, the `read_file` tool), and the comparison that finds the merge base |
 | Metadata: read | Repository information; GitHub requires it for every app |
-| Pull requests: read and write | Pull requests, changed files, review comments, replies and reviews |
+| Pull requests: read and write | Pull requests, changed files, review comments, replies and reviews, and resolving review threads (GraphQL) |
 | Issues: read and write | The summary comment in the pull request conversation (`issues/<number>/comments`) |
 | Email addresses: read | The verified email addresses of users who sign in with GitHub: the address of a new account, confirmation for email-restricted invites, and `AUTH_ALLOWED_EMAIL_DOMAINS` |
 
 Without the email permission (for example in an app created before it was added to the manifest), only the public email of a user's GitHub profile is used. `/admin` points this out with a link to the app's permission settings on GitHub, where it can be added.
 
-Omakaze acts on the `pull_request`, `pull_request_review` and `pull_request_review_comment` events, and on `installation` events, which GitHub sends to every app. Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
+Omakaze acts on the `pull_request`, `pull_request_review`, `pull_request_review_comment` and `pull_request_review_thread` events, and on `installation` events, which GitHub sends to every app. Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
+
+### Apps created before an event was added
+
+GitHub keeps an app's event subscriptions as they were when it was created, so an app created before `pull_request_review_thread` was added to the manifest does not receive it. Conversations resolved on GitHub then appear in Omakaze when it next reads the review threads (it keeps them for 10 seconds; open pages refresh every 30 seconds) instead of right away.
+
+`/admin` compares the app's subscriptions with the manifest (`APP_EVENTS` in `src/lib/github/app.ts`) through `GET /app`, and lists missing events in the GitHub App panel with a link to the app's **Permissions & events** page. The check runs for apps created on `/admin` and for apps configured with environment variables. To subscribe:
+
+1. Open the app's settings on GitHub (the link on `/admin`, or **Developer settings → GitHub Apps → <app> → Permissions & events**).
+2. Under **Subscribe to events**, select **Pull request review thread**.
+3. Save the changes.
+
+The event needs no new permission (it comes with Pull requests), so installations don't have to accept anything. `/admin` uses the same check for the Email addresses permission.
 
 If `APP_URL` is not reachable from the internet (for example `http://localhost:3000`), GitHub cannot deliver webhooks to it. Sign-in and API access do not depend on webhooks; pull requests are then refreshed by polling and when members open the app.
 
@@ -68,7 +80,7 @@ Create a GitHub App in your account or organization settings (**Developer settin
 | Webhook | Active; URL `<APP_URL>/api/github/webhook`; a random secret |
 | Repository permissions | Contents: Read-only; Metadata: Read-only; Pull requests: Read and write; Issues: Read and write |
 | Account permissions | Email addresses: Read-only |
-| Subscribe to events | Pull request, Pull request review, Pull request review comment |
+| Subscribe to events | Pull request, Pull request review, Pull request review comment, Pull request review thread |
 | Where can this GitHub App be installed | Only on this account, or Any account if you want to install it on other accounts |
 
 Expiring user tokens can stay on; Omakaze refreshes them. After creating the app, generate a private key and a client secret, and set:
@@ -128,7 +140,7 @@ GitHub sends `installation` webhooks to the app:
 
 ### Repository webhooks
 
-For token and account connections, the **Repositories** page has **Create webhook** for each repository. It creates a repository webhook for `pull_request` and `pull_request_review_comment` events, sent to `<APP_URL>/api/github/webhook` and signed with `GITHUB_WEBHOOK_SECRET` (by default a value derived from `APP_SECRET`). The connection's credential must be allowed to create webhooks on the repository; see [Token permissions](#token-permissions). A GitHub App user token cannot, because the app does not request a webhook permission.
+For token and account connections, the **Repositories** page has **Create webhook** for each repository. It creates a repository webhook for `pull_request`, `pull_request_review_comment` and `pull_request_review_thread` events (webhooks created before `pull_request_review_thread` was added don't send it; add it in the repository's webhook settings, or delete the webhook and create it again), sent to `<APP_URL>/api/github/webhook` and signed with `GITHUB_WEBHOOK_SECRET` (by default a value derived from `APP_SECRET`). The connection's credential must be allowed to create webhooks on the repository; see [Token permissions](#token-permissions). A GitHub App user token cannot, because the app does not request a webhook permission.
 
 ### Polling
 
@@ -158,7 +170,7 @@ A repository is reconnected when:
 - The `X-Hub-Signature-256` header must match an HMAC-SHA256 of the body with either the app's webhook secret or the repository webhook secret; otherwise the response is `401`.
 - Deliveries are de-duplicated by `X-GitHub-Delivery` and recorded; `/admin` shows the last 15.
 - `pull_request` updates the cached pull request. The actions `opened`, `reopened`, `synchronize` and `ready_for_review` also check whether a guide should be generated automatically (see [ai.md](ai.md#automation)).
-- `pull_request_review` and `pull_request_review_comment` update the cached pull request and drop its cached review comments, so the next request reads them from GitHub.
+- `pull_request_review`, `pull_request_review_comment` and `pull_request_review_thread` (a conversation resolved or unresolved) update the cached pull request and drop its cached review comments and review threads, so the next request reads them from GitHub.
 - `installation` handles `deleted`, `suspend` and `unsuspend` as described above.
 - Other events and actions are recorded as ignored.
 
@@ -186,9 +198,12 @@ The linked credential is used to post comments and reviews as the user, for **Us
 ## Posting comments and reviews
 
 - Line comments, replies and reviews are posted with the reviewer's linked GitHub credential. Without one, or if GitHub rejects it with 401, 403 or 404, they are posted through the workspace connection with the footer `Posted by <name> via Omakaze`.
-- **Approve** and **Request changes** require a linked GitHub account; they are never posted through a connection.
+- **Approve**, **Request changes** and resolving conversations require a linked GitHub account; they are never done through a connection.
 - Without a linked account, **Comment** in the review panel posts a comment in the pull request conversation through the connection.
 - You can delete line comments and replies that you posted through Omakaze, and line comments on GitHub written by your linked account.
+- **Insert suggestion** in a line or multi-line comment (or a reply) adds a ```` ```suggestion ```` block with the commented lines of the head side, as GitHub does. The suggestion is posted as an ordinary comment body. Suggestions in comments are shown as a small diff of the commented lines (taken from the `diff_hunk` GitHub returns with each comment) and the suggested ones. They are committed on GitHub (**Commit on GitHub** opens the comment); Omakaze doesn't commit them, so it needs no Contents write permission.
+- **Resolve conversation** and **Unresolve conversation** use GitHub's GraphQL API: `pullRequest.reviewThreads` maps review comment IDs to thread IDs, and the `resolveReviewThread` and `unresolveReviewThread` mutations change them. The GraphQL endpoint is derived from `GITHUB_API_URL` (`https://api.github.com/graphql`, or `https://<host>/api/graphql` on GitHub Enterprise Server). Like **Approve** and **Request changes**, resolving needs a linked GitHub account and is never done through a connection: branch protection can require resolved conversations before merging, so GitHub's rules on who may resolve (the pull request author and people with write access to the repository) apply to you, and GitHub shows you as the one who resolved it. The activity log records it too.
+- If the GraphQL API can't be read (for example a token without access to it), comments still load, without the resolve buttons.
 - Summary comments (see [ai.md](ai.md#automation)) are posted through the connection.
 
 ## Token permissions

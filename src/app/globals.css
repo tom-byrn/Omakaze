@@ -1135,8 +1135,17 @@ h4 {
   color: rgba(0, 0, 0, 0.5);
   font-size: 11px;
 }
-.diff-thread-row td {
+/* Direct cells only: comments can contain small diff tables of their own (suggestions). */
+.diff-thread-row > td {
   background: var(--color-wash);
   border-top: 1px dashed rgba(0, 0, 0, 0.08);
   border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+/* Suggested changes in review comments: the changed characters of a replaced or suggested line. */
+.row-del .suggestion-change {
+  background: rgba(191, 0, 15, 0.16);
+}
+.row-add .suggestion-change {
+  background: rgba(78, 211, 207, 0.42);
 }

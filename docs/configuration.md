@@ -25,7 +25,7 @@ Omakaze is configured with environment variables (instance settings) and with se
 | Variable | Default | Description |
 | --- | --- | --- |
 | `GITHUB_URL` | `https://github.com` | Web URL of GitHub or GitHub Enterprise Server. Used for sign-in and for the app creation and installation pages. |
-| `GITHUB_API_URL` | `https://api.github.com` | REST API base URL. For GitHub Enterprise Server: `https://<host>/api/v3`. |
+| `GITHUB_API_URL` | `https://api.github.com` | REST API base URL. For GitHub Enterprise Server: `https://<host>/api/v3`. The GraphQL endpoint is derived from it: `<base>/graphql`, or `https://<host>/api/graphql` for a base ending in `/api/v3`. |
 | `GITHUB_APP_ID` | none | GitHub App ID. When set together with `GITHUB_APP_PRIVATE_KEY`, the app from these variables is used instead of one created on `/admin`. |
 | `GITHUB_APP_SLUG` | none | GitHub App slug. Needed for the **Install on GitHub** link. |
 | `GITHUB_APP_PRIVATE_KEY` | none | GitHub App private key in PEM format. Newlines may be written as `\n`; a base64-encoded PEM is also accepted. |

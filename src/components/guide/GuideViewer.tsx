@@ -3,6 +3,7 @@
 import {
   RiArrowLeftLine,
   RiArrowRightLine,
+  RiCheckDoubleLine,
   RiCheckboxCircleFill,
   RiCheckboxCircleLine,
   RiExternalLinkLine,
@@ -21,7 +22,8 @@ import { GenerationStatus } from "./GenerationStatus";
 import { useStoredBoolean } from "./useStoredBoolean";
 import { ReviewPanel } from "./ReviewPanel";
 import { SectionDiffs } from "./SectionDiffs";
-import { groupThreads, type FocusTarget, type ReviewComment } from "./types";
+import { bodyWithoutSuggestions, hasSuggestion } from "@/lib/github/suggestions";
+import { groupThreads, type FocusTarget, type ReviewComment, type ThreadState } from "./types";
 
 export type ViewerSection = {
   id: string;
@@ -112,11 +114,18 @@ export function GuideViewer(props: ViewerProps) {
     rightRef.current?.scrollTo({ top: 0 });
   }, [step, reviewStep]);
 
-  const comments = useSWR<{ comments: ReviewComment[] }>(`/api/guides/${guide.id}/comments`, getJson, {
+  const comments = useSWR<{ comments: ReviewComment[]; threads?: ThreadState[] | null }>(`/api/guides/${guide.id}/comments`, getJson, {
     refreshInterval: 30_000,
     revalidateOnFocus: true,
   });
-  const threadsByPath = useMemo(() => groupThreads(comments.data?.comments ?? []), [comments.data]);
+  // Resolution state of the review threads; missing when GitHub's GraphQL API couldn't be read.
+  const threadStates = useMemo(
+    () => (comments.data?.threads ? new Map(comments.data.threads.map((t) => [t.id, t])) : undefined),
+    [comments.data],
+  );
+  const threadsByPath = useMemo(() => groupThreads(comments.data?.comments ?? [], threadStates), [comments.data, threadStates]);
+  const resolvedCount = comments.data?.threads?.filter((t) => t.isResolved).length ?? 0;
+  const [showResolved, setShowResolved] = useStoredBoolean("omk:show-resolved", false);
 
   const flash = useCallback((text: string, opts: { href?: string; error?: boolean } = {}) => {
     setToast({ text, ...opts });
@@ -131,12 +140,19 @@ export function GuideViewer(props: ViewerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...input, sectionId }),
       });
-      const data = (await res.json()) as { error?: string; htmlUrl?: string; comment?: ReviewComment };
+      const data = (await res.json()) as { error?: string; htmlUrl?: string; comment?: ReviewComment; thread?: ThreadState | null };
       if (!res.ok) return data.error ?? "Could not post the comment";
       flash("Comment posted to GitHub", { href: data.htmlUrl });
       if (data.comment) {
         const added = data.comment;
-        await comments.mutate((d) => ({ comments: [...(d?.comments ?? []).filter((c) => c.id !== added.id), added] }), { revalidate: false });
+        const thread = data.thread;
+        await comments.mutate(
+          (d) => ({
+            comments: [...(d?.comments ?? []).filter((c) => c.id !== added.id), added],
+            threads: d?.threads && thread ? [...d.threads.filter((t) => t.id !== thread.id), thread] : d?.threads,
+          }),
+          { revalidate: false },
+        );
       }
       return null;
     },
@@ -155,7 +171,7 @@ export function GuideViewer(props: ViewerProps) {
       flash("Reply posted to GitHub", { href: data.htmlUrl });
       if (data.comment) {
         const added = data.comment;
-        await comments.mutate((d) => ({ comments: [...(d?.comments ?? []).filter((c) => c.id !== added.id), added] }), { revalidate: false });
+        await comments.mutate((d) => ({ ...d, comments: [...(d?.comments ?? []).filter((c) => c.id !== added.id), added] }), { revalidate: false });
       }
       return null;
     },
@@ -168,7 +184,31 @@ export function GuideViewer(props: ViewerProps) {
       const data = (await res.json()) as { error?: string };
       if (!res.ok) return data.error ?? "Could not delete the comment";
       flash("Comment deleted on GitHub");
-      await comments.mutate((d) => ({ comments: (d?.comments ?? []).filter((c) => c.id !== commentId) }), { revalidate: false });
+      await comments.mutate((d) => ({ ...d, comments: (d?.comments ?? []).filter((c) => c.id !== commentId) }), { revalidate: false });
+      return null;
+    },
+    [guide.id, comments, flash],
+  );
+
+  const onResolve = useCallback(
+    async (threadId: string, resolved: boolean) => {
+      const res = await fetch(`/api/guides/${guide.id}/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threadId, resolved }),
+      });
+      const data = (await res.json()) as { error?: string; thread?: ThreadState };
+      if (!res.ok || !data.thread) {
+        const message = data.error ?? `Could not ${resolved ? "resolve" : "unresolve"} the conversation`;
+        flash(message, { error: true });
+        return message;
+      }
+      const updated = data.thread;
+      flash(updated.isResolved ? "Conversation resolved on GitHub" : "Conversation unresolved on GitHub");
+      await comments.mutate(
+        (d) => ({ comments: d?.comments ?? [], threads: [...(d?.threads ?? []).filter((t) => t.id !== updated.id), updated] }),
+        { revalidate: false },
+      );
       return null;
     },
     [guide.id, comments, flash],
@@ -262,6 +302,18 @@ export function GuideViewer(props: ViewerProps) {
           >
             <RiFileList3Line size={14} /> All files
           </button>
+          {resolvedCount > 0 ? (
+            <button
+              type="button"
+              className={clsx("btn btn-ghost btn-xs", showResolved && "bg-black/[0.06] text-ink")}
+              onClick={() => setShowResolved(!showResolved)}
+              title={`${resolvedCount} resolved conversation${resolvedCount === 1 ? "" : "s"} on this pull request`}
+              aria-pressed={showResolved}
+            >
+              <RiCheckDoubleLine size={14} /> <span className="hidden sm:inline">Show resolved</span>
+              <span className="font-mono text-[10px] text-black/50">{resolvedCount}</span>
+            </button>
+          ) : null}
           <button
             type="button"
             className={clsx("btn btn-ghost btn-xs", wrap && "text-ink")}
@@ -409,7 +461,14 @@ export function GuideViewer(props: ViewerProps) {
             {step === 0 ? (
               <OverviewRight files={files} sections={sections} coverage={props.coverage} onPick={(i) => setStep(i + 1)} />
             ) : step === reviewStep ? (
-              <ConversationRight comments={comments.data?.comments ?? []} loading={!comments.data} prUrl={props.pull.htmlUrl} />
+              <ConversationRight
+                comments={comments.data?.comments ?? []}
+                threads={threadStates}
+                showResolved={showResolved}
+                onShowResolved={() => setShowResolved(true)}
+                loading={!comments.data}
+                prUrl={props.pull.htmlUrl}
+              />
             ) : (
               <SectionDiffs
                 guideId={guide.id}
@@ -423,6 +482,8 @@ export function GuideViewer(props: ViewerProps) {
                 onComment={onComment}
                 onReply={onReply}
                 onDelete={onDelete}
+                onResolve={threadStates ? onResolve : undefined}
+                showResolved={showResolved}
               />
             )}
           </div>
@@ -588,9 +649,26 @@ function FilesLeft({
   );
 }
 
-function ConversationRight({ comments, loading, prUrl }: { comments: ReviewComment[]; loading: boolean; prUrl: string }) {
+function ConversationRight({
+  comments,
+  threads,
+  showResolved,
+  onShowResolved,
+  loading,
+  prUrl,
+}: {
+  comments: ReviewComment[];
+  threads: Map<string, ThreadState> | undefined;
+  showResolved: boolean;
+  onShowResolved: () => void;
+  loading: boolean;
+  prUrl: string;
+}) {
+  const isResolved = (c: ReviewComment) => Boolean(c.threadId && threads?.get(c.threadId)?.isResolved);
+  const hidden = showResolved ? [] : comments.filter(isResolved);
+  const hiddenThreads = new Set(hidden.map((c) => c.threadId)).size;
   const byFile = new Map<string, ReviewComment[]>();
-  for (const c of comments) byFile.set(c.path, [...(byFile.get(c.path) ?? []), c]);
+  for (const c of comments) if (showResolved || !isResolved(c)) byFile.set(c.path, [...(byFile.get(c.path) ?? []), c]);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -601,6 +679,15 @@ function ConversationRight({ comments, loading, prUrl }: { comments: ReviewComme
       </div>
       {loading ? <p className="text-[13px] text-muted">Loading comments…</p> : null}
       {!loading && comments.length === 0 ? <p className="text-[13px] text-muted">No review comments yet.</p> : null}
+      {hiddenThreads > 0 ? (
+        <p className="flex items-center gap-2 border border-dashed border-black/20 bg-white px-4 py-2 text-[12px] text-muted">
+          <RiCheckDoubleLine size={14} className="text-olive" />
+          {hiddenThreads} resolved conversation{hiddenThreads === 1 ? "" : "s"} hidden.
+          <button type="button" className="link" onClick={onShowResolved}>
+            Show resolved
+          </button>
+        </p>
+      ) : null}
       {[...byFile.entries()].map(([path, list]) => (
         <div key={path} className="border border-black/15 bg-white">
           <p className="border-b border-dashed border-line bg-paper px-4 py-2 font-mono text-[12px] text-ink">{path}</p>
@@ -611,9 +698,13 @@ function ConversationRight({ comments, loading, prUrl }: { comments: ReviewComme
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] text-muted">
                     <span className="text-ink">{c.user?.login}</span> · line {c.line ?? c.originalLine}
-                    {c.outdated ? " · outdated" : ""} · {timeAgo(c.createdAt)}
+                    {c.outdated ? " · outdated" : ""}
+                    {isResolved(c) ? " · resolved" : ""} · {timeAgo(c.createdAt)}
                   </p>
-                  <p className="mt-1 line-clamp-3 text-[13px] text-text">{c.body}</p>
+                  <p className="mt-1 line-clamp-3 text-[13px] text-text">
+                    {hasSuggestion(c.body) ? <span className="tag mr-2 align-middle">Suggestion</span> : null}
+                    {hasSuggestion(c.body) ? bodyWithoutSuggestions(c.body) : c.body}
+                  </p>
                 </div>
                 <a href={c.htmlUrl} target="_blank" rel="noreferrer" className="text-black/35 hover:text-ink" aria-label="Open on GitHub">
                   <RiExternalLinkLine size={13} />

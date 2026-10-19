@@ -26,6 +26,7 @@ import {
   type DemoPull,
 } from "../scripts/demo-data";
 import { E2E, githubApiUrl } from "./config";
+import { graphqlRoute } from "./mock-github-graphql";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -573,6 +574,9 @@ export const routes: MockRoute[] = [
       return { status: 201, json: hook };
     },
   },
+
+  /* GraphQL (review threads; add resolvers in mock-github-graphql.ts) */
+  graphqlRoute,
 ];
 
 function newReviewComment(

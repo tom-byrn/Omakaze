@@ -7,6 +7,7 @@ import { safeEqual } from "@/lib/crypto";
 import type { GhPull } from "./client";
 import { upsertPull } from "./pulls";
 import { invalidateReviewComments } from "./review";
+import { invalidateReviewThreads } from "./threads";
 
 export function verifySignature(body: string, signature: string | null, secret: string): boolean {
   if (!signature?.startsWith("sha256=")) return false;
@@ -57,8 +58,10 @@ export async function handleWebhook(event: string, payload: Payload): Promise<"p
       return "processed";
     }
     case "pull_request_review":
-    case "pull_request_review_comment": {
-      // Reviews and comments made on GitHub: refresh the pull request and the cached comments.
+    case "pull_request_review_comment":
+    case "pull_request_review_thread": {
+      // Reviews, comments and resolved conversations on GitHub: refresh the pull request and the
+      // cached comments and threads.
       const pr = payload.pull_request;
       const repoId = payload.repository?.id;
       if (!pr || !repoId) return "ignored";
@@ -67,6 +70,7 @@ export async function handleWebhook(event: string, payload: Payload): Promise<"p
       for (const repo of repos) {
         await upsertPull(repo.id, pr);
         invalidateReviewComments(repo.id, pr.number);
+        invalidateReviewThreads(repo.id, pr.number);
       }
       return "processed";
     }
