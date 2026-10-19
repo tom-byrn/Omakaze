@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { violatesConstraint } from "@/db/errors";
 import { decrypt, encrypt, hashPassword, signPayload, verifyPassword, verifyPayload } from "@/lib/crypto";
 import { parsePullUrl } from "@/lib/github/pulls";
 import { stripDiffLinks, stripMedia } from "@/lib/github/summary-comment";
@@ -149,5 +150,24 @@ describe("summary comment", () => {
   it("drops links into the diff and uploads that need sign-in", () => {
     const md = 'See [the check](diff:src/a.ts#L3).\n\n![Screenshot](/api/assets/1/a.png)\n\n<video src="/api/assets/2/b.mp4" controls></video>\n\nDone.';
     expect(stripMedia(stripDiffLinks(md)).replace(/\n{3,}/g, "\n\n").trim()).toBe("See the check.\n\nDone.");
+  });
+});
+
+describe("violatesConstraint", () => {
+  const pg = Object.assign(new Error('duplicate key value violates unique constraint "guides_repo_pr_version_unique"'), {
+    constraint_name: "guides_repo_pr_version_unique",
+  });
+
+  it("finds the constraint in the driver error that drizzle wraps", () => {
+    const wrapped = Object.assign(new Error('Failed query: insert into "guides" …'), { cause: pg });
+    expect(String(wrapped)).not.toContain("guides_repo_pr_version_unique");
+    expect(violatesConstraint(wrapped, "guides_repo_pr_version_unique")).toBe(true);
+    expect(violatesConstraint(pg, "guides_repo_pr_version_unique")).toBe(true);
+  });
+
+  it("ignores other errors and other constraints", () => {
+    expect(violatesConstraint(pg, "jobs_dedupe_active_unique")).toBe(false);
+    expect(violatesConstraint(Object.assign(new Error("Failed query: insert"), { cause: new Error("connection refused") }), "guides_repo_pr_version_unique")).toBe(false);
+    expect(violatesConstraint(null, "guides_repo_pr_version_unique")).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gt, gte, isNotNull, lt, max, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { violatesConstraint } from "@/db/errors";
 import {
   guideSections,
   guides,
@@ -182,7 +183,8 @@ export async function startGuide(input: StartGuideInput): Promise<{ guide: Guide
       await updateGuideCheckFor(guide);
       return { guide, snapshot, pull };
     } catch (err) {
-      if (attempt < 4 && String(err).includes("guides_repo_pr_version_unique")) continue;
+      // Another guide took this version number at the same time: try the next one.
+      if (attempt < 4 && violatesConstraint(err, "guides_repo_pr_version_unique")) continue;
       throw err;
     }
   }
