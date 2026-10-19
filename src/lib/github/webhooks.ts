@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { githubConnections, repositories } from "@/db/schema";
 import { maybeAutoGenerate } from "@/lib/automation";
 import { safeEqual } from "@/lib/crypto";
+import { notifyFromWebhook, type NotifyWebhookPayload } from "@/lib/notifications/hooks";
 import type { GhPull } from "./client";
 import { applyPeopleEvent, type PeopleEvent } from "./people";
 import { upsertPull } from "./pulls";
@@ -73,6 +74,7 @@ export async function handleWebhook(event: string, payload: Payload): Promise<"p
         await upsertPull(repo.id, pr);
         invalidateReviewComments(repo.id, pr.number);
         invalidateReviewThreads(repo.id, pr.number);
+        await notifyFromWebhook(event, payload as NotifyWebhookPayload, repo.id);
       }
       return "processed";
     }

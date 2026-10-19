@@ -4,6 +4,7 @@ import { comments } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
 import { getUserGitHubToken } from "@/lib/auth/users";
 import { env } from "@/lib/env";
+import { notifyComment, notifyReview } from "@/lib/notifications/hooks";
 import { gh, ghPaginate, GitHubError, type GhIssueComment, type GhReviewComment } from "./client";
 import type { RepoContext } from "./connections";
 
@@ -130,6 +131,20 @@ export async function createReviewComment(
     guideId: meta.guideId,
     data: { path: input.path, line: input.line, url: result.html_url },
   });
+  await notifyComment({
+    repositoryId: ctx.repo.id,
+    prNumber,
+    commentId: result.id,
+    inReplyTo: null,
+    actorUserId: user.id,
+    actorLogin: null,
+    body: input.body,
+    path: input.path,
+    line: input.line,
+    url: result.html_url,
+    sectionId: meta.sectionId,
+    via: "omakaze",
+  });
   return result;
 }
 
@@ -172,6 +187,21 @@ export async function replyToReviewComment(
     prNumber,
     guideId: meta.guideId,
     data: { path: result.path, reply: true, url: result.html_url },
+  });
+  await notifyComment({
+    repositoryId: ctx.repo.id,
+    prNumber,
+    commentId: result.id,
+    // GitHub answers with the conversation's root.
+    inReplyTo: result.in_reply_to_id ?? inReplyTo,
+    actorUserId: user.id,
+    actorLogin: null,
+    body,
+    path: result.path,
+    line: result.line ?? result.original_line,
+    url: result.html_url,
+    sectionId: null,
+    via: "omakaze",
   });
   return result;
 }
@@ -220,6 +250,17 @@ export async function submitReview(
     guideId: meta.guideId,
     data: { event: input.event, url: result.html_url },
   });
+  await notifyReview({
+    repositoryId: ctx.repo.id,
+    prNumber,
+    reviewId: result.id,
+    state: result.state,
+    body: input.body,
+    url: result.html_url,
+    actorUserId: user.id,
+    actorLogin: null,
+    via: "omakaze",
+  });
   return { ...result, postedAs: as };
 }
 
@@ -247,6 +288,21 @@ export async function postIssueComment(
     githubId: result.id,
     githubUrl: result.html_url,
     postedAs: as,
+  });
+  await notifyComment({
+    repositoryId: ctx.repo.id,
+    prNumber,
+    commentId: result.id,
+    inReplyTo: null,
+    actorUserId: user.id,
+    actorLogin: null,
+    body,
+    path: null,
+    line: null,
+    url: result.html_url,
+    sectionId: null,
+    via: "omakaze",
+    conversation: true,
   });
   return result;
 }

@@ -16,6 +16,7 @@ import type { ParsedFile } from "@/lib/diff/types";
 import { env } from "@/lib/env";
 import { getOrCreateSnapshot, getSnapshot, type PullRow, type Snapshot } from "@/lib/github/pulls";
 import type { RepoContext } from "@/lib/github/connections";
+import { notifyGuidePublished } from "@/lib/notifications/hooks";
 import { carryReviewMarks } from "./progress";
 import {
   computeCoverage,
@@ -437,6 +438,8 @@ export async function finishGuide(
     data: { version: guide.version, sections: (await getSections(guideId)).length },
   });
   await afterGuideReady(updated);
+  // Members hear about a version when it is first published.
+  if (!guide.publishedAt) await notifyGuidePublished(updated.id, opts.actorUserId ?? guide.createdByUserId);
   return { guide: updated, coverage, sectionCoverage };
 }
 

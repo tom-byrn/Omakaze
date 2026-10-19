@@ -2,7 +2,14 @@ import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { jobs } from "@/db/schema";
 
-export type JobType = "generate_guide" | "post_pr_comment" | "poll_repos";
+export type JobType =
+  | "generate_guide"
+  | "post_pr_comment"
+  | "poll_repos"
+  // Notifications (src/lib/notifications/jobs.ts)
+  | "notify_event"
+  | "send_notification_email"
+  | "post_notification_webhook";
 export type Job = typeof jobs.$inferSelect;
 
 export async function enqueueJob(

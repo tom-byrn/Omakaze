@@ -48,6 +48,14 @@ const schema = z.object({
   SMTP_URL: optionalString,
   SMTP_FROM: z.string().default("Omakaze <no-reply@localhost>"),
 
+  // Notifications
+  /** Email notifications, Slack and JSON webhooks for the whole instance. */
+  NOTIFICATIONS_ENABLED: bool(true),
+  /** How long the first email notification waits for others, for members who get them "within a few minutes". */
+  NOTIFICATIONS_GROUP_SECONDS: z.coerce.number().int().min(0).max(3600).default(300),
+  /** Let Slack and JSON webhooks reach loopback and private network addresses (e.g. Mattermost on your network). */
+  WEBHOOKS_ALLOW_PRIVATE_NETWORK: bool(false),
+
   // Storage
   STORAGE_DRIVER: z.enum(["database", "filesystem"]).default("database"),
   STORAGE_DIR: z.string().default("./data/uploads"),

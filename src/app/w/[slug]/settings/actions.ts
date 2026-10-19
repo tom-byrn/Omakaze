@@ -326,7 +326,7 @@ export async function createRepoWebhookAction(slug: string, repositoryId: string
       body: {
         name: "web",
         active: true,
-        events: ["pull_request", "pull_request_review_comment", "pull_request_review_thread"],
+        events: ["pull_request", "pull_request_review", "pull_request_review_comment", "pull_request_review_thread"],
         config: { url: `${env().APP_URL}/api/github/webhook`, content_type: "json", secret: repoWebhookSecret(), insecure_ssl: "0" },
       },
     });

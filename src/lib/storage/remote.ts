@@ -69,7 +69,7 @@ type LookupCallback = (err: NodeJS.ErrnoException | null, address: string | Look
  * the address checked here, a name can't resolve to a public address for a check and a private
  * one for the connection.
  */
-function publicLookup(hostname: string, options: { all?: boolean; family?: number }, callback: LookupCallback) {
+export function publicLookup(hostname: string, options: { all?: boolean; family?: number }, callback: LookupCallback) {
   dnsLookup(hostname, { family: options.family ?? 0, all: true, verbatim: true }, (err, addresses) => {
     if (err) return callback(err, []);
     const list = addresses as LookupAddress[];

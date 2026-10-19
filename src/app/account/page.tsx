@@ -1,6 +1,7 @@
 import { RiGithubFill } from "@remixicon/react";
 import { AppHeader } from "@/components/app/AppHeader";
 import { ChatgptPlanPanel } from "@/components/settings/ChatgptPlanPanel";
+import { blockerText, CheckRow, Note } from "@/components/settings/NotificationFields";
 import { Panel } from "@/components/settings/Panel";
 import { ActionForm } from "@/components/ui/ActionForm";
 import { Avatar } from "@/components/ui/Avatar";
@@ -12,6 +13,8 @@ import { getAuthMethods } from "@/lib/auth/methods";
 import { currentSessionId, listSessions, requireUser } from "@/lib/auth/session";
 import { getGitHubAccount } from "@/lib/auth/users";
 import { timeAgo } from "@/lib/format";
+import { DIGEST_OPTIONS } from "@/lib/notifications/digest";
+import { emailBlockerFor, getPreferences, mutedWorkspaces } from "@/lib/notifications/prefs";
 import { listUserWorkspaces } from "@/lib/workspaces";
 import {
   changePasswordAction,
@@ -21,6 +24,8 @@ import {
   listChatgptModelsAction,
   revokeSessionAction,
   saveChatgptPrefsAction,
+  saveNotificationPrefsAction,
+  sendEmailConfirmationAction,
   signOutChatgptAction,
   startChatgptSignInAction,
   unlinkGitHubAction,
@@ -36,17 +41,29 @@ function describeAgent(ua: string | null): string {
   return [browser, os].filter(Boolean).join(" on ");
 }
 
-export default async function AccountPage() {
+const CONFIRM_MESSAGES: Record<string, { tone: "info" | "warn"; text: string }> = {
+  confirmed: { tone: "info", text: "Your email address is confirmed." },
+  invalid: { tone: "warn", text: "That confirmation link is not valid or has expired. Send a new one." },
+  "other-user": { tone: "warn", text: "That confirmation link is for another account. Sign in with the account that asked for it." },
+  changed: { tone: "warn", text: "Your email address changed after the link was sent. Send a new one." },
+};
+
+export default async function AccountPage(props: PageProps<"/account">) {
   const user = await requireUser("/account");
   const chatgptOn = chatgptPlansEnabled();
-  const [list, account, methods, sessions, sid, chatgpt] = await Promise.all([
+  const confirm = CONFIRM_MESSAGES[String((await props.searchParams).email ?? "")] ?? null;
+  const [list, account, methods, sessions, sid, chatgpt, prefs, muted] = await Promise.all([
     listUserWorkspaces(user.id),
     getGitHubAccount(user.id),
     getAuthMethods(),
     listSessions(user.id),
     currentSessionId(),
     chatgptOn ? getChatgptConnection(user.id) : null,
+    getPreferences(user.id),
+    mutedWorkspaces(user.id),
   ]);
+  const blocker = emailBlockerFor(user);
+  const emailOff = blocker === "instance" || blocker === "smtp";
   const chatgptWorkspaces = list.filter((w) => w.workspace.allowChatgptPlans).map((w) => w.workspace.name);
   const current = list.find((w) => w.workspace.id === user.lastWorkspaceId) ?? list[0];
   return (
@@ -84,6 +101,97 @@ export default async function AccountPage() {
             </div>
           </ActionForm>
         </Panel>
+
+        <div id="notifications" className="scroll-mt-24">
+          <Panel
+            title="Notifications"
+            description="Email about the pull requests you review and the conversations you're in. Nothing is sent about what you do yourself. Slack and webhooks for a whole workspace are set up in its settings."
+          >
+            <div className="flex flex-col gap-5">
+              {confirm ? <Note tone={confirm.tone}>{confirm.text}</Note> : null}
+              {blocker ? (
+                <Note tone="warn">
+                  {blockerText(blocker, user.email)}
+                  {blocker === "unverified" ? (
+                    <ActionForm action={sendEmailConfirmationAction} className="mt-2 flex flex-col items-start gap-2">
+                      <SubmitButton className="btn btn-secondary btn-sm" pendingText="Sending…">
+                        Send confirmation link
+                      </SubmitButton>
+                    </ActionForm>
+                  ) : null}
+                </Note>
+              ) : (
+                <Note>
+                  Emails go to <span className="text-ink">{user.email}</span>.
+                </Note>
+              )}
+              <ActionForm action={saveNotificationPrefsAction} className="flex flex-col gap-5">
+                <fieldset disabled={emailOff} className="flex flex-col gap-5 disabled:opacity-60">
+                  <div>
+                    <CheckRow name="email" label="Email notifications" help="Turn off to stop all notification email. The unsubscribe link in each email does the same." defaultChecked={prefs.email} />
+                    <div className="border-t border-dashed border-line pl-7">
+                      <CheckRow
+                        name="guideReady"
+                        label="A guide is ready for a pull request I'm asked to review or assigned to"
+                        help="Your review is requested on GitHub, or the pull request is assigned to you."
+                        defaultChecked={prefs.guideReady}
+                      />
+                      <CheckRow
+                        name="newVersion"
+                        label="A new version of a guide I reviewed"
+                        help="Says which of the sections you reviewed changed, so you know what to look at again."
+                        defaultChecked={prefs.newVersion}
+                      />
+                      <CheckRow name="replies" label="Replies to my comments" help="From Omakaze and from GitHub, in conversations you wrote in." defaultChecked={prefs.replies} />
+                      <CheckRow
+                        name="pullActivity"
+                        label="Comments and reviews on my pull requests"
+                        help="Posted in the guide of a pull request you opened."
+                        defaultChecked={prefs.pullActivity}
+                      />
+                    </div>
+                  </div>
+                  <fieldset>
+                    <legend className="field-label">Send</legend>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      {DIGEST_OPTIONS.map((o) => (
+                        <label
+                          key={o.value}
+                          className="flex cursor-pointer flex-col gap-1 border border-black/15 bg-white px-4 py-3 transition-colors hover:border-black/40 has-[:checked]:border-ink has-[:checked]:bg-paper has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink"
+                        >
+                          <span className="flex items-center gap-2">
+                            <input type="radio" name="digest" value={o.value} defaultChecked={prefs.digest === o.value} className="accent-[#141518]" />
+                            <span className="text-[14px] text-ink">{o.label}</span>
+                          </span>
+                          <span className="text-[12px] leading-[18px] text-muted">{o.help}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  {list.length > 0 ? (
+                    <fieldset>
+                      <legend className="field-label">Workspaces</legend>
+                      <div>
+                        {list.map(({ workspace }) => (
+                          <CheckRow
+                            key={workspace.id}
+                            name="workspace"
+                            value={workspace.id}
+                            label={`Email me about ${workspace.name}`}
+                            defaultChecked={!muted.has(workspace.id)}
+                          />
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
+                  <div>
+                    <SubmitButton pendingText="Saving…">Save notifications</SubmitButton>
+                  </div>
+                </fieldset>
+              </ActionForm>
+            </div>
+          </Panel>
+        </div>
 
         <Panel
           title="GitHub"
