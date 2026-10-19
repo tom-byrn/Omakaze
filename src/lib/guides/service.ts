@@ -413,7 +413,8 @@ export async function finishGuide(
   }
   const [updated] = await db
     .update(guides)
-    .set({ status: "ready", error: null, publishedAt: new Date() })
+    // Coverage of the author's own sections is kept for insights.
+    .set({ status: "ready", error: null, publishedAt: new Date(), changedLines: sectionCoverage.totalChanged, coveredLines: sectionCoverage.coveredChanged })
     .where(eq(guides.id, guideId))
     .returning();
   await appendGuideEvent(guideId, "Guide published");

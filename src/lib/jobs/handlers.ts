@@ -1,6 +1,6 @@
 import { eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { jobs, repositories, workspaces } from "@/db/schema";
+import { guides, jobs, repositories, workspaces } from "@/db/schema";
 import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { resolveAiConfig } from "@/lib/ai/config";
 import { generateGuideWithAi } from "@/lib/ai/generate";
@@ -59,6 +59,8 @@ async function generateGuide(job: Job) {
     await failGuide(guide.id, "No AI provider is configured. Add one in Settings → AI.");
     return;
   }
+  // Which configuration writes the guide, e.g. a member's ChatGPT plan (shown in insights).
+  await db.update(guides).set({ aiSource: cfg.source }).where(eq(guides.id, guide.id));
   try {
     await generateGuideWithAi(guide, cfg);
   } catch (err) {

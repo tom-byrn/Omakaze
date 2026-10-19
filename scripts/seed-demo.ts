@@ -32,6 +32,7 @@ import {
   type DemoUserKey,
 } from "./demo-data";
 import { demoPeopleColumns } from "./demo-data/review-requests";
+import { seedInsightsHistory } from "./demo-data/insights-history";
 import { seedReviewCarryover } from "./demo-data/review-carryover";
 
 type GitHubMode = "none" | "mock";
@@ -359,6 +360,7 @@ async function seed(opts: { github: GitHubMode }) {
     await tx.insert(s.activity).values(activity);
   });
   await seedReviewCarryover(DEMO_WORKSPACE.slug);
+  await seedInsightsHistory(DEMO_WORKSPACE.slug);
 
   await getDb().$client.end();
 }
