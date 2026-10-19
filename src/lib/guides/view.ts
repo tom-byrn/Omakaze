@@ -45,24 +45,32 @@ export function sectionStats(refs: SectionRef[], files: ParsedFile[]): SectionSt
   return out;
 }
 
-export async function loadGuideData(guide: Guide, viewerId: string) {
+/**
+ * Everything the viewer shows for a guide version. `viewerId` null is a share link's anonymous
+ * viewer: no visit is recorded, no marks are carried, and no member or review mark is returned.
+ */
+export async function loadGuideData(guide: Guide, viewerId: string | null) {
   const [visit, snapshot, sections, members] = await Promise.all([
     // Reads the viewer's previous visit before recording this one.
-    recordVisit(guide, viewerId),
+    viewerId ? recordVisit(guide, viewerId) : null,
     getSnapshot(guide.snapshotId),
     getSections(guide.id),
-    db
-      .select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl })
-      .from(memberships)
-      .innerJoin(users, eq(users.id, memberships.userId))
-      .where(eq(memberships.workspaceId, guide.workspaceId)),
+    viewerId
+      ? db
+          .select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl })
+          .from(memberships)
+          .innerJoin(users, eq(users.id, memberships.userId))
+          .where(eq(memberships.workspaceId, guide.workspaceId))
+      : [],
   ]);
   const files = parseFiles(snapshot?.files ?? []);
   const coverage = computeCoverage(files, sections);
   const history = versionHistory(guide, { files, sections });
   // Marks the viewer made on earlier versions since they last opened this one (see progress.ts).
-  await carryReviewMarks(guide, { userId: viewerId, after: visit.previousView, history }).catch((err) => console.error("[guides] carrying review marks failed", err));
-  const reviews = await db.select().from(sectionReviews).where(eq(sectionReviews.guideId, guide.id));
+  if (viewerId && visit) {
+    await carryReviewMarks(guide, { userId: viewerId, after: visit.previousView, history }).catch((err) => console.error("[guides] carrying review marks failed", err));
+  }
+  const reviews = viewerId ? await db.select().from(sectionReviews).where(eq(sectionReviews.guideId, guide.id)) : [];
   const reviewedBy = new Map<string, string[]>();
   const carriedFrom = new Map<string, Record<string, number>>();
   for (const r of reviews) {
@@ -70,10 +78,14 @@ export async function loadGuideData(guide: Guide, viewerId: string) {
     if (r.carriedFromVersion !== null) carriedFrom.set(r.sectionId, { ...carriedFrom.get(r.sectionId), [r.userId]: r.carriedFromVersion });
   }
   const marked = new Set(reviews.filter((r) => r.userId === viewerId).map((r) => r.sectionId));
-  const changes: ViewerChanges = await viewerChanges(guide, viewerId, marked, visit, history).catch((err) => {
-    console.error("[guides] comparing versions failed", err);
-    return { review: new Map(), visit: new Map(), sinceVisit: null };
-  });
+  const none: ViewerChanges = { review: new Map(), visit: new Map(), sinceVisit: null };
+  const changes: ViewerChanges =
+    viewerId && visit
+      ? await viewerChanges(guide, viewerId, marked, visit, history).catch((err) => {
+          console.error("[guides] comparing versions failed", err);
+          return none;
+        })
+      : none;
 
   return {
     snapshot,
@@ -90,7 +102,7 @@ export async function loadGuideData(guide: Guide, viewerId: string) {
     members: Object.fromEntries(members.map((m) => [m.id, { name: m.name, avatarUrl: m.avatarUrl }])),
     fileSections: coverage.fileSections,
     /** The viewer's previous visit, and the versions published since (when this is one of them). */
-    lastVisitAt: visit.since,
+    lastVisitAt: visit?.since ?? null,
     sinceVisit: changes.sinceVisit,
   };
 }

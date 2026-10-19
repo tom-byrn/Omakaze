@@ -20,7 +20,9 @@ export type ActivityType =
   | "thread.resolved"
   | "thread.unresolved"
   | "settings.updated"
-  | "token.created";
+  | "token.created"
+  | "share.created"
+  | "share.revoked";
 
 export async function logActivity(input: {
   workspaceId: string;

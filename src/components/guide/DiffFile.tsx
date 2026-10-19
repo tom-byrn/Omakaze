@@ -88,8 +88,9 @@ export type DiffFileProps = {
   focus: FocusTarget | null;
   blobUrl: string;
   wrap: boolean;
-  onComment: (input: { path: string; line: number; side: "LEFT" | "RIGHT"; startLine?: number | null; body: string }) => Promise<string | null>;
-  onReply: (rootId: number, body: string) => Promise<string | null>;
+  /** Missing in the read-only view of a share link: no composer, replies or resolving. */
+  onComment?: (input: { path: string; line: number; side: "LEFT" | "RIGHT"; startLine?: number | null; body: string }) => Promise<string | null>;
+  onReply?: (rootId: number, body: string) => Promise<string | null>;
   onDelete?: (id: number) => Promise<string | null>;
   /** Lines that are new since an earlier guide version: added lines by new-side number, deleted lines by old-side number. */
   newSince?: { add: number[]; del: number[] };
@@ -361,7 +362,7 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
                       <td className="diff-num">{row.old ?? ""}</td>
                       <td className="diff-num relative">
                         {row.new ?? ""}
-                        {row.inHunk && l ? (
+                        {row.inHunk && l && onComment ? (
                           <button
                             type="button"
                             className="diff-add-comment"
@@ -402,7 +403,7 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
                         </td>
                       </tr>
                     ) : null}
-                    {composer?.index === i && l ? (
+                    {composer?.index === i && l && onComment ? (
                       <tr className="diff-thread-row">
                         <td colSpan={3}>
                           <div className="my-2 mr-3 ml-3 sm:ml-[96px] border border-ink/40 bg-white">

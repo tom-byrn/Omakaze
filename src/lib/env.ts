@@ -61,6 +61,9 @@ const schema = z.object({
   /** Let users connect their own ChatGPT plan with Sign in with ChatGPT. */
   CHATGPT_PLAN_ENABLED: bool(true),
 
+  /** Read-only share links (/s/<token>). Off stops every link on the instance; workspaces can turn them off too. */
+  SHARE_LINKS_ENABLED: bool(true),
+
   /**
    * How many reverse proxies in front of the app append to X-Forwarded-For. The client address used
    * for rate limits is the entry this many places from the right. Without a proxy, Next.js fills in

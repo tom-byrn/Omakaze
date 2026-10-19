@@ -56,6 +56,9 @@ function describe(r: Row): string {
       return `updated ${String(d.section ?? "")} settings`;
     case "token.created":
       return `created the API token "${String(d.name ?? "")}"`;
+    case "share.created":
+    case "share.revoked":
+      return `${r.type === "share.created" ? "created" : "revoked"} a share link to ${d.version ? `v${String(d.version)} of ` : "the latest version of "}${pr}`;
     default:
       return r.type;
   }
