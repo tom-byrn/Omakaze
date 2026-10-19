@@ -33,6 +33,7 @@ export {
   type DemoUserKey,
 } from "../scripts/demo-data";
 export { mockGitHub } from "./mock-github";
+export { mockNotify } from "./mock-notify";
 export { E2E } from "./config";
 
 type Options = {

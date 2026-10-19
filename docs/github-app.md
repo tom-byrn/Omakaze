@@ -151,7 +151,7 @@ GitHub sends `installation` webhooks to the app:
 
 ### Repository webhooks
 
-For token and account connections, the **Repositories** page has **Create webhook** for each repository. It creates a repository webhook for `pull_request`, `pull_request_review_comment` and `pull_request_review_thread` events (webhooks created before `pull_request_review_thread` was added don't send it; add it in the repository's webhook settings, or delete the webhook and create it again), sent to `<APP_URL>/api/github/webhook` and signed with `GITHUB_WEBHOOK_SECRET` (by default a value derived from `APP_SECRET`). The connection's credential must be allowed to create webhooks on the repository; see [Token permissions](#token-permissions). A GitHub App user token cannot, because the app does not request a webhook permission.
+For token and account connections, the **Repositories** page has **Create webhook** for each repository. It creates a repository webhook for `pull_request`, `pull_request_review`, `pull_request_review_comment` and `pull_request_review_thread` events (webhooks created before `pull_request_review_thread` or `pull_request_review` was added don't send them; add them in the repository's webhook settings, or delete the webhook and create it again), sent to `<APP_URL>/api/github/webhook` and signed with `GITHUB_WEBHOOK_SECRET` (by default a value derived from `APP_SECRET`). The connection's credential must be allowed to create webhooks on the repository; see [Token permissions](#token-permissions). A GitHub App user token cannot, because the app does not request a webhook permission.
 
 ### Polling
 
@@ -182,6 +182,7 @@ A repository is reconnected when:
 - Deliveries are de-duplicated by `X-GitHub-Delivery` and recorded; `/admin` shows the last 15.
 - `pull_request` updates the cached pull request. The actions `opened`, `reopened`, `synchronize` and `ready_for_review` also check whether a guide should be generated automatically (see [ai.md](ai.md#automation)). `review_requested`, `review_request_removed`, `assigned` and `unassigned` update the cached requested reviewers, requested teams and assignees that the **Needs my review**, **Mine** and **Assigned** filters use. These actions are part of the `pull_request` event, so existing app installations and repository webhooks receive them without changes.
 - `pull_request_review`, `pull_request_review_comment` and `pull_request_review_thread` (a conversation resolved or unresolved) update the cached pull request and drop its cached review comments and review threads, so the next request reads them from GitHub.
+- A reply in a review conversation (`pull_request_review_comment` with the action `created`) emails the members who wrote in the conversation, and a submitted review (`pull_request_review` with the action `submitted`) is posted to the workspace's Slack or JSON webhook when it has one. A comment or review posted through Omakaze and its webhook count as one event. See [configuration.md](configuration.md#notifications).
 - `installation` handles `deleted`, `suspend` and `unsuspend` as described above.
 - Other events and actions are recorded as ignored.
 

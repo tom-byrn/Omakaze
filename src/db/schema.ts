@@ -747,3 +747,102 @@ export const instanceSettings = pgTable("instance_settings", {
   value: jsonb("value").$type<unknown>().notNull(),
   updatedAt: updatedAt(),
 });
+
+/* ------------------------------------------------------------------ */
+/* Notifications                                                       */
+/* ------------------------------------------------------------------ */
+
+/** Email notification kinds; see src/lib/notifications. */
+export type NotificationType = "guide_ready" | "new_version" | "reply" | "pull_activity";
+/** How long the first email notification waits for others, so they are sent as one email. */
+export type EmailDigest = "minutes" | "hourly" | "daily";
+
+/** A user's email notification settings. Without a row the defaults apply: everything on, grouped within minutes. */
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** Off: no email notifications at all (also what the unsubscribe link sets). */
+  email: boolean("email").default(true).notNull(),
+  guideReady: boolean("guide_ready").default(true).notNull(),
+  newVersion: boolean("new_version").default(true).notNull(),
+  replies: boolean("replies").default(true).notNull(),
+  pullActivity: boolean("pull_activity").default(true).notNull(),
+  digest: text("digest").$type<EmailDigest>().default("minutes").notNull(),
+  updatedAt: updatedAt(),
+});
+
+/** Workspaces a user gets no email notifications from. */
+export const notificationMutes = pgTable(
+  "notification_mutes",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.workspaceId] })],
+);
+
+/** Email notifications waiting to be sent to one recipient (several become one email), and recently sent ones. */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    repositoryId: text("repository_id")
+      .notNull()
+      .references(() => repositories.id, { onDelete: "cascade" }),
+    prNumber: integer("pr_number").notNull(),
+    guideId: text("guide_id").references(() => guides.id, { onDelete: "set null" }),
+    type: text("type").$type<NotificationType>().notNull(),
+    actorUserId: text("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** Who caused it as the email names them: a member's name, a GitHub login or the AI model. */
+    actorName: text("actor_name"),
+    /** What the email shows (NotificationData in src/lib/notifications/types.ts). */
+    data: jsonb("data").$type<Record<string, unknown>>().default({}).notNull(),
+    /** The event, e.g. `comment:<repository id>:<GitHub id>`; one notification per event and recipient. */
+    eventKey: text("event_key").notNull(),
+    status: text("status").$type<"pending" | "sent" | "skipped">().default("pending").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("notifications_event_user_unique").on(t.eventKey, t.userId),
+    index("notifications_user_status_idx").on(t.userId, t.status, t.createdAt),
+  ],
+);
+
+/** Workspace events a Slack or JSON webhook can receive. */
+export type ChannelEvent = "guide_published" | "new_version" | "review_submitted";
+
+/** A workspace's Slack incoming webhook or JSON webhook (at most one of each). */
+export const notificationChannels = pgTable(
+  "notification_channels",
+  {
+    id: id(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"slack" | "webhook">().notNull(),
+    /** The webhook URL, encrypted: a Slack webhook URL is itself the credential. */
+    urlEnc: text("url_enc").notNull(),
+    /** JSON webhooks: key of the X-Omakaze-Signature-256 HMAC, encrypted. */
+    secretEnc: text("secret_enc"),
+    events: jsonb("events").$type<ChannelEvent[]>().default(["guide_published", "new_version", "review_submitted"]).notNull(),
+    lastDeliveryAt: timestamp("last_delivery_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("notification_channels_workspace_kind_unique").on(t.workspaceId, t.kind)],
+);

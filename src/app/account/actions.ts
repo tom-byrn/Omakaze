@@ -24,7 +24,9 @@ import { currentSessionId, destroySession, requireUser } from "@/lib/auth/sessio
 import { AuthError, findUserByEmail, upsertGitHubIdentity, verifyGitHubToken } from "@/lib/auth/users";
 import { decrypt, encrypt, hashPassword, verifyPassword } from "@/lib/crypto";
 import { isSecureUrl } from "@/lib/env";
-import { ownerCount } from "@/lib/workspaces";
+import { DIGEST_OPTIONS } from "@/lib/notifications/digest";
+import { ConfirmEmailError, savePreferences, sendEmailConfirmation, setWorkspaceMuted } from "@/lib/notifications/prefs";
+import { listUserWorkspaces, ownerCount } from "@/lib/workspaces";
 
 type State = { ok?: boolean; error?: string; message?: string; data?: Record<string, string> } | undefined;
 
@@ -107,6 +109,40 @@ export async function deleteAccountAction(_prev: State, form: FormData): Promise
   await destroySession();
   await db.delete(users).where(eq(users.id, user.id));
   redirect("/");
+}
+
+/* Notifications ---------------------------------------------------------- */
+
+export async function saveNotificationPrefsAction(_prev: State, form: FormData): Promise<State> {
+  const user = await requireUser();
+  const on = (name: string) => form.get(name) === "on";
+  const digest = DIGEST_OPTIONS.find((o) => o.value === form.get("digest"))?.value ?? "minutes";
+  await savePreferences(user.id, {
+    email: on("email"),
+    guideReady: on("guideReady"),
+    newVersion: on("newVersion"),
+    replies: on("replies"),
+    pullActivity: on("pullActivity"),
+    digest,
+  });
+  // Checked workspaces send email; the others are muted.
+  const wanted = new Set(form.getAll("workspace").map(String));
+  for (const { workspace } of await listUserWorkspaces(user.id)) {
+    await setWorkspaceMuted(user.id, workspace.id, !wanted.has(workspace.id));
+  }
+  revalidatePath("/account");
+  return { ok: true, message: "Saved." };
+}
+
+export async function sendEmailConfirmationAction(): Promise<State> {
+  const user = await requireUser();
+  try {
+    await sendEmailConfirmation(user);
+    return { ok: true, message: `We sent a confirmation link to ${user.email}. It expires in 24 hours.` };
+  } catch (err) {
+    if (err instanceof ConfirmEmailError) return { error: err.message };
+    throw err;
+  }
 }
 
 /* ChatGPT plan ----------------------------------------------------------- */

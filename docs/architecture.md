@@ -8,7 +8,7 @@ Omakaze is a single Next.js 16 application (App Router, TypeScript) backed by Po
 | --- | --- | --- |
 | Next.js server | `src/app` | Pages, Server Actions for forms, and route handlers under `src/app/api` |
 | PostgreSQL | `src/db` | All state: users, workspaces, cached GitHub data, diff snapshots, guides, the job queue, OAuth clients and tokens, and uploads when `STORAGE_DRIVER=database` |
-| Job worker | `src/lib/jobs` | Runs inside the server process (started from `src/instrumentation.ts` when `WORKER_ENABLED` is true): AI generation, summary comments, the guide check and polling |
+| Job worker | `src/lib/jobs` | Runs inside the server process (started from `src/instrumentation.ts` when `WORKER_ENABLED` is true): AI generation, summary comments, the guide check, notifications and polling |
 | MCP endpoint | `src/app/api/mcp`, `src/lib/mcp` | Stateless Streamable HTTP endpoint with 22 tools for coding agents |
 | OAuth server | `src/lib/oauth`, `src/app/.well-known`, `src/app/api/oauth`, `src/app/oauth` | OAuth 2.1 authorization server for MCP clients |
 | REST API | `src/app/api/v1` | Token-authenticated API for scripts and CI |
@@ -87,6 +87,7 @@ The schema is in `src/db/schema.ts`; migrations are in `drizzle/`.
 | Guides | `diff_snapshots`, `guides` (one row per version, with a copy of the guide template it was started with), `guide_sections`, `section_reviews` (including `carried_from_version` for marks carried over from an earlier version), `guide_views` (including `previous_visit_at`) |
 | Reviews | `comments` (comments and reviews posted through Omakaze), `guide_checks` (the check run or commit status last posted for each pull request) |
 | Sharing | `share_links` (read-only links to one guide version or to the latest version of a pull request; only a hash of the secret); `workspaces.share_links_enabled` and `share_link_role` |
+| Notifications | `notification_preferences` (per user; no row means the defaults), `notification_mutes` (workspaces a user gets no email from), `notifications` (email notifications waiting to be sent, one per event and recipient, and recently sent ones), `notification_channels` (a workspace's Slack and JSON webhook) |
 | API access | `api_tokens` (personal tokens and OAuth access tokens), `oauth_clients`, `oauth_codes`, `oauth_refresh_tokens` |
 | Uploads | `assets`, `asset_blobs` |
 | Operations | `jobs`, `activity`, `webhook_deliveries`, `instance_settings` (holds the GitHub App created on `/admin`) |
@@ -161,7 +162,9 @@ The file endpoint also returns moved and copied blocks (`src/lib/diff/moves.ts`)
 
 **Invites.** An invite restricted to an email address can only be accepted by an account with that address and a confirmed `email_verified_at`. The address is confirmed when it is one of the user's verified GitHub emails, or through a signed link (HMAC, valid 24 hours) that is emailed to the address and must be opened by the same signed-in user. Changing the address clears the confirmation.
 
-**Secrets at rest.** GitHub access and refresh tokens, connection tokens, workspace AI keys, the GitHub App private key and secrets created on `/admin`, and invite links are encrypted with AES-256-GCM. The key is derived from `APP_SECRET` with HKDF-SHA256. State passed through GitHub sign-in, app creation and app installation is signed with HMAC-SHA256 under keys derived the same way, and expires.
+**Notification links.** Unsubscribe links in notification email carry an HMAC-signed user ID (and workspace ID for a mute), valid for a year; they need no session. The page they open asks before changing anything, and `POST /api/notifications/unsubscribe` handles one-click unsubscribe from mail clients. Links that confirm an address for notification email are signed, valid 24 hours and must be opened by the same signed-in user, as with invites.
+
+**Secrets at rest.** GitHub access and refresh tokens, connection tokens, workspace AI keys, Slack and JSON webhook URLs and the webhook signing secret, the GitHub App private key and secrets created on `/admin`, and invite links are encrypted with AES-256-GCM. The key is derived from `APP_SECRET` with HKDF-SHA256. State passed through GitHub sign-in, app creation and app installation is signed with HMAC-SHA256 under keys derived the same way, and expires.
 
 **Webhooks.** `/api/github/webhook` verifies `X-Hub-Signature-256` with a constant-time comparison against the GitHub App's webhook secret and the repository webhook secret, and rejects other requests with 401. Deliveries are de-duplicated by `X-GitHub-Delivery`.
 
@@ -185,6 +188,7 @@ The file endpoint also returns moved and copied blocks (`src/lib/diff/moves.ts`)
 | OAuth client registration | 30 per hour per client address, and 500 per hour in total |
 | Invite confirmation emails | 3 per hour per user and invite |
 | Share link lookups | 30 failed lookups per 15 minutes per client address, after which every lookup from the address is refused (429) until the window ends; 600 lookups per minute per client address in total (the page and each file view, upload and status request make one) |
+| Email address confirmation links | 3 per hour per user |
 
 The client address is the `X-Forwarded-For` entry `TRUST_PROXY_HOPS` places from the right (`src/lib/http.ts`), or `X-Real-IP` when the header is missing. See [self-hosting.md](self-hosting.md#https-and-reverse-proxies).
 
@@ -200,9 +204,13 @@ Jobs are rows in the `jobs` table (`src/lib/jobs`):
 | `post_pr_comment` | Publishing a guide when summary comments are on | 3 |
 | `poll_repos` | The scheduler | 1 |
 | `update_guide_check` | Review marks, guides being started, published, failed or deleted, new pull requests and pushes, and changes to the guide check setting | 3 |
+| `notify_event` | Publishing a guide version for the first time, comments, replies and reviews posted through Omakaze, and `pull_request_review_comment` and `pull_request_review` webhooks | 3 |
+| `send_notification_email` | `notify_event`, for each recipient, at the end of their grouping delay | 5 |
+| `post_notification_webhook` | `notify_event`, for each Slack or JSON webhook that wants the event | 5 |
 
 - **Claiming.** Each worker loop claims the next due job with `UPDATE ... WHERE id = (SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1)`, so several loops and several processes can share the queue. A process runs `WORKER_CONCURRENCY` loops (default 3); idle loops check for work about every two seconds.
 - **Retries.** A failed job is queued again after 15 seconds, doubling with each further attempt up to 10 minutes, until it reaches its maximum attempts. Errors marked as permanent are not retried.
+- **Notifications.** `notify_event` works out who hears about an event (`src/lib/notifications/recipients.ts`), writes a pending `notifications` row per recipient and queues their email for when the first pending row has waited the recipient's grouping delay; a queued email of the same recipient already waits for the new row. `send_notification_email` locks the recipient's pending rows (`FOR UPDATE SKIP LOCKED`), checks preferences and mutes again, sends one email (`src/lib/notifications/email.ts`) and marks the rows sent in the same transaction, so a failed send leaves them pending for the retry. Events are de-duplicated by key (`guide:<id>`, `comment:<repository>:<GitHub id>`, `review:<repository>:<GitHub id>`), so a comment posted through Omakaze and its webhook from GitHub are one event, and each recipient gets one row per event. Slack and JSON webhook posts that are refused (other than 408, 429 and 5xx) are not retried.
 - **Generation jobs.** A `generate_guide` job from automation creates its guide version when it first runs and stores the guide ID in the job, so a retry continues the same version. Every attempt starts by removing the sections of earlier attempts. When the job gives up, the guide is marked as failed.
 - **De-duplication.** Jobs can carry a key; only one queued or running job per key is allowed. Automatic generation uses one key per repository, pull request and head commit. Polling uses one key per interval window, and a key that has already run is not queued again.
 - **Guide check updates.** `update_guide_check` jobs use one key per pull request and run 5 seconds after they are queued, so review marks made in the meantime are coalesced into one update. Each request also increments `guide_checks.requests`; a job that sees the number change while it ran queues another update, so the last mark is never lost. The progress itself is computed by `computeReviewProgress` (`src/lib/guides/review-progress.ts`) and turned into the check's title and summary by `src/lib/guides/check.ts`; `src/lib/github/guide-check.ts` posts it.

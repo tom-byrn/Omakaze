@@ -123,6 +123,16 @@ Without webhooks:
 - The pull request list refreshes when someone opens the workspace and the cached data is older than 60 seconds, or clicks **Sync**.
 - The worker polls repositories that have automatic guides turned on (see [ai.md](ai.md#automation)). `POLL_INTERVAL_SECONDS` sets the interval in seconds (default 300; `0` turns polling off; values from 1 to 29 are raised to 30). The scheduler runs every 30 seconds and queues one poll per interval, also when several instances run the worker.
 
+## Email and notifications
+
+Members get email when a guide is ready for their review, when a guide they reviewed has a new version, and about replies and comments; admins can post the same events to Slack or a JSON webhook. See [configuration.md](configuration.md#notifications).
+
+- Email needs an SMTP server: set `SMTP_URL` and `SMTP_FROM` (an address your SMTP server may send from; set up SPF and DKIM for its domain so the email isn't filtered as spam). Without it, email notifications are off and the **Account** page says why. Members only get email at a confirmed address; those who signed up with email and password confirm theirs on the **Account** page.
+- Emails and webhook posts are sent by the job worker, so at least one instance must run it (`WORKER_ENABLED`). Several notifications for one member are grouped into one email (`NOTIFICATIONS_GROUP_SECONDS`, default 5 minutes).
+- Slack needs outbound HTTPS to `hooks.slack.com`. A Slack-compatible server on your own network (Mattermost, Rocket.Chat) needs `WEBHOOKS_ALLOW_PRIVATE_NETWORK=true`; private addresses are refused otherwise.
+- Replies and reviews made on GitHub reach members through webhooks (`pull_request_review_comment` and `pull_request_review`). The GitHub App subscribes to both. Repository webhooks created before notifications were added lack `pull_request_review`; add it in the repository's webhook settings on GitHub, or delete the webhook and create it again on the **Repositories** page. Without webhooks, only activity in Omakaze triggers notifications.
+- `NOTIFICATIONS_ENABLED=false` turns off email notifications, Slack and JSON webhooks for the whole instance.
+
 ## File storage
 
 Uploaded images, videos and PDFs are stored according to `STORAGE_DRIVER`:
@@ -181,7 +191,7 @@ NO_PROXY=localhost,127.0.0.1
 
 This covers requests to GitHub and to AI providers (including the Anthropic SDK, which uses `fetch`). It needs a Node.js release that supports `NODE_USE_ENV_PROXY`, such as the Node.js 22 in the Docker image. Add internal hosts, such as a local model server set in `AI_BASE_URL`, to `NO_PROXY`.
 
-These connections do not use the proxy: SMTP, PostgreSQL, and downloads by the MCP `upload_asset` tool from a `url`. Those downloads connect directly to the checked public address (see [mcp.md](mcp.md#screenshots-and-videos)); where outbound traffic must go through a proxy, agents have to send files as `content_base64` instead.
+These connections do not use the proxy: SMTP, PostgreSQL, Slack and JSON webhooks, and downloads by the MCP `upload_asset` tool from a `url`. Those downloads connect directly to the checked public address (see [mcp.md](mcp.md#screenshots-and-videos)); where outbound traffic must go through a proxy, agents have to send files as `content_base64` instead.
 
 ## GitHub Enterprise Server
 

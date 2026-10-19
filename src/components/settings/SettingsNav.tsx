@@ -15,6 +15,7 @@ export function SettingsNav({ slug, role }: { slug: string; role: string }) {
     { href: `${base}/ai`, label: "AI provider" },
     { href: `${base}/automation`, label: "Automation" },
     { href: `${base}/sharing`, label: "Share links" },
+    { href: `${base}/notifications`, label: "Notifications" },
     { href: `${base}/tokens`, label: "API tokens & MCP" },
   ];
   return (

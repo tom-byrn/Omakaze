@@ -11,6 +11,7 @@ import { runGuideCheckJob } from "@/lib/github/guide-check";
 import { syncRepositoryPulls } from "@/lib/github/pulls";
 import { postGuideSummaryComment } from "@/lib/github/summary-comment";
 import { appendGuideEvent, clearSections, failGuide, getGuide, startGuide } from "@/lib/guides/service";
+import { runNotificationJob } from "@/lib/notifications/jobs";
 import type { Job } from "./queue";
 
 /** Errors that should not be retried. */
@@ -104,6 +105,10 @@ export async function runJob(job: Job): Promise<void> {
       return pollRepos();
     case "update_guide_check":
       return runGuideCheckJob(job);
+    case "notify_event":
+    case "send_notification_email":
+    case "post_notification_webhook":
+      return runNotificationJob(job);
     default:
       throw new PermanentJobError(`Unknown job type ${job.type}`);
   }
