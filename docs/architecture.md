@@ -8,7 +8,7 @@ Omakaze is a single Next.js 16 application (App Router, TypeScript) backed by Po
 | --- | --- | --- |
 | Next.js server | `src/app` | Pages, Server Actions for forms, and route handlers under `src/app/api` |
 | PostgreSQL | `src/db` | All state: users, workspaces, cached GitHub data, diff snapshots, guides, the job queue, OAuth clients and tokens, and uploads when `STORAGE_DRIVER=database` |
-| Job worker | `src/lib/jobs` | Runs inside the server process (started from `src/instrumentation.ts` when `WORKER_ENABLED` is true): AI generation, summary comments and polling |
+| Job worker | `src/lib/jobs` | Runs inside the server process (started from `src/instrumentation.ts` when `WORKER_ENABLED` is true): AI generation, summary comments, the guide check and polling |
 | MCP endpoint | `src/app/api/mcp`, `src/lib/mcp` | Stateless Streamable HTTP endpoint with 17 tools for coding agents |
 | OAuth server | `src/lib/oauth`, `src/app/.well-known`, `src/app/api/oauth`, `src/app/oauth` | OAuth 2.1 authorization server for MCP clients |
 | REST API | `src/app/api/v1` | Token-authenticated API for scripts and CI |
@@ -85,7 +85,7 @@ The schema is in `src/db/schema.ts`; migrations are in `drizzle/`.
 | Workspaces | `workspaces` (including AI and automation settings and the guide template), `memberships` (role per user), `invites` |
 | GitHub | `github_connections` (app installation, token or linked account), `repositories` (followed per workspace, through one connection or none, with an optional guide template override), `pull_requests` (cache, including requested reviewers, requested teams and assignees, which are matched to members by the login of their `github_accounts` row) |
 | Guides | `diff_snapshots`, `guides` (one row per version, with a copy of the guide template it was started with), `guide_sections`, `section_reviews` (including `carried_from_version` for marks carried over from an earlier version), `guide_views` (including `previous_visit_at`) |
-| Reviews | `comments` (comments and reviews posted through Omakaze) |
+| Reviews | `comments` (comments and reviews posted through Omakaze), `guide_checks` (the check run or commit status last posted for each pull request) |
 | API access | `api_tokens` (personal tokens and OAuth access tokens), `oauth_clients`, `oauth_codes`, `oauth_refresh_tokens` |
 | Uploads | `assets`, `asset_blobs` |
 | Operations | `jobs`, `activity`, `webhook_deliveries`, `instance_settings` (holds the GitHub App created on `/admin`) |
@@ -195,11 +195,13 @@ Jobs are rows in the `jobs` table (`src/lib/jobs`):
 | `generate_guide` | **Generate with AI**, `POST /api/v1/generate`, automation | 2 |
 | `post_pr_comment` | Publishing a guide when summary comments are on | 3 |
 | `poll_repos` | The scheduler | 1 |
+| `update_guide_check` | Review marks, guides being started, published, failed or deleted, new pull requests and pushes, and changes to the guide check setting | 3 |
 
 - **Claiming.** Each worker loop claims the next due job with `UPDATE ... WHERE id = (SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1)`, so several loops and several processes can share the queue. A process runs `WORKER_CONCURRENCY` loops (default 3); idle loops check for work about every two seconds.
 - **Retries.** A failed job is queued again after 15 seconds, doubling with each further attempt up to 10 minutes, until it reaches its maximum attempts. Errors marked as permanent are not retried.
 - **Generation jobs.** A `generate_guide` job from automation creates its guide version when it first runs and stores the guide ID in the job, so a retry continues the same version. Every attempt starts by removing the sections of earlier attempts. When the job gives up, the guide is marked as failed.
 - **De-duplication.** Jobs can carry a key; only one queued or running job per key is allowed. Automatic generation uses one key per repository, pull request and head commit. Polling uses one key per interval window, and a key that has already run is not queued again.
+- **Guide check updates.** `update_guide_check` jobs use one key per pull request and run 5 seconds after they are queued, so review marks made in the meantime are coalesced into one update. Each request also increments `guide_checks.requests`; a job that sees the number change while it ran queues another update, so the last mark is never lost. The progress itself is computed by `computeReviewProgress` (`src/lib/guides/review-progress.ts`) and turned into the check's title and summary by `src/lib/guides/check.ts`; `src/lib/github/guide-check.ts` posts it.
 - **Recovery and cleanup.** Jobs that have been running for more than 20 minutes are assumed to belong to a stopped process and are queued again. Guides left in the `generating` state with no change for 60 minutes are marked as failed (`STALE_GUIDE_MINUTES` in `src/lib/guides/service.ts`), unless a `generate_guide` job for the guide is still queued or running. Finished and failed jobs older than 14 days are deleted from time to time.
 - **Scheduler.** Each process with the worker enabled runs a scheduler every 30 seconds. It requeues stuck jobs, fails abandoned guides and, when `POLL_INTERVAL_SECONDS` is greater than 0, queues the `poll_repos` job of the current interval window, so polling runs once per interval across all processes.
 

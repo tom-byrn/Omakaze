@@ -68,7 +68,15 @@ export async function upsertPull(repositoryId: string, p: GhPull): Promise<PullR
 /** Fetch one PR from GitHub (with additions/deletions) and cache it. */
 export async function syncPull(ctx: RepoContext, number: number): Promise<PullRow> {
   const p = await gh<GhPull>(ctx.token, `/repos/${ctx.repo.owner}/${ctx.repo.name}/pulls/${number}`);
-  return upsertPull(ctx.repo.id, p);
+  const row = await upsertPull(ctx.repo.id, p);
+  await reconcileGuideChecks(ctx.repo.id, [row.number]);
+  return row;
+}
+
+/** A new head commit needs its own guide check (imported here: the guide check module imports this one). */
+async function reconcileGuideChecks(repositoryId: string, numbers?: number[]): Promise<void> {
+  const mod = await import("./guide-check");
+  await mod.reconcileGuideChecks(repositoryId, numbers);
 }
 
 /** Refresh the cached PR list of a repository (all open PRs + recently closed ones). */
@@ -104,6 +112,7 @@ export async function syncRepositoryPulls(
       .update(repositories)
       .set({ lastSyncedAt: new Date(), syncError: null })
       .where(eq(repositories.id, ctx.repo.id));
+    await reconcileGuideChecks(ctx.repo.id);
     return { synced: all.length, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

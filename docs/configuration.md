@@ -79,7 +79,7 @@ Instance-wide defaults for built-in generation. A workspace that selects its own
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `WORKER_ENABLED` | `true` | Run the job worker in this process. At least one instance must run it for AI generation, summary comments, polling and the cleanup of abandoned guides. |
+| `WORKER_ENABLED` | `true` | Run the job worker in this process. At least one instance must run it for AI generation, summary comments, the guide check, polling and the cleanup of abandoned guides. |
 | `WORKER_CONCURRENCY` | `3` | Number of jobs this process runs at the same time. |
 | `POLL_INTERVAL_SECONDS` | `300` | Seconds between polls of GitHub for pull requests in repositories with automatic guides. A whole number; `0` turns polling off, and values from 1 to 29 are raised to 30. One poll runs per interval across all instances. |
 
@@ -121,10 +121,10 @@ These are read by `docker-compose.yml` itself:
 | **GitHub** | Connections: GitHub App installation, personal access token, linked GitHub account. See [github-app.md](github-app.md). |
 | **Guide template** | The outline of sections guides follow (from the **Feature**, **Bug fix** or **Migration** starter, or your own), and writing instructions. Applies to built-in generation, MCP agents, the REST API and the editor; repositories can override it. See [ai.md](ai.md#guide-templates). |
 | **AI provider** | Provider, model, API key (encrypted, never shown again) and base URL for built-in generation, with **Test connection** and **Remove provider**. The page shows whether the workspace or the instance default is in effect. |
-| **Automation** | The four automation switches below. |
+| **Automation** | The four automation switches below, the [guide check](#guide-check) and its most recent updates on GitHub. |
 | **API tokens & MCP** | MCP server URL, client configuration, setup prompt, API tokens and OAuth clients. |
 
-The **Repositories** page lists followed repositories. Admins add and remove them, create repository webhooks for token and account connections, and override automatic guides per repository (**Workspace default**, **On** or **Off**). **Settings** next to a repository opens its own page with the same switch and the repository's [guide template](ai.md#guide-templates). Repositories whose connection was removed show "No GitHub connection"; see [github-app.md](github-app.md#repositories-without-a-connection).
+The **Repositories** page lists followed repositories. Admins add and remove them, create repository webhooks for token and account connections, and override automatic guides (**Workspace default**, **On** or **Off**) and the guide check (**Workspace default**, **Off**, **Informational** or **Require review**) per repository. **Settings** next to a repository opens its own page with the same switch and the repository's [guide template](ai.md#guide-templates). Repositories whose connection was removed show "No GitHub connection"; see [github-app.md](github-app.md#repositories-without-a-connection).
 
 ### Invites
 
@@ -145,6 +145,17 @@ Admins create invite links on **Members** with the member or admin role. Each li
 | Post a summary comment on GitHub | Off | Post a comment with the guide summary and section list when a guide is published, and update it for new versions. |
 
 The exact conditions are in [ai.md](ai.md#automation).
+
+### Guide check
+
+**Settings → Automation → Guide check on GitHub** reports review progress on the head commit of each open pull request: a check run named `Omakaze guide` for GitHub App installations, or a commit status named `omakaze/guide` for token and account connections.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| Off, Informational or Require review | Off | **Informational** shows progress such as "3 of 6 sections reviewed" and never blocks merging. **Require review** passes only when every section of the latest guide for the head commit is reviewed by enough members; until then, and for pull requests without a guide or with an outdated one, a check run asks for action and a commit status stays pending. |
+| Reviewers per section | 1 | How many members must mark a section as reviewed (1 to 10). Marks by people who left the workspace don't count. |
+
+Repositories can override the mode on the **Repositories** page. Saving either setting updates the check of every open pull request it affects. The rules, what is shown on GitHub and how to make the check required for merging are in [github-app.md](github-app.md#guide-check).
 
 ### Roles
 

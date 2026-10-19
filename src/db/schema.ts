@@ -137,6 +137,9 @@ export const sessions = pgTable(
 
 export type AiProvider = "anthropic" | "openai" | "google" | "openrouter" | "ollama" | "lmstudio" | "openai-compatible";
 
+/** off: no check. informational: never blocks merging. required: passes once every section is reviewed. */
+export type GuideCheckMode = "off" | "informational" | "required";
+
 export const workspaces = pgTable(
   "workspaces",
   {
@@ -162,6 +165,10 @@ export const workspaces = pgTable(
     guideTemplate: jsonb("guide_template").$type<TemplateOutline>(),
     /** Members may generate guides with their own ChatGPT plan instead of the workspace provider. */
     allowChatgptPlans: boolean("allow_chatgpt_plans").default(false).notNull(),
+    /** Report guide review progress on the pull request's head commit (repos can override). */
+    guideCheck: text("guide_check").$type<GuideCheckMode>().default("off").notNull(),
+    /** Members who must review each section before a required guide check passes. */
+    guideCheckReviewers: integer("guide_check_reviewers").default(1).notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -263,6 +270,8 @@ export const repositories = pgTable(
     autoGenerate: boolean("auto_generate"),
     /** Own outline and/or additional writing instructions; null = the workspace template as it is. */
     guideTemplate: jsonb("guide_template").$type<RepoTemplate>(),
+    /** null = inherit workspace setting */
+    guideCheck: text("guide_check").$type<GuideCheckMode>(),
     webhookId: bigint("webhook_id", { mode: "number" }),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
     syncError: text("sync_error"),
@@ -489,6 +498,42 @@ export const comments = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("comments_pr_idx").on(t.repositoryId, t.prNumber)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Guide checks: review progress reported on GitHub                    */
+/* ------------------------------------------------------------------ */
+
+/** What was last reported. "off" is the final neutral update sent after the check was turned off. */
+export type GuideCheckConclusion = "success" | "neutral" | "action_required" | "in_progress" | "off";
+
+/** The check run or commit status Omakaze keeps on a pull request's head commit (one row per pull request). */
+export const guideChecks = pgTable(
+  "guide_checks",
+  {
+    id: id(),
+    repositoryId: text("repository_id")
+      .notNull()
+      .references(() => repositories.id, { onDelete: "cascade" }),
+    prNumber: integer("pr_number").notNull(),
+    /** Commit the last update went to. Also set when it failed, so a failing commit isn't retried on every sync. */
+    headSha: text("head_sha"),
+    /** "check_run" for GitHub App connections, "status" (a commit status) for token and account connections */
+    method: text("method").$type<"check_run" | "status">(),
+    checkRunId: bigint("check_run_id", { mode: "number" }),
+    guideId: text("guide_id").references(() => guides.id, { onDelete: "set null" }),
+    conclusion: text("conclusion").$type<GuideCheckConclusion>(),
+    title: text("title"),
+    summary: text("summary"),
+    detailsUrl: text("details_url"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    error: text("error"),
+    /** Counts requests for an update; a job that sees it change while running queues another. */
+    requests: integer("requests").default(0).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("guide_checks_repo_pr_unique").on(t.repositoryId, t.prNumber)],
 );
 
 /* ------------------------------------------------------------------ */

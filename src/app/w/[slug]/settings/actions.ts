@@ -12,6 +12,7 @@ import {
   repositories,
   workspaces,
   type AiProvider,
+  type GuideCheckMode,
   type Role,
 } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
@@ -31,6 +32,7 @@ import {
   reattachRepositories,
 } from "@/lib/github/connections";
 import { gh, GitHubError } from "@/lib/github/client";
+import { refreshGuideChecks } from "@/lib/github/guide-check";
 import { repoWebhookSecret } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { revokeAccessToken } from "@/lib/oauth/server";
@@ -429,6 +431,50 @@ export async function saveAutomationAction(slug: string, _prev: FormState, form:
     await db.update(workspaces).set(values).where(eq(workspaces.id, ws.id));
     await logActivity({ workspaceId: ws.id, type: "settings.updated", actorUserId: user.id, data: { section: "automation", ...values } });
     return done(ws, "/settings/automation", "Saved.");
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/* Guide check -------------------------------------------------------- */
+
+const guideCheckSchema = z.object({
+  mode: z.enum(["off", "informational", "required"]),
+  reviewers: z.coerce.number().int().min(1).max(10),
+});
+
+export async function saveGuideCheckAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
+  try {
+    const { user, ws } = await ctx(slug, "admin");
+    const parsed = guideCheckSchema.safeParse({ mode: form.get("guideCheck"), reviewers: form.get("guideCheckReviewers") ?? 1 });
+    if (!parsed.success) return { error: "Choose a mode, and between 1 and 10 reviewers per section." };
+    const values = { guideCheck: parsed.data.mode, guideCheckReviewers: parsed.data.reviewers };
+    await db.update(workspaces).set(values).where(eq(workspaces.id, ws.id));
+    await logActivity({ workspaceId: ws.id, type: "settings.updated", actorUserId: user.id, data: { section: "guide-check", ...values } });
+    if (values.guideCheck !== ws.guideCheck || values.guideCheckReviewers !== ws.guideCheckReviewers) {
+      await refreshGuideChecks({ workspaceId: ws.id });
+    }
+    return done(ws, "/settings/automation", "Saved. Open pull requests are updated in a few seconds.");
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function setRepoGuideCheckAction(
+  slug: string,
+  repositoryId: string,
+  value: "inherit" | GuideCheckMode,
+): Promise<FormState> {
+  try {
+    const { ws } = await ctx(slug, "admin");
+    const mode = z.enum(["inherit", "off", "informational", "required"]).parse(value);
+    const updated = await db
+      .update(repositories)
+      .set({ guideCheck: mode === "inherit" ? null : mode })
+      .where(and(eq(repositories.id, repositoryId), eq(repositories.workspaceId, ws.id)))
+      .returning({ id: repositories.id });
+    if (updated.length > 0) await refreshGuideChecks({ repositoryId });
+    return done(ws, "/repos");
   } catch (err) {
     return fail(err);
   }
