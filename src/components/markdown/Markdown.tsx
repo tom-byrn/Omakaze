@@ -142,15 +142,26 @@ const components: Components = {
   },
 };
 
-/** GitHub-flavored markdown with mermaid, math, alerts, video and diff links. Server component. */
-export function Markdown({ source, className = "guide-prose" }: { source: string; className?: string }) {
+/**
+ * GitHub-flavored markdown with mermaid, math, alerts, video and diff links. Server component.
+ * `urlTransform` rewrites link and media URLs (the share view adds its token to upload URLs).
+ */
+export function Markdown({
+  source,
+  className = "guide-prose",
+  urlTransform = (url) => url,
+}: {
+  source: string;
+  className?: string;
+  urlTransform?: (url: string) => string;
+}) {
   return (
     <div className={className}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeRaw, [rehypeSanitize, schema], rehypeAlerts, rehypeKatex]}
         components={components}
-        urlTransform={(url) => url}
+        urlTransform={urlTransform}
       >
         {escapeCurrencyDollars(source)}
       </ReactMarkdown>

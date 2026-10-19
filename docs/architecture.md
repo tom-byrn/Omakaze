@@ -86,6 +86,7 @@ The schema is in `src/db/schema.ts`; migrations are in `drizzle/`.
 | GitHub | `github_connections` (app installation, token or linked account), `repositories` (followed per workspace, through one connection or none, with an optional guide template override), `pull_requests` (cache, including requested reviewers, requested teams and assignees, which are matched to members by the login of their `github_accounts` row) |
 | Guides | `diff_snapshots`, `guides` (one row per version, with a copy of the guide template it was started with), `guide_sections`, `section_reviews` (including `carried_from_version` for marks carried over from an earlier version), `guide_views` (including `previous_visit_at`) |
 | Reviews | `comments` (comments and reviews posted through Omakaze), `guide_checks` (the check run or commit status last posted for each pull request) |
+| Sharing | `share_links` (read-only links to one guide version or to the latest version of a pull request; only a hash of the secret); `workspaces.share_links_enabled` and `share_link_role` |
 | API access | `api_tokens` (personal tokens and OAuth access tokens), `oauth_clients`, `oauth_codes`, `oauth_refresh_tokens` |
 | Uploads | `assets`, `asset_blobs` |
 | Operations | `jobs`, `activity`, `webhook_deliveries`, `instance_settings` (holds the GitHub App created on `/admin`) |
@@ -166,13 +167,15 @@ The file endpoint also returns moved and copied blocks (`src/lib/diff/moves.ts`)
 
 **Cross-site requests.** Forms use Server Actions, which Next.js protects by comparing the `Origin` header with the host. JSON endpoints that use the session cookie and change data (`/api/guides/<id>/comments`, `/progress`, `/review`, `/threads`, `/api/assets`, `/api/w/<slug>/sync`) reject requests whose `Origin` is neither `APP_URL` nor the request's own origin. Requests without an `Origin` header (non-browser clients) are allowed. Responses carry `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and `X-Frame-Options: SAMEORIGIN`.
 
-**Access checks.** Workspace pages, actions and APIs check membership and role (member, admin, owner; see [configuration.md](configuration.md#roles)). Guides, comments and file views are only served to members of the guide's workspace; a token for another workspace gets 404. `/admin` returns 404 for users who are not instance admins.
+**Access checks.** Workspace pages, actions and APIs check membership and role (member, admin, owner; see [configuration.md](configuration.md#roles)). Guides, comments and file views are only served to members of the guide's workspace, or through a share link to the guide (see Share links below); a token for another workspace gets 404. `/admin` returns 404 for users who are not instance admins.
 
-**Uploads.** Files are served only to signed-in members of the upload's workspace or to tokens of that workspace, with `X-Content-Type-Options: nosniff`. SVG files get a `Content-Security-Policy` with `sandbox`. Allowed types are fixed (images, videos and PDF). Downloads for `upload_asset` (`src/lib/storage/remote.ts`) resolve the host name, refuse private, loopback, link-local and other reserved IPv4 and IPv6 addresses, connect to the address that was checked, check every redirect again and stop at the size limit; see [mcp.md](mcp.md#downloads-from-a-url).
+**Share links.** `/s/<token>` shows a guide to anyone with the link, without a session (`src/lib/share`). The token is the link's ID (16 characters) followed by a 256-bit random secret. The ID finds the row and the secret's SHA-256 hash is compared with the stored hash in constant time; the secret itself is not stored, so the link is shown only when it is created. A link opens one guide version (when it is `ready`), or, for a link to the latest version, the `ready` and `generating` versions of its pull request, never drafts or failed versions. The viewer adds the token as `?share=<token>` to the requests it makes, and only these routes accept it: the file view (`/api/guides/<id>/file`) and status (`/api/guides/<id>/status`) of a version the link opens, the review comments (`GET /api/guides/<id>/comments`) when the link was created with them, and uploads (`/api/assets/<id>/<name>`) whose URL appears in the summary or a section of a version the link opens. Any other guide, upload or route answers 404 or 401 as without a token; nothing that writes accepts one. Responses through a token are sent with `Cache-Control: no-store`, so revoking a link takes effect at once, and with `X-Robots-Tag: noindex, nofollow`. The page itself is sent with `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex, nofollow` and a `robots` meta tag, so the token doesn't leak through links to GitHub and the page isn't indexed. It records no guide view, carries no review marks and contains no member names, avatars or emails, and it doesn't sync the pull request from GitHub. Revoked and expired links, links of a workspace that turned sharing off, and `SHARE_LINKS_ENABLED=false` show a page that says so.
+
+**Uploads.** Files are served only to signed-in members of the upload's workspace or to tokens of that workspace, or through a share link as described above, with `X-Content-Type-Options: nosniff`. SVG files get a `Content-Security-Policy` with `sandbox`. Allowed types are fixed (images, videos and PDF). Downloads for `upload_asset` (`src/lib/storage/remote.ts`) resolve the host name, refuse private, loopback, link-local and other reserved IPv4 and IPv6 addresses, connect to the address that was checked, check every redirect again and stop at the size limit; see [mcp.md](mcp.md#downloads-from-a-url).
 
 **Markdown.** Raw HTML in guides is sanitized with `rehype-sanitize`; video, details and a few other tags are allowed.
 
-**Rate limits.** These limits are kept in memory per process:
+**Rate limits.** These limits are kept in memory per process and shared by all of its routes:
 
 | Action | Limit |
 | --- | --- |
@@ -181,6 +184,7 @@ The file endpoint also returns moved and copied blocks (`src/lib/diff/moves.ts`)
 | Token sign-in | 20 per 15 minutes per client address |
 | OAuth client registration | 30 per hour per client address, and 500 per hour in total |
 | Invite confirmation emails | 3 per hour per user and invite |
+| Share link lookups | 30 failed lookups per 15 minutes per client address, after which every lookup from the address is refused (429) until the window ends; 600 lookups per minute per client address in total (the page and each file view, upload and status request make one) |
 
 The client address is the `X-Forwarded-For` entry `TRUST_PROXY_HOPS` places from the right (`src/lib/http.ts`), or `X-Real-IP` when the header is missing. See [self-hosting.md](self-hosting.md#https-and-reverse-proxies).
 

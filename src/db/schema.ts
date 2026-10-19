@@ -171,6 +171,10 @@ export const workspaces = pgTable(
     guideCheckReviewers: integer("guide_check_reviewers").default(1).notNull(),
     /** Agents over MCP may approve pull requests as the member whose token they use. */
     allowAgentApprovals: boolean("allow_agent_approvals").default(false).notNull(),
+    /** Read-only share links work in this workspace (see src/lib/share). Off pauses existing links too. */
+    shareLinksEnabled: boolean("share_links_enabled").default(true).notNull(),
+    /** Lowest role that can create share links. */
+    shareLinkRole: text("share_link_role").$type<"admin" | "member">().default("admin").notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -464,6 +468,36 @@ export const guideViews = pgTable(
     previousVisitAt: timestamp("previous_visit_at", { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.guideId, t.userId] })],
+);
+
+/**
+ * Read-only links to a guide for people outside the workspace (`/s/<token>`). The token is the
+ * link's id followed by a secret; only the secret's SHA-256 hash is stored.
+ */
+export const shareLinks = pgTable(
+  "share_links",
+  {
+    id: id(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    repositoryId: text("repository_id")
+      .notNull()
+      .references(() => repositories.id, { onDelete: "cascade" }),
+    prNumber: integer("pr_number").notNull(),
+    /** The shared version; null = the latest published version of the pull request, and earlier ones. */
+    guideId: text("guide_id").references(() => guides.id, { onDelete: "cascade" }),
+    secretHash: text("secret_hash").notNull(),
+    /** Show the pull request's review comments from GitHub (read-only). */
+    includeComments: boolean("include_comments").default(false).notNull(),
+    createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    /** null = never expires. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("share_links_workspace_idx").on(t.workspaceId, t.createdAt), index("share_links_pr_idx").on(t.repositoryId, t.prNumber)],
 );
 
 /* ------------------------------------------------------------------ */

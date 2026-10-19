@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { withShareToken } from "@/lib/share/url";
 
 type Status = {
   status: "draft" | "generating" | "ready" | "failed";
@@ -18,6 +19,7 @@ export function GenerationStatus({
   sectionCount,
   agentPrompt,
   onChange,
+  shareToken,
 }: {
   guideId: string;
   status: "draft" | "generating" | "ready" | "failed";
@@ -25,9 +27,11 @@ export function GenerationStatus({
   sectionCount: number;
   agentPrompt: string;
   onChange: () => void;
+  /** Polls through a share link in the read-only view. */
+  shareToken?: string;
 }) {
   const { data } = useSWR<Status>(
-    status === "generating" ? `/api/guides/${guideId}/status` : null,
+    status === "generating" ? withShareToken(`/api/guides/${guideId}/status`, shareToken) : null,
     (url: string) => fetch(url).then((r) => r.json()),
     { refreshInterval: 2000 },
   );
@@ -45,9 +49,11 @@ export function GenerationStatus({
       <div className="mb-8 border border-danger/40 bg-white p-5">
         <p className="mono-label text-danger">Generation failed</p>
         <p className="mt-2 text-[14px] leading-[22px] text-text">{error ?? "Unknown error"}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <CopyButton text={agentPrompt} label="Copy agent prompt" className="btn btn-secondary btn-sm" />
-        </div>
+        {agentPrompt ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <CopyButton text={agentPrompt} label="Copy agent prompt" className="btn btn-secondary btn-sm" />
+          </div>
+        ) : null}
       </div>
     );
   }

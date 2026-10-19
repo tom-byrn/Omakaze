@@ -5,6 +5,7 @@ import { getGitHubAccount } from "@/lib/auth/users";
 import { requireGuideAccess } from "@/lib/guides/access";
 import { guidePath } from "@/lib/guides/service";
 import { assertSameOrigin, errorResponse, HttpError, readJson } from "@/lib/http";
+import { requireGuideReadAccess, SHARE_RESPONSE_HEADERS } from "@/lib/share/access";
 import { env } from "@/lib/env";
 import { GitHubError, type GhReviewComment } from "@/lib/github/client";
 import { commentedLines, hasSuggestion } from "@/lib/github/suggestions";
@@ -41,14 +42,16 @@ function viewerThreads(threads: ReviewThread[]) {
 export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comments">) {
   try {
     const { id } = await ctx.params;
-    const { guide, principal } = await requireGuideAccess(req, id);
+    // Members, or a share link created with comments (read-only, nothing is "mine").
+    const { guide, principal, share } = await requireGuideReadAccess(req, id, { comments: true });
+    const init = share ? { headers: SHARE_RESPONSE_HEADERS } : undefined;
     const rc = await getRepoContext(guide.repositoryId).catch((err) => {
       if (err instanceof ConnectionError) return null;
       throw err;
     });
     // Without a GitHub connection there is nothing to read; the guide itself stays available.
-    if (!rc) return Response.json({ comments: [], disconnected: true });
-    const fresh = new URL(req.url).searchParams.get("fresh") === "1";
+    if (!rc) return Response.json({ comments: [], disconnected: true }, init);
+    const fresh = !share && new URL(req.url).searchParams.get("fresh") === "1";
     // Thread state comes from GraphQL; without it the comments still load, just without resolving.
     const threadList = (fresh: boolean) =>
       listReviewThreads(rc, guide.prNumber, fresh).catch((err) => {
@@ -57,8 +60,8 @@ export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comm
       });
     const [list, mine, account, cached] = await Promise.all([
       listReviewComments(rc, guide.prNumber, fresh),
-      ownCommentIds(guide.repositoryId, guide.prNumber, principal.user.id),
-      getGitHubAccount(principal.user.id),
+      principal ? ownCommentIds(guide.repositoryId, guide.prNumber, principal.user.id) : new Set<number>(),
+      principal ? getGitHubAccount(principal.user.id) : null,
       threadList(fresh),
     ]);
     let threads = cached;
@@ -69,16 +72,19 @@ export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comm
       threads = (await threadList(true)) ?? threads;
       index = threadIndex(threads);
     }
-    return Response.json({
-      comments: list.map((c) =>
-        viewerComment(c, {
-          mine: mine.has(c.id) || (account !== null && c.user?.login === account.login),
-          // A thread lists its first 100 comments; later replies belong to their root's thread.
-          threadId: (index.get(c.id) ?? (c.in_reply_to_id ? index.get(c.in_reply_to_id) : undefined))?.id ?? null,
-        }),
-      ),
-      threads: threads ? viewerThreads(threads) : null,
-    });
+    return Response.json(
+      {
+        comments: list.map((c) =>
+          viewerComment(c, {
+            mine: mine.has(c.id) || (account !== null && c.user?.login === account.login),
+            // A thread lists its first 100 comments; later replies belong to their root's thread.
+            threadId: (index.get(c.id) ?? (c.in_reply_to_id ? index.get(c.in_reply_to_id) : undefined))?.id ?? null,
+          }),
+        ),
+        threads: threads ? viewerThreads(threads) : null,
+      },
+      init,
+    );
   } catch (err) {
     return errorResponse(err);
   }

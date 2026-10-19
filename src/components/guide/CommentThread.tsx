@@ -11,7 +11,7 @@ import type { ReviewComment, Thread } from "./types";
 /** Lines a new suggestion would replace: their head-side text and the first line number. */
 export type SuggestionBase = { lines: string[]; startLine: number };
 
-function CommentBody({ c, onDelete }: { c: ReviewComment; onDelete?: (id: number) => Promise<string | null> }) {
+function CommentBody({ c, onDelete, readOnly }: { c: ReviewComment; onDelete?: (id: number) => Promise<string | null>; readOnly?: boolean }) {
   const [deleting, setDeleting] = useState(false);
   // commentedLines end at the comment's line in the commit it was written on.
   const startLine = c.commentedLines ? (c.originalLine ?? c.line ?? c.commentedLines.length) - c.commentedLines.length + 1 : (c.startLine ?? c.line);
@@ -44,7 +44,8 @@ function CommentBody({ c, onDelete }: { c: ReviewComment; onDelete?: (id: number
           </a>
         </div>
         <div className="mt-1">
-          <CommentMarkdown body={c.body} base={c.commentedLines ?? null} startLine={startLine} href={c.htmlUrl} />
+          {/* The link commits a suggestion on GitHub; the read-only view only shows it. */}
+          <CommentMarkdown body={c.body} base={c.commentedLines ?? null} startLine={startLine} href={readOnly ? undefined : c.htmlUrl} />
         </div>
       </div>
     </div>
@@ -164,7 +165,8 @@ export function CommentThread({
   suggestion,
 }: {
   thread: Thread;
-  onReply: (rootId: number, body: string) => Promise<string | null>;
+  /** Missing in the read-only view of a share link: no replies, resolving or committing suggestions. */
+  onReply?: (rootId: number, body: string) => Promise<string | null>;
   onDelete?: (id: number) => Promise<string | null>;
   /** Resolve (true) or unresolve (false) the thread on GitHub. */
   onResolve?: (threadId: string, resolved: boolean) => Promise<string | null>;
@@ -232,44 +234,46 @@ export function CommentThread({
           ) : null}
         </div>
       ) : null}
-      <CommentBody c={thread.root} onDelete={onDelete} />
+      <CommentBody c={thread.root} onDelete={onDelete} readOnly={!onReply} />
       {thread.replies.map((r) => (
         <div key={r.id} className="border-t border-dashed border-line">
-          <CommentBody c={r} onDelete={onDelete} />
+          <CommentBody c={r} onDelete={onDelete} readOnly={!onReply} />
         </div>
       ))}
-      <div className="border-t border-dashed border-line">
-        {replying ? (
-          <Composer
-            placeholder="Reply"
-            submitLabel="Reply on GitHub"
-            suggestion={suggestion}
-            onCancel={() => setReplying(false)}
-            onSubmit={async (body) => {
-              const err = await onReply(thread.root.id, body);
-              if (!err) setReplying(false);
-              return err;
-            }}
-          />
-        ) : (
-          <div className="flex items-stretch">
-            <button type="button" className="min-w-0 flex-1 px-4 py-2 text-left text-[12px] text-muted hover:text-ink" onClick={() => setReplying(true)}>
-              Reply…
-            </button>
-            {state && onResolve ? (
-              <button
-                type="button"
-                className="flex shrink-0 items-center gap-1.5 border-l border-dashed border-line px-4 py-2 text-[12px] text-ui hover:text-ink disabled:opacity-50"
-                disabled={pending}
-                onClick={toggleResolved}
-              >
-                {resolved ? <RiArrowGoBackLine size={13} /> : <RiCheckLine size={13} />}
-                {pending ? (resolved ? "Unresolving…" : "Resolving…") : resolved ? "Unresolve conversation" : "Resolve conversation"}
+      {onReply ? (
+        <div className="border-t border-dashed border-line">
+          {replying ? (
+            <Composer
+              placeholder="Reply"
+              submitLabel="Reply on GitHub"
+              suggestion={suggestion}
+              onCancel={() => setReplying(false)}
+              onSubmit={async (body) => {
+                const err = await onReply(thread.root.id, body);
+                if (!err) setReplying(false);
+                return err;
+              }}
+            />
+          ) : (
+            <div className="flex items-stretch">
+              <button type="button" className="min-w-0 flex-1 px-4 py-2 text-left text-[12px] text-muted hover:text-ink" onClick={() => setReplying(true)}>
+                Reply…
               </button>
-            ) : null}
-          </div>
-        )}
-      </div>
+              {state && onResolve ? (
+                <button
+                  type="button"
+                  className="flex shrink-0 items-center gap-1.5 border-l border-dashed border-line px-4 py-2 text-[12px] text-ui hover:text-ink disabled:opacity-50"
+                  disabled={pending}
+                  onClick={toggleResolved}
+                >
+                  {resolved ? <RiArrowGoBackLine size={13} /> : <RiCheckLine size={13} />}
+                  {pending ? (resolved ? "Unresolving…" : "Resolving…") : resolved ? "Unresolve conversation" : "Resolve conversation"}
+                </button>
+              ) : null}
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

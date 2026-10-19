@@ -25,6 +25,7 @@ import { ReviewPanel } from "./ReviewPanel";
 import { InterdiffPanel, MARK_COLOR, ProgressCard, SectionNotice, SinceLastVisitBanner, sectionProgress, stepMark, type SectionProgress, type StepMark } from "./ReviewChanges";
 import { SectionDiffs } from "./SectionDiffs";
 import { bodyWithoutSuggestions, hasSuggestion } from "@/lib/github/suggestions";
+import { withShareToken } from "@/lib/share/url";
 import { groupThreads, type FocusTarget, type ReviewComment, type ThreadState } from "./types";
 
 export type ViewerSection = {
@@ -82,6 +83,8 @@ export type ViewerProps = {
   lastVisitAt?: string | null;
   /** Set when this version was published since the viewer's last visit. */
   sinceVisit?: { at: string; baselineVersion: number; versions: number[] } | null;
+  /** Read-only view of a share link (src/lib/share): no review marks, composer, resolving or "Finish review". */
+  readOnly?: { shareToken: string; comments: boolean } | null;
 };
 
 async function getJson<T>(url: string): Promise<T> {
@@ -102,8 +105,11 @@ const VIA_LABEL: Record<string, string> = {
 export function GuideViewer(props: ViewerProps) {
   const { guide, sections, files, me, members } = props;
   const router = useRouter();
+  const ro = props.readOnly ?? null;
   const reviewStep = sections.length + 1;
-  const toStep = (s: ViewerProps["initialStep"]) => (s === "review" ? reviewStep : s === "files" ? -1 : Math.min(Math.max(0, s), reviewStep));
+  // A shared guide ends with its last section; members finish with the review step.
+  const lastStep = ro ? sections.length : reviewStep;
+  const toStep = (s: ViewerProps["initialStep"]) => (s === "review" ? lastStep : s === "files" ? -1 : Math.min(Math.max(0, s), lastStep));
   const [step, setStep] = useState<number>(toStep(props.initialStep));
   const [focus, setFocus] = useState<FocusTarget | null>(null);
   const [wrap, setWrap] = useStoredBoolean("omk:wrap", true);
@@ -130,10 +136,14 @@ export function GuideViewer(props: ViewerProps) {
     rightRef.current?.scrollTo({ top: 0 });
   }, [step, reviewStep]);
 
-  const comments = useSWR<{ comments: ReviewComment[]; threads?: ThreadState[] | null }>(`/api/guides/${guide.id}/comments`, getJson, {
-    refreshInterval: 30_000,
-    revalidateOnFocus: true,
-  });
+  const comments = useSWR<{ comments: ReviewComment[]; threads?: ThreadState[] | null }>(
+    ro && !ro.comments ? null : withShareToken(`/api/guides/${guide.id}/comments`, ro?.shareToken),
+    getJson,
+    {
+      refreshInterval: 30_000,
+      revalidateOnFocus: true,
+    },
+  );
   const since = props.lastVisitAt ? Date.parse(props.lastVisitAt) : null;
   // Comments by others since the viewer's last visit are marked as new.
   const commentList = useMemo(
@@ -279,14 +289,14 @@ export function GuideViewer(props: ViewerProps) {
       const el = e.target as HTMLElement;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "ArrowRight" || e.key === "]") setStep((s) => Math.min(reviewStep, Math.max(0, s + 1)));
+      if (e.key === "ArrowRight" || e.key === "]") setStep((s) => Math.min(lastStep, Math.max(0, s + 1)));
       if (e.key === "ArrowLeft" || e.key === "[") setStep((s) => Math.max(0, s - 1));
-      if (e.key === "r" && step >= 1 && step <= sections.length) void toggleReviewed(sections[step - 1].id);
+      if (e.key === "r" && !ro && step >= 1 && step <= sections.length) void toggleReviewed(sections[step - 1].id);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, reviewStep, sections]);
+  }, [step, lastStep, sections]);
 
   const current = step >= 1 && step <= sections.length ? sections[step - 1] : null;
   const reviewedCount = sections.filter((s) => reviewed.has(s.id)).length;
@@ -339,14 +349,16 @@ export function GuideViewer(props: ViewerProps) {
             <div className="flex items-center gap-2 border-l border-dashed border-line px-4 font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase">
               <span className="dot animate-pulse-dot bg-blue-bright" /> Writing…
             </div>
-          ) : (
+          ) : ro ? null : (
             <StepTab label="Finish review" index={null} active={step === reviewStep} done={false} onClick={() => setStep(reviewStep)} />
           )}
         </div>
         <div className="flex flex-none items-center gap-1 border-l border-dashed border-line px-3">
-          <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">
-            {reviewedCount}/{sections.length} reviewed
-          </span>
+          {ro ? null : (
+            <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">
+              {reviewedCount}/{sections.length} reviewed
+            </span>
+          )}
           {carriedCount > 0 ? (
             <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">· {carriedCount} carried</span>
           ) : null}
@@ -361,7 +373,7 @@ export function GuideViewer(props: ViewerProps) {
           >
             <RiFileList3Line size={14} /> All files
           </button>
-          {resolvedCount > 0 ? (
+          {resolvedCount > 0 && !ro ? (
             <button
               type="button"
               className={clsx("btn btn-ghost btn-xs", showResolved && "bg-black/[0.06] text-ink")}
@@ -397,6 +409,7 @@ export function GuideViewer(props: ViewerProps) {
                 sectionCount={sections.length}
                 agentPrompt={props.agentPrompt}
                 onChange={() => router.refresh()}
+                shareToken={ro?.shareToken}
               />
             ) : null}
 
@@ -493,36 +506,50 @@ export function GuideViewer(props: ViewerProps) {
                 ) : null}
                 <div className="mt-8">{current.body}</div>
                 <div className="mt-12 flex flex-wrap items-center gap-2 border-t border-dashed border-line pt-6">
-                  <button
-                    type="button"
-                    className={clsx("btn btn-md", reviewed.has(current.id) ? "btn-secondary" : "btn-primary")}
-                    onClick={async () => {
-                      const wasReviewed = reviewed.has(current.id);
-                      await toggleReviewed(current.id);
-                      if (!wasReviewed) setStep((s) => Math.min(reviewStep, s + 1));
-                    }}
-                  >
-                    {reviewed.has(current.id) ? (
-                      <>
-                        <RiCheckboxCircleFill size={15} /> Reviewed
-                      </>
-                    ) : (
-                      <>
-                        <RiCheckboxCircleLine size={15} /> Mark reviewed and continue
-                      </>
-                    )}
-                  </button>
+                  {ro ? (
+                    step < lastStep ? (
+                      <button type="button" className="btn btn-primary btn-md" onClick={() => setStep((s) => Math.min(lastStep, s + 1))}>
+                        Continue to section {String(step + 1).padStart(2, "0")} <RiArrowRightLine size={15} />
+                      </button>
+                    ) : null
+                  ) : (
+                    <button
+                      type="button"
+                      className={clsx("btn btn-md", reviewed.has(current.id) ? "btn-secondary" : "btn-primary")}
+                      onClick={async () => {
+                        const wasReviewed = reviewed.has(current.id);
+                        await toggleReviewed(current.id);
+                        if (!wasReviewed) setStep((s) => Math.min(reviewStep, s + 1));
+                      }}
+                    >
+                      {reviewed.has(current.id) ? (
+                        <>
+                          <RiCheckboxCircleFill size={15} /> Reviewed
+                        </>
+                      ) : (
+                        <>
+                          <RiCheckboxCircleLine size={15} /> Mark reviewed and continue
+                        </>
+                      )}
+                    </button>
+                  )}
                   <div className="ml-auto flex gap-1">
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep((s) => Math.max(0, s - 1))} aria-label="Previous section">
                       <RiArrowLeftLine size={15} />
                     </button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep((s) => Math.min(reviewStep, s + 1))} aria-label="Next section">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep((s) => Math.min(lastStep, s + 1))} aria-label="Next section">
                       <RiArrowRightLine size={15} />
                     </button>
                   </div>
                 </div>
                 <p className="mt-4 font-mono text-[10px] tracking-[0.08em] text-black/40 uppercase">
-                  <span className="kbd">←</span> <span className="kbd">→</span> navigate · <span className="kbd">R</span> mark reviewed
+                  <span className="kbd">←</span> <span className="kbd">→</span> navigate
+                  {ro ? null : (
+                    <>
+                      {" "}
+                      · <span className="kbd">R</span> mark reviewed
+                    </>
+                  )}
                 </p>
               </div>
             ) : null}
@@ -538,7 +565,7 @@ export function GuideViewer(props: ViewerProps) {
                 sections={sections}
                 coverage={props.coverage}
                 onPick={(i) => setStep(i + 1)}
-                progress={sections.length > 0 ? <ProgressCard progress={progress} /> : null}
+                progress={sections.length > 0 && !ro ? <ProgressCard progress={progress} /> : null}
               />
             ) : step === reviewStep ? (
               <ConversationRight
@@ -573,11 +600,12 @@ export function GuideViewer(props: ViewerProps) {
                   focus={focus}
                   blobBase={blobBase}
                   wrap={wrap}
-                  onComment={onComment}
-                  onReply={onReply}
-                  onDelete={onDelete}
-                  onResolve={threadStates ? onResolve : undefined}
-                  showResolved={showResolved}
+                  onComment={ro ? undefined : onComment}
+                  onReply={ro ? undefined : onReply}
+                  onDelete={ro ? undefined : onDelete}
+                  onResolve={threadStates && !ro ? onResolve : undefined}
+                  showResolved={showResolved && !ro}
+                  shareToken={ro?.shareToken}
                   newSince={currentChange && step !== -1 ? currentChange : null}
                 />
               </>

@@ -48,6 +48,12 @@ See [github-app.md](github-app.md) for how these fit together.
 
 **Sign in with GitHub** is available when a GitHub App with client credentials or an OAuth App is configured; there is no separate switch. If no sign-in method is available, the sign-in page says so.
 
+### Share links
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SHARE_LINKS_ENABLED` | `true` | Read-only share links to guides (`/s/<token>`), for people without an account. When false, no link can be created or opened, existing links show "Share links are turned off", and requests with a share token get 404. Links are not revoked, so they work again when the variable is turned back on. Workspaces can also turn links off; see [Share links](#share-links-1). |
+
 ### Email
 
 | Variable | Default | Description |
@@ -122,6 +128,7 @@ These are read by `docker-compose.yml` itself:
 | **Guide template** | The outline of sections guides follow (from the **Feature**, **Bug fix** or **Migration** starter, or your own), and writing instructions. Applies to built-in generation, MCP agents, the REST API and the editor; repositories can override it. See [ai.md](ai.md#guide-templates). |
 | **AI provider** | Provider, model, API key (encrypted, never shown again) and base URL for built-in generation, with **Test connection** and **Remove provider**. The page shows whether the workspace or the instance default is in effect. |
 | **Automation** | The four automation switches below, the [guide check](#guide-check) and its most recent updates on GitHub. |
+| **Share links** | Whether share links work in the workspace, who can create them, and every active link with its creator, expiry and last use. See [Share links](#share-links-1). |
 | **API tokens & MCP** | MCP server URL, client configuration, setup prompt, API tokens and OAuth clients. **Reviews by agents** says how agents post on GitHub, and admins can allow agents to approve pull requests (off by default; see [mcp.md](mcp.md#approvals-by-agents)). |
 
 The **Repositories** page lists followed repositories. Admins add and remove them, create repository webhooks for token and account connections, and override automatic guides (**Workspace default**, **On** or **Off**) and the guide check (**Workspace default**, **Off**, **Informational** or **Require review**) per repository. **Settings** next to a repository opens its own page with the same switch and the repository's [guide template](ai.md#guide-templates). Repositories whose connection was removed show "No GitHub connection"; see [github-app.md](github-app.md#repositories-without-a-connection).
@@ -134,6 +141,19 @@ Admins create invite links on **Members** with the member or admin role. Each li
 - **With an email address**, the link is emailed there when SMTP is configured, and only an account with that address can use it. The address must also be confirmed on the account: either it is a verified email of the user's GitHub account (checked when they sign up, sign in or link GitHub), or the user opens a confirmation link that Omakaze emails to the address when they accept the invite. The confirmation link (`/invite/<token>/confirm`) is valid for 24 hours and must be opened while signed in as the same user. Without SMTP, only a verified GitHub email works.
 - Changing the email address on the **Account** page removes its confirmation.
 - Signing up with a valid invite link is possible even when `AUTH_SIGNUP_ENABLED` is false or the address is outside `AUTH_ALLOWED_EMAIL_DOMAINS`.
+
+### Share links
+
+**Share** on a guide creates a read-only link for people outside the workspace. Anyone with the link can open the guide without signing in.
+
+- **What it shows.** Either the version the link was created for, or always the latest published version of the pull request; a link to the latest version can also switch to earlier published versions. Drafts and failed versions are never shown. The shared view has the sections, explanations, diffs, context expansion and moved code, and loads the uploads the guide shows. It has no review marks, comment composer, resolving, version menu (for a link to one version), edit or regenerate buttons, and no names or avatars of members. Review comments from GitHub, with GitHub usernames, are shown read-only only when **Include review comments from GitHub** was checked; GitHub is never written to through a link.
+- **Expiry.** 1 day, 7 days (the default), 30 days or never.
+- **The link is shown once**, when it is created. Omakaze stores only a hash of its secret, so it can't show the link again; create a new one instead.
+- **Who can create links.** Admins and owners by default; **Settings → Share links** can allow all members. Members can revoke the links they created, admins and owners any link. Creating and revoking a link is recorded in the activity log.
+- **Turning links off.** Clearing **Allow share links in this workspace** stops every link of the workspace from opening, without revoking it, and hides **Share** on guides. `SHARE_LINKS_ENABLED=false` does the same for the whole instance.
+- Opening a revoked or expired link shows a page that says so. Deleting a guide version or its repository deletes the links to it.
+
+See [architecture.md](architecture.md#security-model) for how tokens are checked.
 
 ### Automation switches
 
@@ -164,6 +184,8 @@ Repositories can override the mode on the **Repositories** page. Saving either s
 | See repositories, pull requests and guides; comment, review and mark sections as reviewed | Yes | Yes | Yes |
 | Create and edit guides (MCP, REST API, editor, **Generate with AI**) | Yes | Yes | Yes |
 | Create API tokens and authorize MCP clients; revoke their own tokens | Yes | Yes | Yes |
+| Create share links and revoke their own | When allowed in **Settings → Share links** | Yes | Yes |
+| Revoke any share link; change the share link settings | No | Yes | Yes |
 | Follow a new repository, or reconnect one without a connection, by passing its pull request to MCP or the REST API | No | Yes | Yes |
 | Manage connections, repositories, AI provider, guide templates, automation, invites and members; rename the workspace; see and revoke all tokens | No | Yes | Yes |
 | Make someone an owner, change or remove owners, delete the workspace | No | No | Yes |
