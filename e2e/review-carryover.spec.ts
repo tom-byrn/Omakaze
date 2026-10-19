@@ -72,7 +72,7 @@ test.describe("Review carry-over", () => {
     await page.goto(demoPaths.pull(PR));
     const banner = page.getByRole("region", { name: "New since your last visit" });
     await expect(banner).toContainText("Version 2 was published since your last visit 2 days ago.");
-    await expect(banner).toContainText("Compared to version 1: 2 changed sections, 4 new comments.");
+    await expect(banner).toContainText("Compared to version 1: 2 changed sections, 6 new comments.");
     await caption(page, "Maya reviewed version 1 two days ago. Since then, new commits produced version 2.", "New since your last visit");
     await pause(page, 2500);
 
@@ -185,7 +185,7 @@ test.describe("Review carry-over", () => {
     await beforeVersionTwo();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(demoPaths.pull(PR, { section: 2 }));
-    await expect(page.getByRole("region", { name: "New since your last visit" })).toContainText("4 new comments");
+    await expect(page.getByRole("region", { name: "New since your last visit" })).toContainText("6 new comments");
     const notice = page.getByRole("note", { name: "Changed since you reviewed" });
     await notice.scrollIntoViewIfNeeded();
     await expect(notice).toBeInViewport();

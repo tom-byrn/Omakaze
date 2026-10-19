@@ -260,7 +260,8 @@ test.describe("Needs my review", () => {
       await expect(page.getByText("Review requests on GitHub can't be matched to you")).toBeVisible();
       await expect(page.getByRole("link", { name: "Link your GitHub account" })).toHaveAttribute("href", "/account");
       // Sam is requested on #131 and #126, but only guides with unreviewed sections can be matched.
-      await expect(row(page, DEMO_PRS.main)).toContainText("0/6 sections reviewed by you");
+      // One of Sam's v1 marks carries over to the unchanged section in v2.
+      await expect(row(page, DEMO_PRS.main)).toContainText("1/6 sections reviewed by you");
       await expect(row(page, DEMO_PRS.noGuide)).toHaveCount(0);
       await expect(row(page, DEMO_OWNER_PR)).toHaveCount(0);
       await caption(page, "Members without a linked GitHub account still see guides they haven't finished reviewing.");
