@@ -71,6 +71,8 @@ test.describe("Needs my review", () => {
     test.afterEach(() => clearReviewMarks("owner", DEMO_PRS.main, 2));
 
     test("filters the dashboard by review requests, authorship and assignees", async ({ page }) => {
+      // A long walkthrough through the dashboard, a guide and the repository page.
+      test.slow();
       videoName("needs-my-review-walkthrough");
       await page.goto(demoPaths.dashboard);
       const tabs = filterTabs(page);
