@@ -6,7 +6,37 @@ import { requireGuideAccess } from "@/lib/guides/access";
 import { guidePath } from "@/lib/guides/service";
 import { assertSameOrigin, errorResponse, HttpError, readJson } from "@/lib/http";
 import { env } from "@/lib/env";
-import { GitHubError } from "@/lib/github/client";
+import { GitHubError, type GhReviewComment } from "@/lib/github/client";
+import { commentedLines, hasSuggestion } from "@/lib/github/suggestions";
+import { findReviewThread, listReviewThreads, threadIndex, type ReviewThread } from "@/lib/github/threads";
+
+/** A review comment as the viewer uses it (src/components/guide/types.ts). */
+function viewerComment(c: GhReviewComment, opts: { mine: boolean; threadId: string | null }) {
+  return {
+    id: c.id,
+    inReplyTo: c.in_reply_to_id ?? null,
+    path: c.path,
+    line: c.line,
+    originalLine: c.original_line,
+    startLine: c.start_line,
+    side: c.side ?? "RIGHT",
+    body: c.body,
+    user: c.user ? { login: c.user.login, avatarUrl: c.user.avatar_url } : null,
+    createdAt: c.created_at,
+    htmlUrl: c.html_url,
+    outdated: c.line === null,
+    mine: opts.mine,
+    threadId: opts.threadId,
+    // The lines a suggestion replaces, from the hunk GitHub sends with the comment.
+    commentedLines: hasSuggestion(c.body)
+      ? commentedLines(c.diff_hunk, { side: c.side ?? "RIGHT", line: c.original_line, startLine: c.original_start_line })
+      : null,
+  };
+}
+
+function viewerThreads(threads: ReviewThread[]) {
+  return threads.map((t) => ({ id: t.id, isResolved: t.isResolved, resolvedBy: t.resolvedBy }));
+}
 
 export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comments">) {
   try {
@@ -19,27 +49,35 @@ export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comm
     // Without a GitHub connection there is nothing to read; the guide itself stays available.
     if (!rc) return Response.json({ comments: [], disconnected: true });
     const fresh = new URL(req.url).searchParams.get("fresh") === "1";
-    const [list, mine, account] = await Promise.all([
+    // Thread state comes from GraphQL; without it the comments still load, just without resolving.
+    const threadList = (fresh: boolean) =>
+      listReviewThreads(rc, guide.prNumber, fresh).catch((err) => {
+        console.warn("[comments] review threads unavailable:", err instanceof Error ? err.message : err);
+        return null;
+      });
+    const [list, mine, account, cached] = await Promise.all([
       listReviewComments(rc, guide.prNumber, fresh),
       ownCommentIds(guide.repositoryId, guide.prNumber, principal.user.id),
       getGitHubAccount(principal.user.id),
+      threadList(fresh),
     ]);
+    let threads = cached;
+    let index = threadIndex(threads ?? []);
+    // A conversation started after the threads were cached (a minute ago at most): read them again.
+    const isNew = (c: GhReviewComment) => !c.in_reply_to_id && !index.has(c.id) && Date.now() - Date.parse(c.created_at) < 60_000;
+    if (threads && !fresh && list.some(isNew)) {
+      threads = (await threadList(true)) ?? threads;
+      index = threadIndex(threads);
+    }
     return Response.json({
-      comments: list.map((c) => ({
-        id: c.id,
-        inReplyTo: c.in_reply_to_id ?? null,
-        path: c.path,
-        line: c.line,
-        originalLine: c.original_line,
-        startLine: c.start_line,
-        side: c.side ?? "RIGHT",
-        body: c.body,
-        user: c.user ? { login: c.user.login, avatarUrl: c.user.avatar_url } : null,
-        createdAt: c.created_at,
-        htmlUrl: c.html_url,
-        outdated: c.line === null,
-        mine: mine.has(c.id) || (account !== null && c.user?.login === account.login),
-      })),
+      comments: list.map((c) =>
+        viewerComment(c, {
+          mine: mine.has(c.id) || (account !== null && c.user?.login === account.login),
+          // A thread lists its first 100 comments; later replies belong to their root's thread.
+          threadId: (index.get(c.id) ?? (c.in_reply_to_id ? index.get(c.in_reply_to_id) : undefined))?.id ?? null,
+        }),
+      ),
+      threads: threads ? viewerThreads(threads) : null,
     });
   } catch (err) {
     return errorResponse(err);
@@ -93,25 +131,14 @@ export async function POST(req: Request, ctx: RouteContext<"/api/guides/[id]/com
               },
               { workspaceId: workspace.id, guideId: guide.id, sectionId: parsed.data.sectionId ?? null, link },
             );
+      // The new comment's thread, so it can be resolved right away (null if GraphQL is unavailable).
+      const thread = await findReviewThread(rc, guide.prNumber, { commentId: created.id }).catch(() => null);
       return Response.json({
         ok: true,
         id: created.id,
         htmlUrl: created.html_url,
-        comment: {
-          id: created.id,
-          inReplyTo: created.in_reply_to_id ?? null,
-          path: created.path,
-          line: created.line,
-          originalLine: created.original_line,
-          startLine: created.start_line,
-          side: created.side ?? "RIGHT",
-          body: created.body,
-          user: created.user ? { login: created.user.login, avatarUrl: created.user.avatar_url } : null,
-          createdAt: created.created_at,
-          htmlUrl: created.html_url,
-          outdated: created.line === null,
-          mine: true,
-        },
+        comment: viewerComment(created, { mine: true, threadId: thread?.id ?? null }),
+        thread: thread ? viewerThreads([thread])[0] : null,
       });
     } catch (err) {
       if (err instanceof GitHubError) throw new HttpError(err.status === 422 ? 422 : 502, `GitHub: ${err.message}`);

@@ -80,6 +80,8 @@ export async function warmUp(): Promise<void> {
     demoPaths.pull(DEMO_PRS.main),
     `/api/guides/${v2}/file?path=${encodeURIComponent("src/lib/promo.ts")}`,
     `/api/guides/${v2}/comments`,
+    `/api/guides/${v2}/threads`,
+    "/api/github/webhook",
     `/api/w/demo/latest-guide?number=${DEMO_PRS.main}`,
     demoPaths.pull(DEMO_PRS.noGuide),
     demoPaths.edit(DEMO_PRS.main),

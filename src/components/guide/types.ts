@@ -14,9 +14,17 @@ export type ReviewComment = {
   mine?: boolean;
   /** Posted by someone else since the viewer's last visit. */
   isNew?: boolean;
+  /** GraphQL node ID of the comment's review thread; null or missing when GitHub didn't say. */
+  threadId?: string | null;
+  /** For a comment with a suggestion: the lines it replaces, when GitHub's hunk has them. */
+  commentedLines?: string[] | null;
 };
 
-export type Thread = { root: ReviewComment; replies: ReviewComment[] };
+/** Resolution state of a review thread on GitHub. */
+export type ThreadState = { id: string; isResolved: boolean; resolvedBy: string | null };
+
+/** `state` is missing when thread state is not available (GitHub's GraphQL API couldn't be read). */
+export type Thread = { root: ReviewComment; replies: ReviewComment[]; state?: ThreadState };
 
 export type FocusTarget = { path: string; start: number | null; end: number | null; side: "new" | "old"; nonce: number };
 
@@ -24,8 +32,18 @@ export function threadKey(side: "LEFT" | "RIGHT", line: number): string {
   return `${side}:${line}`;
 }
 
+/** State of the thread these comments belong to, looked up by the first comment with a thread ID. */
+export function stateOf(comments: ReviewComment[], states: Map<string, ThreadState> | undefined): ThreadState | undefined {
+  if (!states) return undefined;
+  for (const c of comments) {
+    const s = c.threadId ? states.get(c.threadId) : undefined;
+    if (s) return s;
+  }
+  return undefined;
+}
+
 /** Group a flat comment list into threads keyed by path → side:line. */
-export function groupThreads(comments: ReviewComment[]): Map<string, Map<string, Thread[]>> {
+export function groupThreads(comments: ReviewComment[], states?: Map<string, ThreadState>): Map<string, Map<string, Thread[]>> {
   const byId = new Map(comments.map((c) => [c.id, c]));
   const roots = new Map<number, Thread>();
   const rootOf = (c: ReviewComment): ReviewComment => {
@@ -47,6 +65,7 @@ export function groupThreads(comments: ReviewComment[]): Map<string, Map<string,
   for (const t of roots.values()) {
     if (t.root.line === null) continue;
     t.replies.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    t.state = stateOf([t.root, ...t.replies], states);
     const file = out.get(t.root.path) ?? new Map<string, Thread[]>();
     const key = threadKey(t.root.side, t.root.line);
     file.set(key, [...(file.get(key) ?? []), t]);

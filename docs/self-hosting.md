@@ -192,7 +192,7 @@ GITHUB_URL=https://github.example.com
 GITHUB_API_URL=https://github.example.com/api/v3
 ```
 
-`GITHUB_URL` is used for sign-in, for creating the GitHub App from `/admin` and for installing it. `GITHUB_API_URL` is used for every API call. Pull request URLs on the Enterprise host (`https://github.example.com/owner/repo/pull/1`) are accepted by the MCP server and the REST API.
+`GITHUB_URL` is used for sign-in, for creating the GitHub App from `/admin` and for installing it. `GITHUB_API_URL` is used for every API call; GraphQL calls (review threads) go to `https://github.example.com/api/graphql`, derived from it. Pull request URLs on the Enterprise host (`https://github.example.com/owner/repo/pull/1`) are accepted by the MCP server and the REST API.
 
 ## Health check
 

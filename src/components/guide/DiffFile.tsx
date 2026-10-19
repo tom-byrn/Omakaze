@@ -18,8 +18,8 @@ import type { Tok } from "@/lib/diff/highlight";
 import type { MoveLink } from "@/lib/diff/moves";
 import type { SectionRef } from "@/lib/guides/refs";
 import type { CodeTarget } from "@/components/markdown/CodeRefLink";
-import { CommentThread, Composer } from "./CommentThread";
-import { blocksOf, buildRows, functionRange, layoutItems, selectRows, type Row } from "./diff-model";
+import { CommentThread, Composer, type SuggestionBase } from "./CommentThread";
+import { blocksOf, buildRows, functionRange, layoutItems, rowText, selectRows, type Row } from "./diff-model";
 import { threadKey, type FocusTarget, type Thread } from "./types";
 
 const STEP = 20;
@@ -93,9 +93,11 @@ export type DiffFileProps = {
   onDelete?: (id: number) => Promise<string | null>;
   /** Lines that are new since an earlier guide version: added lines by new-side number, deleted lines by old-side number. */
   newSince?: { add: number[]; del: number[] };
+  onResolve?: (threadId: string, resolved: boolean) => Promise<string | null>;
+  showResolved?: boolean;
 };
 
-export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onComment, onReply, onDelete, newSince }: DiffFileProps) {
+export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onComment, onReply, onDelete, newSince, onResolve, showResolved }: DiffFileProps) {
   const { rows, full } = useMemo(() => buildRows(view), [view]);
   const initial = useMemo(
     () => (mode === "all" ? selectRows(rows, [{ path: view.path }]) : selectRows(rows, refs)),
@@ -179,6 +181,28 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
   function lineFor(row: Row): { line: number; side: "LEFT" | "RIGHT" } | null {
     if (row.kind === "del") return row.old !== null ? { line: row.old, side: "LEFT" } : null;
     return row.new !== null ? { line: row.new, side: "RIGHT" } : null;
+  }
+
+  /** The open composer's lines, when a suggestion can replace them (GitHub allows it on the head side only). */
+  function composerSuggestion(end: { line: number; side: "LEFT" | "RIGHT" }): SuggestionBase | null {
+    if (!composer || end.side !== "RIGHT") return null;
+    const start = composer.start !== null ? lineFor(rows[composer.start]) : null;
+    const other = start && start.side === "RIGHT" ? start.line : end.line;
+    return suggestionBase(Math.min(other, end.line), Math.max(other, end.line));
+  }
+
+  // Head-side rows by line number, for the text that a suggested change replaces.
+  const headRows = useMemo(() => new Map(rows.filter((r) => r.kind !== "del" && r.new !== null).map((r) => [r.new!, r])), [rows]);
+
+  /** Lines start..end on the head side, or null when one isn't in the view (suggestions need all of them). */
+  function suggestionBase(start: number, end: number): SuggestionBase | null {
+    const lines: string[] = [];
+    for (let n = start; n <= end; n++) {
+      const row = headRows.get(n);
+      if (!row) return null;
+      lines.push(rowText(row));
+    }
+    return { lines, startLine: start };
   }
 
   function threadsFor(row: Row): Thread[] {
@@ -365,7 +389,15 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
                       <tr className="diff-thread-row">
                         <td colSpan={3}>
                           {rowThreads.map((t) => (
-                            <CommentThread key={t.root.id} thread={t} onReply={onReply} onDelete={onDelete} />
+                            <CommentThread
+                              key={t.root.id}
+                              thread={t}
+                              onReply={onReply}
+                              onDelete={onDelete}
+                              onResolve={onResolve}
+                              showResolved={showResolved}
+                              suggestion={t.root.side === "RIGHT" && t.root.line !== null ? suggestionBase(t.root.startLine ?? t.root.line, t.root.line) : null}
+                            />
                           ))}
                         </td>
                       </tr>
@@ -373,7 +405,7 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
                     {composer?.index === i && l ? (
                       <tr className="diff-thread-row">
                         <td colSpan={3}>
-                          <div className="my-2 mr-3 ml-[96px] border border-ink/40 bg-white">
+                          <div className="my-2 mr-3 ml-3 sm:ml-[96px] border border-ink/40 bg-white">
                             {composer.start !== null ? (
                               <p className="border-b border-dashed border-line px-3 py-1.5 font-mono text-[11px] text-meta">
                                 Lines {Math.min(lineFor(rows[composer.start])?.line ?? l.line, l.line)}–
@@ -381,6 +413,7 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
                               </p>
                             ) : null}
                             <Composer
+                              suggestion={composerSuggestion(l)}
                               onCancel={() => {
                                 setComposer(null);
                                 setRangeStart(null);

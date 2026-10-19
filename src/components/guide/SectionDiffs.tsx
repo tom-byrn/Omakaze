@@ -73,6 +73,8 @@ export function SectionDiffs({
   onReply,
   onDelete,
   newSince,
+  onResolve,
+  showResolved,
 }: {
   guideId: string;
   files: { path: string; additions: number; deletions: number }[];
@@ -87,6 +89,8 @@ export function SectionDiffs({
   onDelete?: DiffFileProps["onDelete"];
   /** Lines new since an earlier version are marked (see InterdiffPanel). */
   newSince?: SectionChange | null;
+  onResolve?: DiffFileProps["onResolve"];
+  showResolved?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -108,6 +112,8 @@ export function SectionDiffs({
           onReply={onReply}
           onDelete={onDelete}
           newSince={newSince?.files.find((x) => x.path === f.path)?.marks}
+          onResolve={onResolve}
+          showResolved={showResolved}
         />
       ))}
     </div>

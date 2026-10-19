@@ -12,7 +12,7 @@ Omakaze is a single Next.js 16 application (App Router, TypeScript) backed by Po
 | MCP endpoint | `src/app/api/mcp`, `src/lib/mcp` | Stateless Streamable HTTP endpoint with 17 tools for coding agents |
 | OAuth server | `src/lib/oauth`, `src/app/.well-known`, `src/app/api/oauth`, `src/app/oauth` | OAuth 2.1 authorization server for MCP clients |
 | REST API | `src/app/api/v1` | Token-authenticated API for scripts and CI |
-| GitHub integration | `src/lib/github` | REST API client, GitHub App, connections, pull requests, reviews, webhooks |
+| GitHub integration | `src/lib/github` | REST and GraphQL API client, GitHub App, connections, pull requests, reviews, review threads, suggestions, webhooks |
 | AI providers | `src/lib/ai` | Anthropic SDK and OpenAI-compatible chat completions |
 
 On start, `src/instrumentation.ts` applies pending migrations (unless `RUN_MIGRATIONS_ON_START=false`) and, when `WORKER_ENABLED` is true, starts the worker.
@@ -164,7 +164,7 @@ The file endpoint also returns moved and copied blocks (`src/lib/diff/moves.ts`)
 
 **Webhooks.** `/api/github/webhook` verifies `X-Hub-Signature-256` with a constant-time comparison against the GitHub App's webhook secret and the repository webhook secret, and rejects other requests with 401. Deliveries are de-duplicated by `X-GitHub-Delivery`.
 
-**Cross-site requests.** Forms use Server Actions, which Next.js protects by comparing the `Origin` header with the host. JSON endpoints that use the session cookie and change data (`/api/guides/<id>/comments`, `/progress`, `/review`, `/api/assets`, `/api/w/<slug>/sync`) reject requests whose `Origin` is neither `APP_URL` nor the request's own origin. Requests without an `Origin` header (non-browser clients) are allowed. Responses carry `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and `X-Frame-Options: SAMEORIGIN`.
+**Cross-site requests.** Forms use Server Actions, which Next.js protects by comparing the `Origin` header with the host. JSON endpoints that use the session cookie and change data (`/api/guides/<id>/comments`, `/progress`, `/review`, `/threads`, `/api/assets`, `/api/w/<slug>/sync`) reject requests whose `Origin` is neither `APP_URL` nor the request's own origin. Requests without an `Origin` header (non-browser clients) are allowed. Responses carry `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and `X-Frame-Options: SAMEORIGIN`.
 
 **Access checks.** Workspace pages, actions and APIs check membership and role (member, admin, owner; see [configuration.md](configuration.md#roles)). Guides, comments and file views are only served to members of the guide's workspace; a token for another workspace gets 404. `/admin` returns 404 for users who are not instance admins.
 
@@ -184,7 +184,7 @@ The file endpoint also returns moved and copied blocks (`src/lib/diff/moves.ts`)
 
 The client address is the `X-Forwarded-For` entry `TRUST_PROXY_HOPS` places from the right (`src/lib/http.ts`), or `X-Real-IP` when the header is missing. See [self-hosting.md](self-hosting.md#https-and-reverse-proxies).
 
-**GitHub credentials.** Reviews and comments use the reviewer's own GitHub credential when possible, so GitHub attributes them to the reviewer. Approvals and change requests are never posted through a shared connection. See [github-app.md](github-app.md#posting-comments-and-reviews).
+**GitHub credentials.** Reviews and comments use the reviewer's own GitHub credential when possible, so GitHub attributes them to the reviewer. Approvals, change requests and resolving conversations are never done through a shared connection. See [github-app.md](github-app.md#posting-comments-and-reviews).
 
 ## Background jobs
 
@@ -214,6 +214,7 @@ These caches are kept in memory per process and are not shared between instances
 | GitHub App configuration | The app created on `/admin`, for 30 seconds |
 | File views | Up to 150 rendered files |
 | Review comments | A pull request's review comments, for 10 seconds or until a review webhook for the pull request arrives |
+| Review threads | A pull request's review threads and whether they are resolved (GraphQL), for 10 seconds or until a review webhook for the pull request arrives |
 | Rate limits | Counters for the limits above |
 
 The pull request list itself is cached in PostgreSQL (`pull_requests`) and refreshed by webhooks, polling and when members open the workspace.

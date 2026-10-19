@@ -44,7 +44,9 @@ async function withPoster<T>(
   throw lastErr;
 }
 
-const commentCache = new Map<string, { at: number; data: GhReviewComment[] }>();
+// On globalThis, so the webhook route's invalidation reaches the cache other routes read.
+const globalForComments = globalThis as unknown as { __omakazeReviewComments?: Map<string, { at: number; data: GhReviewComment[] }> };
+const commentCache = (globalForComments.__omakazeReviewComments ??= new Map());
 
 /** Drop cached review comments, e.g. when a webhook says they changed on GitHub. */
 export function invalidateReviewComments(repositoryId: string, prNumber: number): void {
