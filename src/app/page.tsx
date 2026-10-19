@@ -200,7 +200,7 @@ export default async function LandingPage() {
                 <span className="font-mono text-[10px] tracking-[0.09em] text-[#a9b8c8] uppercase">1 · Setup prompt</span>
                 <CopyButton text={prompt} label="Copy" className="btn btn-invert btn-xs" />
               </div>
-              <pre className="max-h-[260px] overflow-auto p-4 font-mono text-[12px] leading-[19px] whitespace-pre-wrap text-white/80">{prompt}</pre>
+              <pre className="max-h-[260px] overflow-auto p-4 font-mono text-[12px] lg:max-h-none leading-[19px] whitespace-pre-wrap text-white/80">{prompt}</pre>
             </div>
             <div className="border border-white/20 bg-[#0d2347]/70">
               <div className="flex items-center justify-between border-b border-white/15 px-4 py-2.5">
