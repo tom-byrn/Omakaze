@@ -475,7 +475,7 @@ function StepTab({
         active ? "bg-ink text-white" : "hover:bg-black/[0.03]",
       )}
     >
-      <span className={clsx("absolute inset-x-0 top-0 h-[2px]", done ? (active ? "bg-signal" : "bg-ink") : "bg-transparent")} />
+      <span className={clsx("absolute inset-x-0 top-0 h-[2px]", done ? "bg-ink" : "bg-transparent")} />
       <span
         className={clsx(
           "flex items-center gap-1.5 font-mono text-[10px] tracking-[0.08em] uppercase",
