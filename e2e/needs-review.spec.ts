@@ -108,6 +108,11 @@ test.describe("Needs my review", () => {
       await expect(page.getByText("1/6 reviewed")).toBeVisible();
       await page.getByRole("button", { name: "Mark reviewed and continue" }).click();
       await expect(page.getByText("2/6 reviewed")).toBeVisible();
+      // The counter updates before the request finishes; wait for both marks to be saved.
+      const v2 = await guideId(DEMO_PRS.main, 2);
+      await expect
+        .poll(async () => (await sql()`select count(*)::int as n from section_reviews r join users u on u.id = r.user_id where r.guide_id = ${v2} and lower(u.email) = ${DEMO_USERS.owner.email}`)[0].n)
+        .toBe(2);
       await pause(page, 1200);
 
       await page.goto(`${demoPaths.dashboard}?filter=needs-review`);

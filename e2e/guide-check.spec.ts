@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
-import { clearReviewMarks, guideId, sql } from "./db";
+import type postgres from "postgres";
+import { guideId, sql } from "./db";
 import { DEMO_PRS, DEMO_SHAS, DEMO_USERS, demoPaths, E2E, expect, mockGitHub, test } from "./fixtures";
 import { caption, pause, shot, videoName } from "./media";
 import { storageStatePath } from "./setup";
@@ -71,16 +72,18 @@ test.describe("Guide check", () => {
   // Each test waits for several debounced updates from the worker.
   test.slow();
 
+  // Version 2 starts without review marks; the demo's marks (including ones carried over from
+  // version 1) are put back afterwards for the other specs.
+  let savedMarks: postgres.Row[] = [];
   test.beforeEach(async () => {
     await resetGuideCheck();
-    await clearReviewMarks("owner", DEMO_PRS.main, 2);
-    await clearReviewMarks("admin", DEMO_PRS.main, 2);
+    savedMarks = await sql()`delete from section_reviews where guide_id = ${await guideId(DEMO_PRS.main, 2)} returning *`;
     await mockGitHub.reset();
   });
   test.afterEach(async ({ browser }) => {
     await resetGuideCheck();
-    await clearReviewMarks("owner", DEMO_PRS.main, 2);
-    await clearReviewMarks("admin", DEMO_PRS.main, 2);
+    await sql()`delete from section_reviews where guide_id = ${await guideId(DEMO_PRS.main, 2)}`;
+    if (savedMarks.length > 0) await sql()`insert into section_reviews ${sql()(savedMarks)}`;
     await mockGitHub.reset();
     // Undo the GitHub App of the check run test: the connection, and the stored app (removed through
     // /admin, which also clears the page's cache of it).
@@ -121,16 +124,16 @@ test.describe("Guide check", () => {
     const [post] = await mockGitHub.requests({ method: "POST", path: STATUSES_128 });
     expect(post.user).toBe("storefront-bot");
     expect(await waitForStatus("Guide is outdated", `${REPO}/statuses/${DEMO_SHAS.pr129v2}`)).toMatchObject({ state: "pending" });
-    // #130 (a draft) and #131 have no guide; merged and closed pull requests are left alone.
+    // #126, #130 (a draft) and #131 have no guide; merged and closed pull requests are left alone.
     const descriptions = async () =>
       (await mockGitHub.requests({ method: "POST", path: /\/statuses\// })).map((r) => (r.body as StatusBody).description).sort();
     await expect
       .poll(descriptions, { timeout: WORKER_TIMEOUT })
-      .toEqual(["2 of 6 sections reviewed", "Guide is outdated", "No guide yet", "No guide yet"]);
+      .toEqual(["2 of 6 sections reviewed", "Guide is outdated", "No guide yet", "No guide yet", "No guide yet"]);
 
     await caption(page, "Each open pull request gets a status: progress, an outdated guide, or no guide yet");
     await page.reload();
-    await expect(page.getByTestId("recent-guide-check")).toHaveCount(4);
+    await expect(page.getByTestId("recent-guide-check")).toHaveCount(5);
     await page.getByRole("heading", { name: "Recent guide checks" }).scrollIntoViewIfNeeded();
     await pause(page, 1500);
     await shot(page, "guide-check-recent-statuses");
