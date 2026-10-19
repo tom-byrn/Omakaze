@@ -417,19 +417,6 @@ export async function saveChatgptPlansAction(slug: string, _prev: FormState, for
   }
 }
 
-/** Extra instructions apply to whichever provider is in effect, including the instance default. */
-export async function saveAiInstructionsAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
-  try {
-    const { user, ws } = await ctx(slug, "admin");
-    const instructions = String(form.get("instructions") ?? "").trim().slice(0, 4000);
-    await db.update(workspaces).set({ aiInstructions: instructions || null }).where(eq(workspaces.id, ws.id));
-    await logActivity({ workspaceId: ws.id, type: "settings.updated", actorUserId: user.id, data: { section: "ai-instructions" } });
-    return done(ws, "/settings/ai", "Saved.");
-  } catch (err) {
-    return fail(err);
-  }
-}
-
 export async function saveAutomationAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
   try {
     const { user, ws } = await ctx(slug, "admin");

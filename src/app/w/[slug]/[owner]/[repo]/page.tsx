@@ -36,7 +36,14 @@ export default async function RepoPage(props: PageProps<"/w/[slug]/[owner]/[repo
         eyebrow={`Repository · ${repo.private ? "private" : "public"}`}
         title={`${repo.fullName}.`}
         description={repo.description ?? undefined}
-        actions={<SyncOnMount slug={slug} stale={isStale([repo])} repositoryId={repo.id} />}
+        actions={
+          <>
+            <SyncOnMount slug={slug} stale={isStale([repo])} repositoryId={repo.id} />
+            <Link href={`/w/${slug}/${repo.fullName}/settings`} className="btn btn-ghost btn-sm">
+              Settings
+            </Link>
+          </>
+        }
       />
       <nav className="mt-8 flex w-fit border border-tab" aria-label="Filter by state">
         {TABS.map((t, i) => (

@@ -110,7 +110,7 @@ These are read by `docker-compose.yml` itself:
 | --- | --- |
 | Environment variables, read at startup | Changed in the app by workspace admins |
 | `/admin` for instance admins: create or remove the GitHub App, status, webhook deliveries, recent jobs | **Settings** and **Repositories** in each workspace |
-| GitHub App and OAuth credentials, sign-in methods, SMTP, storage, worker and polling, default AI provider | Name and URL, members and invites, GitHub connections, AI provider, automation, API tokens, followed repositories |
+| GitHub App and OAuth credentials, sign-in methods, SMTP, storage, worker and polling, default AI provider | Name and URL, members and invites, GitHub connections, guide template, AI provider, automation, API tokens, followed repositories |
 
 ### Workspace settings pages
 
@@ -119,11 +119,12 @@ These are read by `docker-compose.yml` itself:
 | **General** | Name and URL (`/w/<slug>`). Leave the workspace. Owners can delete it. |
 | **Members** | Invite links, roles and pending invites. See [Invites](#invites). |
 | **GitHub** | Connections: GitHub App installation, personal access token, linked GitHub account. See [github-app.md](github-app.md). |
-| **AI provider** | Provider, model, API key (encrypted, never shown again) and base URL for built-in generation, with **Test connection** and **Remove provider**. A separate **Extra instructions** form applies to whichever provider is in effect, including the instance default. The page shows whether the workspace or the instance default is in effect. |
+| **Guide template** | The outline of sections guides follow (from the **Feature**, **Bug fix** or **Migration** starter, or your own), and writing instructions. Applies to built-in generation, MCP agents, the REST API and the editor; repositories can override it. See [ai.md](ai.md#guide-templates). |
+| **AI provider** | Provider, model, API key (encrypted, never shown again) and base URL for built-in generation, with **Test connection** and **Remove provider**. The page shows whether the workspace or the instance default is in effect. |
 | **Automation** | The four automation switches below. |
 | **API tokens & MCP** | MCP server URL, client configuration, setup prompt, API tokens and OAuth clients. |
 
-The **Repositories** page lists followed repositories. Admins add and remove them, create repository webhooks for token and account connections, and override automatic guides per repository (**Workspace default**, **On** or **Off**). Repositories whose connection was removed show "No GitHub connection"; see [github-app.md](github-app.md#repositories-without-a-connection).
+The **Repositories** page lists followed repositories. Admins add and remove them, create repository webhooks for token and account connections, and override automatic guides per repository (**Workspace default**, **On** or **Off**). **Settings** next to a repository opens its own page with the same switch and the repository's [guide template](ai.md#guide-templates). Repositories whose connection was removed show "No GitHub connection"; see [github-app.md](github-app.md#repositories-without-a-connection).
 
 ### Invites
 
@@ -153,7 +154,7 @@ The exact conditions are in [ai.md](ai.md#automation).
 | Create and edit guides (MCP, REST API, editor, **Generate with AI**) | Yes | Yes | Yes |
 | Create API tokens and authorize MCP clients; revoke their own tokens | Yes | Yes | Yes |
 | Follow a new repository, or reconnect one without a connection, by passing its pull request to MCP or the REST API | No | Yes | Yes |
-| Manage connections, repositories, AI provider, automation, invites and members; rename the workspace; see and revoke all tokens | No | Yes | Yes |
+| Manage connections, repositories, AI provider, guide templates, automation, invites and members; rename the workspace; see and revoke all tokens | No | Yes | Yes |
 | Make someone an owner, change or remove owners, delete the workspace | No | No | Yes |
 
 A workspace always keeps at least one owner. Invites grant the member or admin role.

@@ -181,11 +181,18 @@ Response, `201 Created`:
       "level": "warning",
       "message": "Line range does not overlap any changed lines; it will be shown as unchanged context."
     }
-  ]
+  ],
+  "template": {
+    "name": "Feature",
+    "source": "workspace",
+    "missing_required": ["Tests"]
+  }
 }
 ```
 
 `coverage` describes the sections you sent, before the automatic section is added. Each entry of `uncovered` has `path`, `hunk`, `start`, `end`, `side` (`new` or `old`), `changedLines` and `wholeHunk`. `added_to_other_changes` is `true` when uncovered changes were put into the automatic "Other changes" section, and `false` when everything was covered or `auto_cover` was `false`.
+
+`template` describes the [guide template](ai.md#guide-templates) the guide was written for: its `name`, `source` (`workspace`, or `repository` when the repository has its own outline) and `missing_required`, the titles of required sections that no section with a body or refs matches. Like coverage, missing sections do not fail the request. `template` is `null` when there is no outline.
 
 ### POST /api/v1/generate
 

@@ -16,6 +16,7 @@ import {
 import { newId } from "@/lib/ids";
 import type { DiffFile } from "@/lib/diff/types";
 import type { SectionRef } from "@/lib/guides/refs";
+import type { RepoTemplate, ResolvedTemplate, TemplateOutline } from "@/lib/guides/templates";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -155,7 +156,10 @@ export const workspaces = pgTable(
     aiModel: text("ai_model"),
     aiBaseUrl: text("ai_base_url"),
     aiApiKeyEnc: text("ai_api_key_enc"),
+    /** Writing instructions for every guide: the instructions part of the guide template (see guides/templates.ts). */
     aiInstructions: text("ai_instructions"),
+    /** Section outline guides follow; null = none. Repositories can override it. */
+    guideTemplate: jsonb("guide_template").$type<TemplateOutline>(),
     /** Members may generate guides with their own ChatGPT plan instead of the workspace provider. */
     allowChatgptPlans: boolean("allow_chatgpt_plans").default(false).notNull(),
     createdAt: createdAt(),
@@ -257,6 +261,8 @@ export const repositories = pgTable(
     htmlUrl: text("html_url").notNull(),
     /** null = inherit workspace setting */
     autoGenerate: boolean("auto_generate"),
+    /** Own outline and/or additional writing instructions; null = the workspace template as it is. */
+    guideTemplate: jsonb("guide_template").$type<RepoTemplate>(),
     webhookId: bigint("webhook_id", { mode: "number" }),
     lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
     syncError: text("sync_error"),
@@ -369,6 +375,8 @@ export const guides = pgTable(
     author: text("author"),
     error: text("error"),
     events: jsonb("events").$type<GuideEvent[]>().default([]).notNull(),
+    /** The guide template in effect when the guide was started; null = none. */
+    template: jsonb("template").$type<ResolvedTemplate>(),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

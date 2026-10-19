@@ -7,6 +7,7 @@ import { GuideViewer } from "@/components/guide/GuideViewer";
 import { VersionSelect } from "@/components/guide/VersionSelect";
 import { WatchLatestGuide } from "@/components/guide/WatchLatestGuide";
 import { NoGuide } from "@/components/guide/NoGuide";
+import { TemplateGapsNotice } from "@/components/guide/TemplateChecklist";
 import { Markdown } from "@/components/markdown/Markdown";
 import { Avatar } from "@/components/ui/Avatar";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -16,6 +17,7 @@ import { shortSha, timeAgo } from "@/lib/format";
 import { findWorkspaceRepo, getRepoContext } from "@/lib/github/connections";
 import { getCachedPull, pullNeedsRefresh, syncPull } from "@/lib/github/pulls";
 import { listGuideVersions, getGuide } from "@/lib/guides/service";
+import { missingRequiredSections } from "@/lib/guides/template-store";
 import { loadGuideData } from "@/lib/guides/view";
 import { agentPrompt } from "@/lib/prompts";
 import { requireWorkspace } from "@/lib/workspaces";
@@ -52,6 +54,9 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
   const prompt = agentPrompt(pull.htmlUrl);
   const outdated = guide && guide.headSha !== pull.headSha;
   const sectionParam = typeof sp.section === "string" ? sp.section : null;
+  // Required sections of the guide's template that it lacks. This page is only served to members.
+  const template = guide?.template?.sections.length && guide.status !== "generating" ? guide.template : null;
+  const templateGaps = template ? await missingRequiredSections(guide!) : [];
 
   const bar = (
     <div className="border-b border-solid border-black/15 bg-paper">
@@ -127,6 +132,9 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
           This guide covers {shortSha(guide!.headSha)}. The pull request now points to {shortSha(pull.headSha)}.
           <span className="text-body">Regenerate, or ask your agent to update it.</span>
         </div>
+      ) : null}
+      {template ? (
+        <TemplateGapsNotice template={template} missing={templateGaps} editHref={`/w/${slug}/${repo.fullName}/pull/${pull.number}/edit?v=${guide!.version}`} />
       ) : null}
     </div>
   );

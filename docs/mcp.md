@@ -225,6 +225,8 @@ Files and hunks:
     src/api/checkout.ts#2  @@ -88,7 +102,35 @@ function total(items: Item[]) {  (+31 -3)
 ```
 
+If the repository or the workspace has a [guide template](#guide-templates), it follows the list of existing guides.
+
 ### get_diff
 
 Returns the code changes of the current head in the [diff format](#diff-format) below. Large diffs are paginated by hunk.
@@ -255,7 +257,7 @@ Files that are missing at that commit, binary, or larger than 2 MB return an err
 
 ### create_guide
 
-Creates a complete guide in one call and publishes it. Every ref of every section is validated before anything is written. Changes not covered by any section go to an automatic "Other changes" section unless `auto_cover` is `false`. Returns the guide URL, the [coverage report](#coverage-and-other-changes) of your sections and warnings.
+Creates a complete guide in one call and publishes it. Every ref of every section is validated before anything is written. Changes not covered by any section go to an automatic "Other changes" section unless `auto_cover` is `false`. Returns the guide URL, the [coverage report](#coverage-and-other-changes) of your sections, warnings, and a [template warning](#guide-templates) when required sections are missing.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -356,7 +358,7 @@ Lists the changed lines that no section covers yet. See [Coverage](#coverage-and
 
 ### finish_guide
 
-Publishes a guide: its state becomes `ready`. Any previous automatic section is removed first; then, unless `auto_cover` is `false`, uncovered changes are put into a new automatic "Other changes" section. Returns the URL and the [coverage report](#coverage-and-other-changes) of your sections. If the workspace posts summary comments, one is queued for the pull request.
+Publishes a guide: its state becomes `ready`. Any previous automatic section is removed first; then, unless `auto_cover` is `false`, uncovered changes are put into a new automatic "Other changes" section. Returns the URL, the [coverage report](#coverage-and-other-changes) of your sections and, when required sections are missing, a [template warning](#guide-templates). If the workspace posts summary comments, one is queued for the pull request.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -392,7 +394,7 @@ Reads the line comments on the pull request from GitHub, including comments post
 | --- | --- | --- |
 | `pr_url` | Yes | Pull request URL |
 
-Returns one user message: `Create a guided PR for <pr_url> using the Omakaze MCP.` followed by the workflow below.
+Returns one user message: `Create a guided PR for <pr_url> using the Omakaze MCP.` followed by the workflow below and, when there is one, the [guide template](#guide-templates) of the pull request's repository (the workspace's for a repository that is not followed).
 
 ## Writing a guide
 
@@ -400,7 +402,7 @@ The server instructions describe this workflow:
 
 1. Call `get_pull_request` with the pull request URL to see the files, hunks and `head_sha`.
 2. Read the code with `get_diff` (page through large diffs with the cursor) and use `read_file` for surrounding context.
-3. Plan the sections.
+3. Plan the sections. If `get_pull_request` shows a guide template, follow it.
 4. Either call `create_guide` once with all sections, or call `start_guide`, then `add_section` for each section, then `finish_guide`.
 5. Check the coverage report returned by `create_guide` or `finish_guide` and fix sections if important changes are uncovered.
 6. Reply with the guide URL.
@@ -523,6 +525,36 @@ These changes were added to the "Other changes" section. Move important ones int
 ```
 
 With `auto_cover: false`, the last line reads "These changes are not shown in any section." instead, no automatic section is added, and finishing a guide without sections fails if the pull request has changed files.
+
+## Guide templates
+
+Admins can set a guide template for the workspace and override it per repository: an ordered outline of sections with guidance, some of them required, and writing instructions (see [ai.md](ai.md#guide-templates)). `get_pull_request` and the [`create_guided_pr`](#prompt-create_guided_pr) prompt include it:
+
+```text
+Guide template "Bug fix" (set for this repository):
+Use these sections in this order where they apply, with exactly these titles. Required sections must be in every guide; leave out optional ones that do not apply. Add other sections where the pull request needs them. The template takes precedence over the general advice on section order.
+1. The bug (required): Symptoms, how to reproduce it, and who or what was affected.
+2. Root cause (required): Why it happened, with diff: links to the faulty code.
+3. Fix (required): What changed and why it fixes the bug without side effects.
+4. Regression test (required): The test that fails without the fix.
+5. Similar code (optional): Other places that could have the same bug, and whether they were checked.
+
+Writing instructions:
+Write in British English.
+```
+
+The first line says `(workspace default)` when the repository uses the workspace template. With writing instructions but no outline, only the instructions are shown; with neither, nothing is.
+
+A guide records the template in effect when it was started. A section counts for a template section when its title matches, ignoring case and punctuation (or starts with it, as in "Tests and fixtures" for "Tests"), and it has a body or refs. When required sections are missing, `create_guide` and `finish_guide` still publish the guide and add a warning to their result:
+
+```text
+Template warning: the "Bug fix" template requires "Root cause", "Regression test", which are missing.
+- Root cause: Why it happened, with diff: links to the faulty code.
+- Regression test: The test that fails without the fix.
+Add them with add_section, then call finish_guide again.
+```
+
+Members also see the missing sections above the guide.
 
 ## head_sha and changing pull requests
 

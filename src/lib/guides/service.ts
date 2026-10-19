@@ -27,6 +27,7 @@ import {
   type RefProblem,
   type SectionRef,
 } from "./refs";
+import { templateFor } from "./template-store";
 
 export type Guide = typeof guides.$inferSelect;
 export type Section = typeof guideSections.$inferSelect;
@@ -135,6 +136,8 @@ export async function startGuide(input: StartGuideInput): Promise<{ guide: Guide
   const { snapshot, pull } = await getOrCreateSnapshot(input.ctx, input.prNumber, {
     expectedHeadSha: input.expectedHeadSha,
   });
+  // Recorded with the guide, so checks and the editor use the template the guide was written for.
+  const template = await templateFor(input.workspaceId, input.ctx.repo);
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       const guide = await db.transaction(async (tx) => {
@@ -159,6 +162,7 @@ export async function startGuide(input: StartGuideInput): Promise<{ guide: Guide
             createdVia: input.createdVia,
             author: input.author ?? null,
             events: [{ at: new Date().toISOString(), message: "Guide started", level: "info" }],
+            template,
           })
           .returning();
         return row;

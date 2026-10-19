@@ -5,6 +5,7 @@ import { getRepoContext } from "@/lib/github/connections";
 import { getCachedPull } from "@/lib/github/pulls";
 import { GUIDE_GUIDELINES } from "@/lib/guides/guidelines";
 import { formatRef, normalizeRef, refSelectsLine, type SectionRef } from "@/lib/guides/refs";
+import { missingMessage, missingRequired, quoteTitles, templatePrompt, type ResolvedTemplate } from "@/lib/guides/templates";
 import {
   addSection,
   appendGuideEvent,
@@ -61,13 +62,14 @@ function prContext(pull: { title: string; body: string | null; headRef: string; 
     .join("\n");
 }
 
-function systemPrompt(cfg: AiConfig): string {
+export function systemPrompt(cfg: AiConfig, template: ResolvedTemplate | null): string {
   return [
     "You write guided pull request walkthroughs for code reviewers.",
     GUIDE_GUIDELINES,
     "Diff format used in this conversation: each hunk starts with '#<n> @@ ... @@'. Lines show '+<new line number> |' for additions, '-o<old line number> |' for removals and ' <new line number> |' for context. Use these numbers for line-range refs and diff: links.",
     "Output JSON only, matching the schema you are given.",
-    cfg.instructions ? `Additional instructions from this workspace:\n${cfg.instructions}` : "",
+    // Guides started before templates existed carry none; their instructions come from the config.
+    template ? templatePrompt(template) : cfg.instructions ? `Additional instructions from this workspace:\n${cfg.instructions}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -230,9 +232,12 @@ export async function generateGuideWithAi(guide: Guide, cfg: AiConfig): Promise<
   const { files } = await loadParsedFiles(guide);
   const pull = await getCachedPull(guide.repositoryId, guide.prNumber);
   await getRepoContext(guide.repositoryId); // fail early if the connection is broken
-  const system = systemPrompt(cfg);
+  const template = guide.template;
+  const system = systemPrompt(cfg, template);
   const context = prContext(pull, files);
   const budget = budgetFor(cfg);
+  // Asks once more when required template sections are missing; a guide never fails for it.
+  const checkTemplate = (r: { sections: { title: string }[] }) => missingMessage(template, r.sections);
 
   await appendGuideEvent(guide.id, `Reading ${files.length} files with ${cfg.model}`);
 
@@ -252,9 +257,11 @@ export async function generateGuideWithAi(guide: Guide, cfg: AiConfig): Promise<
       schema: guideSchema,
       jsonSchema: GUIDE_JSON_SCHEMA,
       schemaName: "guided_pr",
+      check: checkTemplate,
     });
     await updateGuideMeta(guide.id, { title: result.title, summary: result.summary });
     for (const s of result.sections) await addGeneratedSection(guide, files, s.title, s.body, s.refs);
+    await noteMissingSections(guide, template, result.sections);
     await finishGuide(guide.id, { actorLabel: cfg.model });
     return;
   }
@@ -312,6 +319,7 @@ export async function generateGuideWithAi(guide: Guide, cfg: AiConfig): Promise<
     jsonSchema: PLAN_JSON_SCHEMA,
     schemaName: "guide_plan",
     maxTokens: 32000,
+    check: checkTemplate,
   });
   await updateGuideMeta(guide.id, { title: plan.title, summary: plan.summary });
 
@@ -331,7 +339,15 @@ export async function generateGuideWithAi(guide: Guide, cfg: AiConfig): Promise<
     });
     await addGeneratedSection(guide, files, s.title, res.body, s.refs);
   }
+  await noteMissingSections(guide, template, plan.sections);
   await finishGuide(guide.id, { actorLabel: cfg.model });
+}
+
+/** Record required template sections the model left out in the guide's progress log. */
+async function noteMissingSections(guide: Guide, template: ResolvedTemplate | null, sections: { title: string }[]) {
+  const missing = missingRequired(template, sections);
+  if (missing.length === 0) return;
+  await appendGuideEvent(guide.id, `Missing required sections of the "${template!.name}" template: ${quoteTitles(missing)}`, "warn");
 }
 
 export { AiError };
