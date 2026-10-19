@@ -114,7 +114,8 @@ Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vite
 - detection of abandoned guides, interval formatting, the public address check for downloads, client address selection from `X-Forwarded-For`, and the cleanup of summary comments;
 - the pull request filters and tab counts (`src/lib/dashboard.ts`), and review requests and assignees from GitHub payloads and webhooks (`src/lib/github/people.ts`);
 - suggested changes: parsing ```` ```suggestion ```` blocks, inserting them, the commented lines from `diff_hunk` and the rows of the suggestion diff (`src/lib/github/suggestions.ts`);
-- the GraphQL endpoint for github.com and GitHub Enterprise Server, GraphQL errors, and the mapping of review comments to review threads (`src/lib/github/graphql.ts`, `src/lib/github/threads.ts`).
+- the GraphQL endpoint for github.com and GitHub Enterprise Server, GraphQL errors, and the mapping of review comments to review threads (`src/lib/github/graphql.ts`, `src/lib/github/threads.ts`);
+- share links: tokens and their hashes, expiry, who can create and revoke links, which guide versions and uploads a link opens, share URLs, and the access check of the routes the shared view calls (`src/lib/share`).
 
 Add tests for logic in `src/lib` and other code that can run without a database. Flows through the browser are covered by the end-to-end tests below; Vitest only picks up `tests/`.
 
@@ -151,7 +152,7 @@ The workspace `Acme` (`/w/demo`) follows the repository `acme/storefront`, a fic
 
 Review requests and assignees (`scripts/demo-data/review-requests.ts`) give every demo user something under **Needs my review**, **Mine** and **Assigned**. Alex's review is requested on #128 and #131 (#131 also asks the Frontend team), Maya's on #129 and #126 and Sam's on #131 and #126; Alex is assigned #126 and #129. With `--github=mock` the members' linked GitHub accounts match them to these requests; without it they have no linked accounts, so the filters only find guides with unreviewed sections.
 
-The seed also adds the comments and the review that members posted on #128 through Omakaze (`comments` rows) and an activity log. Key pages: `/w/demo` (dashboard), `/w/demo/acme/storefront` (repository), `/w/demo/acme/storefront/pull/128` (guide), `?v=1` for the older version, `/w/demo/acme/storefront/pull/128/edit` (editor) and `/w/demo/settings`.
+The seed also adds the comments and the review that members posted on #128 through Omakaze (`comments` rows) and an activity log. Maya shared the latest version of #127 with a read-only link (`scripts/demo-data/share-links.ts`); its token is fixed, so `/s/<DEMO_SHARE.token>` opens it without signing in. Key pages: `/w/demo` (dashboard), `/w/demo/acme/storefront` (repository), `/w/demo/acme/storefront/pull/128` (guide), `?v=1` for the older version, `/w/demo/acme/storefront/pull/128/edit` (editor) and `/w/demo/settings`.
 
 The data lives in `scripts/demo-data/`: `index.ts` defines users, pull requests, guides, review marks and comments and exports the constants the tests use; `review-threads.ts` adds a suggestion made on GitHub and a resolved conversation to section 2 of #128 and says which conversations are resolved; `repo/` holds the base and head versions of the files the pull requests change, and the seed computes the diffs from them with `git diff --no-index`; `guides/` holds the guide texts, where `{{diff:name}}` placeholders become `diff:` links to line ranges found in the files. The seed checks every ref against the diff and fails on invalid ones. `review-carryover.ts` carries review marks to later versions after the seed's transaction, as publishing them in the app does.
 

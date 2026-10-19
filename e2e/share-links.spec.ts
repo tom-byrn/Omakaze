@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { request as playwrightRequest, type APIRequestContext, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { request as playwrightRequest, type APIRequestContext, type Browser, type Locator, type Page } from "@playwright/test";
 import { DEMO_SHARE } from "../scripts/demo-data/share-links";
 import { guideId, sql } from "./db";
 import { DEMO_OVERLAY } from "./demo-overlay";
@@ -45,6 +45,18 @@ async function insertLink(opts: { pr: number; version?: number; comments?: boole
   return `${id}${secret}`;
 }
 
+/**
+ * In demo recordings, a title card for one part of the walk-through. It stays on screen while the
+ * next page loads, instead of a blank frame.
+ */
+async function titleCard(page: Page, step: string, title: string): Promise<void> {
+  if (!E2E.demo) return;
+  await page.setContent(`<body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#fcfcfc;font-family:Georgia,serif">
+    <div style="text-align:center"><p style="font:12px/1 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.55);border:1px dashed rgba(0,0,0,.25);display:inline-block;padding:6px 10px">Share links · ${step}</p>
+    <h1 style="font-weight:400;font-size:44px;letter-spacing:-.03em;color:#000;margin:24px 0 0">${title}</h1></div></body>`);
+  await pause(page, 1600);
+}
+
 /** Scroll an element into the middle of its pane, without scrolling the page itself. */
 async function reveal(locator: Locator): Promise<void> {
   await locator.evaluate((el) => {
@@ -73,21 +85,10 @@ test.describe("Share links", () => {
     test.slow();
     // Each part of the walk-through is its own page, so the recordings join into one video in order.
     if (E2E.demo) await context.addInitScript(DEMO_OVERLAY);
-    const recordings: { file: string; lead: number }[] = [];
-    const created = new Map<Page, number>();
-    const loaded = new Map<Page, number>();
-    const open = async (ctx: BrowserContext) => {
-      const p = await ctx.newPage();
-      created.set(p, Date.now());
-      return p;
-    };
-    const shown = (p: Page) => loaded.set(p, Date.now());
-    const done = async (p: Page, name: string) => {
-      // A recording starts blank until its page first shows; that part is cut from the video.
-      const lead = Math.max(0, ((loaded.get(p) ?? 0) - (created.get(p) ?? 0)) / 1000 - 0.4);
-      for (const file of await saveVideo(p, name)) if (file.endsWith(".webm")) recordings.push({ file, lead });
-    };
-    const page = await open(context);
+    const recordings: string[] = [];
+    const done = async (p: Page, name: string) => recordings.push(...(await saveVideo(p, name)).filter((f) => f.endsWith(".webm")));
+    const page = await context.newPage();
+    await titleCard(page, "1 / 4", "A member creates a read-only link");
     const started = new Date();
     const v2 = await guideId(DEMO_PRS.main, 2);
     const viewsBefore = await guideViews();
@@ -95,7 +96,6 @@ test.describe("Share links", () => {
     // Create a link to this version, with GitHub's review comments.
     await page.goto(demoPaths.pull(DEMO_PRS.main));
     await expect(page.getByText("Guided PR · v2")).toBeVisible();
-    shown(page);
     await caption(page, "Share a guide with someone outside the workspace", "Share links");
     await pause(page, 1200);
     await page.getByRole("button", { name: "Share", exact: true }).click();
@@ -134,10 +134,9 @@ test.describe("Share links", () => {
 
     // Someone without an account opens it in a fresh browser.
     const viewer = await signedOutPage(browser, { record: true });
-    created.set(viewer, Date.now());
+    await titleCard(viewer, "2 / 4", "Someone without an account opens it");
     await viewer.goto(url);
     await expect(viewer.getByText("Shared, read-only view of")).toBeVisible();
-    shown(viewer);
     await expect(viewer.locator("header")).toContainText("acme/storefront#128");
     await expect(viewer.getByText("Guided PR · v2")).toBeVisible();
     await caption(viewer, "Signed out: the guide opens read-only, without the workspace", "Shared view");
@@ -216,11 +215,11 @@ test.describe("Share links", () => {
     await done(viewer, "share-links-2-shared-view");
 
     // The link appears in the workspace settings, with when it was last opened. Revoke it there.
-    const settings = await open(context);
+    const settings = await context.newPage();
+    await titleCard(settings, "3 / 4", "The member revokes it in Settings");
     await settings.goto(`${demoPaths.settings}/sharing`);
     const item = settings.locator(`[data-share-link="${token.slice(0, 16)}"]`);
     await expect(item).toContainText("acme/storefront#128");
-    shown(settings);
     await expect(item).toContainText("v2");
     await expect(item).toContainText("Alex Morgan");
     await expect(item).toContainText(/last opened (just now|\d+ minutes? ago)/);
@@ -241,11 +240,11 @@ test.describe("Share links", () => {
     await done(settings, "share-links-3-settings");
 
     // The link stops working at once, for the page and for its file views.
-    const again = await open(viewer.context());
+    const again = await viewer.context().newPage();
     if (E2E.demo) await again.addInitScript(DEMO_OVERLAY);
+    await titleCard(again, "4 / 4", "The link no longer opens");
     await again.goto(url);
     await expect(again.locator('[data-share-state="revoked"]')).toBeVisible();
-    shown(again);
     await expect(again.getByRole("heading", { name: "This link was revoked." })).toBeVisible();
     const res = await again.request.get(`/api/guides/${v2}/file?path=${encodeURIComponent(PROMO)}&share=${token}`);
     expect(res.status()).toBe(404);
@@ -259,13 +258,8 @@ test.describe("Share links", () => {
     if (recordings.length === 4) {
       execFileSync("ffmpeg", [
         ...["-y", "-loglevel", "error"],
-        ...recordings.flatMap((r) => ["-i", r.file]),
-        "-filter_complex",
-        [
-          ...recordings.map((r, i) => `[${i}:v]trim=start=${r.lead.toFixed(2)},setpts=PTS-STARTPTS[v${i}]`),
-          `${recordings.map((_, i) => `[v${i}]`).join("")}concat=n=${recordings.length}:v=1:a=0[out]`,
-        ].join(";"),
-        ...["-map", "[out]"],
+        ...recordings.flatMap((f) => ["-i", f]),
+        ...["-filter_complex", `${recordings.map((_, i) => `[${i}:v]`).join("")}concat=n=${recordings.length}:v=1:a=0[out]`, "-map", "[out]"],
         ...["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-movflags", "+faststart"],
         path.join(E2E.mediaDir!, "share-links-walkthrough.mp4"),
       ]);

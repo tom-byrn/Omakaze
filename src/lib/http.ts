@@ -61,13 +61,14 @@ export function clientIp(headers: Headers): string {
   return entries[Math.max(0, entries.length - env().TRUST_PROXY_HOPS)];
 }
 
+type Bucket = { count: number; resetAt: number };
+// Kept on globalThis: routes can be bundled separately, and a limit must count across all of them.
+const buckets = ((globalThis as unknown as { __omakazeRateLimits?: Map<string, Bucket> }).__omakazeRateLimits ??= new Map<string, Bucket>());
+
 /**
  * Tiny in-memory rate limiter (per process) for login attempts and similar. A `cost` of 0 only
  * checks the limit, for limits that count failures.
  */
-type Bucket = { count: number; resetAt: number };
-// Kept on globalThis: routes can be bundled separately, and a limit must count across all of them.
-const buckets = ((globalThis as unknown as { __omakazeRateLimits?: Map<string, Bucket> }).__omakazeRateLimits ??= new Map<string, Bucket>());
 export function rateLimit(key: string, limit: number, windowMs: number, cost = 1): boolean {
   const now = Date.now();
   const b = buckets.get(key);
