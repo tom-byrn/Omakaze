@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import { findWorkspaceRepo, getRepoContext } from "@/lib/github/connections";
 import { parseRefLines } from "@/lib/guides/ref-lines";
+import { templateSectionFor } from "@/lib/guides/templates";
 import {
   addSection,
   deleteSection,
@@ -50,6 +51,8 @@ export async function startManualGuideAction(slug: string, owner: string, repoNa
     userId: user.id,
     status: "draft",
   });
+  // Start from the template's outline; the editor shows each section's guidance as placeholder text.
+  for (const s of guide.template?.sections ?? []) await addSection(guide.id, { title: s.title });
   redirect(`/w/${slug}/${repo.fullName}/pull/${prNumber}/edit?v=${guide.version}`);
 }
 
@@ -123,7 +126,11 @@ export async function moveSectionAction(slug: string, guideId: string, sectionId
 
 export async function publishGuideAction(slug: string, guideId: string, viewPath: string): Promise<State> {
   try {
-    const { user } = await guideFor(slug, guideId);
+    const { user, guide } = await guideFor(slug, guideId);
+    // Template sections the author left empty are not published; required ones are then shown as missing.
+    for (const s of await getSections(guideId)) {
+      if (!s.generated && !s.body.trim() && s.refs.length === 0 && templateSectionFor(guide.template, s.title)) await deleteSection(s.id);
+    }
     await finishGuide(guideId, { actorUserId: user.id });
   } catch (err) {
     return msg(err);

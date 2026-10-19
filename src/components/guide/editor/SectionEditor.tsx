@@ -15,6 +15,7 @@ export function SectionEditor({
   saveAction,
   deleteAction,
   moveAction,
+  template,
 }: {
   index: number;
   total: number;
@@ -24,6 +25,8 @@ export function SectionEditor({
   saveAction: (prev: FormState, form: FormData) => Promise<FormState>;
   deleteAction: () => Promise<FormState>;
   moveAction: (dir: -1 | 1) => Promise<FormState>;
+  /** The guide template section this one was written for. */
+  template?: { required: boolean; placeholder: string } | null;
 }) {
   return (
     <section className="border border-black/15 bg-white" id={`section-${section.id}`}>
@@ -31,6 +34,7 @@ export function SectionEditor({
         <span className="font-mono text-[11px] text-black/45">{String(index + 1).padStart(2, "0")}</span>
         <span className="flex-1 truncate font-serif text-[17px] text-black">{section.title}</span>
         {section.generated ? <span className="tag">automatic</span> : null}
+        {template ? <span className="tag">{template.required ? "required" : "optional"}</span> : null}
         <ConfirmButton action={() => moveAction(-1)} className="btn btn-ghost btn-xs" pendingText="…">
           <RiArrowUpLine size={13} />
         </ConfirmButton>
@@ -50,7 +54,7 @@ export function SectionEditor({
         </div>
         <div>
           <p className="field-label">Explanation</p>
-          <MarkdownField name="body" defaultValue={section.body} guideId={guideId} files={files} />
+          <MarkdownField name="body" defaultValue={section.body} guideId={guideId} files={files} placeholder={template?.placeholder} />
         </div>
         <div>
           <label className="field-label" htmlFor={`r-${section.id}`}>

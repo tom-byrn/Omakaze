@@ -82,9 +82,9 @@ The schema is in `src/db/schema.ts`; migrations are in `drizzle/`.
 | Area | Tables |
 | --- | --- |
 | Users and sign-in | `users` (including `email_verified_at`, set when the address is confirmed), `sessions`, `github_accounts` (one linked GitHub identity per user) |
-| Workspaces | `workspaces` (including AI and automation settings), `memberships` (role per user), `invites` |
-| GitHub | `github_connections` (app installation, token or linked account), `repositories` (followed per workspace, through one connection or none), `pull_requests` (cache) |
-| Guides | `diff_snapshots`, `guides` (one row per version), `guide_sections`, `section_reviews`, `guide_views` |
+| Workspaces | `workspaces` (including AI and automation settings and the guide template), `memberships` (role per user), `invites` |
+| GitHub | `github_connections` (app installation, token or linked account), `repositories` (followed per workspace, through one connection or none, with an optional guide template override), `pull_requests` (cache) |
+| Guides | `diff_snapshots`, `guides` (one row per version, with a copy of the guide template it was started with), `guide_sections`, `section_reviews`, `guide_views` |
 | Reviews | `comments` (comments and reviews posted through Omakaze) |
 | API access | `api_tokens` (personal tokens and OAuth access tokens), `oauth_clients`, `oauth_codes`, `oauth_refresh_tokens` |
 | Uploads | `assets`, `asset_blobs` |

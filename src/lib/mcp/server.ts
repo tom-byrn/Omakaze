@@ -19,6 +19,8 @@ import {
 import { getOrCreateSnapshot, parsePullUrl } from "@/lib/github/pulls";
 import { listReviewComments } from "@/lib/github/review";
 import { AGENT_WORKFLOW, GUIDE_GUIDELINES } from "@/lib/guides/guidelines";
+import { templateFor, templateWarning } from "@/lib/guides/template-store";
+import { templatePrompt } from "@/lib/guides/templates";
 import { formatRef, serializeRef, type RefInput } from "@/lib/guides/refs";
 import {
   addSection,
@@ -256,6 +258,8 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
         lines.push("Existing guides:");
         for (const v of versions) lines.push(`- v${v.version} ${v.status} (guide_id ${v.id}) ${guideUrl(slug, ctx.repo.fullName, number, v.version)}`);
       } else lines.push("No guide exists yet.");
+      const template = templatePrompt(await templateFor(workspaceId, ctx.repo));
+      if (template) lines.push("", template);
       lines.push("", "Next: read the code with get_diff, then create_guide (or start_guide + add_section + finish_guide).");
       return text(lines.join("\n"));
     }),
@@ -373,6 +377,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
           `URL: ${url}`,
           describeFinishedCoverage(sectionCoverage, coverage),
           warnings.length ? `Warnings:\n${warnings.map((w) => `- ${w.ref}: ${w.message}`).join("\n")}` : "",
+          await templateWarning(guide),
         ]
           .filter(Boolean)
           .join("\n"),
@@ -582,8 +587,9 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
         actorUserId: principal.user.id,
         actorLabel: author,
       });
+      const template = await templateWarning(guide);
       return text(
-        `Published guide v${guide.version}.\nURL: ${await urlFor(guide)}\n${describeFinishedCoverage(sectionCoverage, coverage)}`,
+        `Published guide v${guide.version}.\nURL: ${await urlFor(guide)}\n${describeFinishedCoverage(sectionCoverage, coverage)}${template ? `\n${template}` : ""}`,
       );
     }),
   );
@@ -655,14 +661,20 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
       description: "Instructions for writing a guided walkthrough of a pull request.",
       argsSchema: { pr_url: z.string().describe("Pull request URL") },
     },
-    ({ pr_url }) => ({
-      messages: [
-        {
-          role: "user",
-          content: { type: "text", text: `${agentPrompt(pr_url)}\n\n${AGENT_WORKFLOW}` },
-        },
-      ],
-    }),
+    async ({ pr_url }) => {
+      // The repository's template when it is followed, otherwise the workspace's.
+      const parsed = parsePullUrl(pr_url);
+      const repo = parsed ? await findWorkspaceRepo(workspaceId, parsed.owner, parsed.repo) : null;
+      const template = templatePrompt(await templateFor(workspaceId, repo));
+      return {
+        messages: [
+          {
+            role: "user",
+            content: { type: "text", text: [agentPrompt(pr_url), AGENT_WORKFLOW, template].filter(Boolean).join("\n\n") },
+          },
+        ],
+      };
+    },
   );
 
   return server;

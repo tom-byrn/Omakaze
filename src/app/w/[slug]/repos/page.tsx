@@ -93,6 +93,9 @@ export default async function ReposPage(props: PageProps<"/w/[slug]/repos">) {
                     action={setRepoAutoGenerateAction.bind(null, slug, repo.id)}
                     disabled={!admin}
                   />
+                  <Link href={`/w/${slug}/${repo.fullName}/settings`} className="btn btn-ghost btn-xs">
+                    Settings
+                  </Link>
                   {admin && connection && connection.type !== "app" && !repo.webhookId ? (
                     <ConfirmButton action={createRepoWebhookAction.bind(null, slug, repo.id)} className="btn btn-secondary btn-xs">
                       Create webhook

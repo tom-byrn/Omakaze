@@ -28,7 +28,7 @@ Guides need a long context. Ollama runs models with a small context window by de
 
 A workspace uses its own provider if one is set, and the instance default otherwise:
 
-1. **Workspace.** Admins pick a provider in **Settings → AI provider** (nothing is selected until they do), then set the API key, base URL and model. The key is encrypted at rest and never shown again. **Load models** (also triggered by focusing the model field) asks the provider for its model list with the entered key, or the saved key for the same provider, and offers the models as suggestions; any model name can still be typed. It uses `GET <base URL>/models` (`/v1/models` for Anthropic); OpenAI's embedding, audio and image models and Gemini models without text generation are left out. OpenRouter, Ollama, LM Studio and OpenAI-compatible lists load without a key. **Test connection** sends a small request with the entered values. **Remove provider** clears the provider, model, base URL and key, but not the [extra instructions](#workspace-instructions).
+1. **Workspace.** Admins pick a provider in **Settings → AI provider** (nothing is selected until they do), then set the API key, base URL and model. The key is encrypted at rest and never shown again. **Load models** (also triggered by focusing the model field) asks the provider for its model list with the entered key, or the saved key for the same provider, and offers the models as suggestions; any model name can still be typed. It uses `GET <base URL>/models` (`/v1/models` for Anthropic); OpenAI's embedding, audio and image models and Gemini models without text generation are left out. OpenRouter, Ollama, LM Studio and OpenAI-compatible lists load without a key. **Test connection** sends a small request with the entered values. **Remove provider** clears the provider, model, base URL and key, but not the [guide template](#guide-templates) and its writing instructions.
 2. **Instance.** `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL` set a default for every workspace without its own provider. See [configuration.md](configuration.md#ai-defaults).
 
 Members can also use [their own ChatGPT plan](#chatgpt-plans) for guides they start, if the workspace allows it.
@@ -75,11 +75,12 @@ The generator works from the stored diff snapshot, the pull request title, branc
    2. A planning request receives the list of files and hunks with these summaries and returns the title, summary and an ordered list of sections, each with an intent and refs.
    3. For each planned section, one request receives only the code its refs select (up to half the budget) and writes the section body. Sections are added as they are written.
 4. **Reference cleanup.** Refs to files that are not in the pull request and hunk numbers that do not exist are dropped and noted in the guide's progress log. If a section's refs are still invalid, the section is added without refs.
-5. **Publishing.** The guide is finished like any other: uncovered changes go to the automatic "Other changes" section (see [mcp.md](mcp.md#coverage-and-other-changes)), and a summary comment is queued if the workspace posts them.
+5. **Template check.** If the [guide template](#guide-templates) has required sections and the answer (step 2) or the plan (step 3.2) lacks one, the request is sent once more with the missing titles and their guidance appended. The second answer is used either way, or the first if the second is not valid. Required sections that are still missing are noted in the progress log; the guide is not failed for it.
+6. **Publishing.** The guide is finished like any other: uncovered changes go to the automatic "Other changes" section (see [mcp.md](mcp.md#coverage-and-other-changes)), and a summary comment is queued if the workspace posts them.
 
 A pull request without file changes gets a guide with the summary "This pull request has no file changes."
 
-The system prompt contains the same authoring guidelines that MCP agents receive (`src/lib/guides/guidelines.ts`), the diff format, and the workspace's extra instructions.
+The system prompt contains the same authoring guidelines that MCP agents receive (`src/lib/guides/guidelines.ts`), the diff format, and the guide template with its writing instructions.
 
 ## Structured output and fallbacks
 
@@ -114,9 +115,24 @@ The progress log of a failed guide shows the error, and **Copy agent prompt** on
 
 A guide that stays in the `generating` state with no change (no new section, progress message, title or summary) for 60 minutes is marked as failed with the message "Nothing changed for 60 minutes, so the guide was marked as abandoned. Start a new version." The worker checks every 30 seconds. This covers guides from agents that never call `finish_guide` as well as generation that stopped. Guides with a built-in generation job that is still queued or running are left alone, since one model call can take a long time. Abandoned guides are not treated as being generated: **Generate with AI** and **Regenerate** start a new version, and automation applies its usual rules.
 
-## Workspace instructions
+## Guide templates
 
-**Extra instructions** in **Settings → AI provider** are appended to the system prompt as "Additional instructions from this workspace", for example "Always include a section on database migrations." They apply to every built-in generation in the workspace, with the workspace provider or the instance default. They have their own form (**Save instructions**, up to 4,000 characters) and are not changed by **Remove provider**.
+A guide template is an ordered outline of sections, each with a title, short guidance on what belongs there and whether it is required, plus free-text writing instructions. It applies wherever a guide is written: built-in generation, agents over [MCP](mcp.md#guide-templates), the [REST API](api.md#post-apiv1guides) and the editor. The code is in `src/lib/guides/templates.ts`.
+
+- **Workspace.** Admins set it in **Settings → Guide template**. **Start from** loads a built-in starter into the editor, which can then be changed: **Feature** (Data model, Core logic, API and UI, Tests, Rollout), **Bug fix** (The bug, Root cause, Fix, Regression test, Similar code), **Migration** (Schema changes, Data backfill, Code changes, Deploy and rollback, Tests) or **None**. A template has up to 15 sections with different titles.
+- **Writing instructions** (up to 4,000 characters), for example "Write in British English." This is the setting earlier versions showed as **Extra instructions** under **Settings → AI provider**, so saved instructions keep applying; they now also go to MCP agents.
+- **Repository.** **Repository settings** (`/w/<slug>/<owner>/<repo>/settings`, linked from the repository page and the **Repositories** page) can keep the workspace outline or use an **Own outline**, including none. **Additional instructions for this repository** come after the workspace's writing instructions in either case.
+- **Per guide.** When a guide version is started, the template in effect for its repository is stored with it (`guides.template`). Checks and the editor use that copy, so changing the template later does not change what older guides are measured against.
+
+The prompt gives the sections in order with exactly these titles, says which are required, and asks for optional ones only where they apply; other sections can be added. **Settings → Guide template** and **Repository settings** show the text under **What writers receive**.
+
+A guide section counts for a template section when its title is the same, ignoring case and punctuation, or starts with it as whole words ("Tests and fixtures" counts for "Tests"). It must also have an explanation or diff references, and the automatic "Other changes" section never counts. A guide without a required section is still published:
+
+- the built-in AI asks once more (see [How a guide is generated](#how-a-guide-is-generated));
+- `create_guide`, `finish_guide` and `POST /api/v1/guides` report the missing sections;
+- members see "Missing from the … template" above the guide, with a link to the editor. It is not shown while a guide is being generated.
+
+In the editor, **Start a draft** creates the template's sections with empty explanations and shows each section's guidance as placeholder text. **Publish** leaves out template sections that are still empty (no explanation and no refs); required ones are then reported as missing. A checklist above the sections shows which template sections are written.
 
 ## Automation
 

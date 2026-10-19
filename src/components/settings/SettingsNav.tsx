@@ -11,6 +11,7 @@ export function SettingsNav({ slug, role }: { slug: string; role: string }) {
     { href: base, label: "General" },
     { href: `${base}/members`, label: "Members" },
     { href: `${base}/github`, label: "GitHub" },
+    { href: `${base}/template`, label: "Guide template" },
     { href: `${base}/ai`, label: "AI provider" },
     { href: `${base}/automation`, label: "Automation" },
     { href: `${base}/tokens`, label: "API tokens & MCP" },

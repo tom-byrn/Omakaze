@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MarkdownField } from "@/components/guide/editor/MarkdownField";
 import { SectionEditor } from "@/components/guide/editor/SectionEditor";
+import { TemplateChecklist } from "@/components/guide/TemplateChecklist";
 import { Panel } from "@/components/settings/Panel";
 import { ActionForm } from "@/components/ui/ActionForm";
 import { ConfirmButton } from "@/components/ui/ConfirmButton";
@@ -10,6 +11,7 @@ import { findWorkspaceRepo } from "@/lib/github/connections";
 import { getSnapshot } from "@/lib/github/pulls";
 import { formatRefLines } from "@/lib/guides/ref-lines";
 import { describeCoverage, getCoverage, getGuide, getSections, guidePath, listGuideVersions } from "@/lib/guides/service";
+import { missingSections, placeholderFor, templateSectionFor } from "@/lib/guides/templates";
 import { requireWorkspace } from "@/lib/workspaces";
 import {
   addSectionAction,
@@ -36,6 +38,8 @@ export default async function EditGuidePage(props: PageProps<"/w/[slug]/[owner]/
   const [sections, snapshot, coverage] = await Promise.all([getSections(guide.id), getSnapshot(guide.snapshotId), getCoverage(guide)]);
   const files = (snapshot?.files ?? []).map((f) => f.path);
   const viewPath = guidePath(slug, repo.fullName, prNumber, guide.version);
+  const template = guide.template?.sections.length ? guide.template : null;
+  const unwritten = missingSections(template, sections);
 
   return (
     <main className="mx-auto flex max-w-[980px] flex-col gap-6 px-4 py-10 lg:px-8">
@@ -62,6 +66,15 @@ export default async function EditGuidePage(props: PageProps<"/w/[slug]/[owner]/
 
       <Panel title="Coverage" description={<span className="font-mono text-[12px] whitespace-pre-wrap">{describeCoverage(coverage)}</span>} />
 
+      {template ? (
+        <Panel
+          title={`Template · ${template.name}`}
+          description={`The ${template.source === "repository" ? "repository's" : "workspace's"} template when this guide was started. A section counts once it has an explanation or diff references. Empty template sections are left out when you publish, and members see missing required sections above the guide.`}
+        >
+          <TemplateChecklist template={template} sections={sections} />
+        </Panel>
+      ) : null}
+
       <Panel title="Guide">
         <ActionForm action={saveGuideMetaAction.bind(null, slug, guide.id)} className="flex flex-col gap-3">
           <div>
@@ -82,19 +95,23 @@ export default async function EditGuidePage(props: PageProps<"/w/[slug]/[owner]/
         </ActionForm>
       </Panel>
 
-      {sections.map((s, i) => (
-        <SectionEditor
-          key={s.id}
-          index={i}
-          total={sections.length}
-          guideId={guide.id}
-          files={files}
-          section={{ id: s.id, title: s.title, body: s.body, refs: formatRefLines(s.refs), generated: s.generated }}
-          saveAction={saveSectionAction.bind(null, slug, guide.id, s.id)}
-          deleteAction={deleteSectionAction.bind(null, slug, guide.id, s.id)}
-          moveAction={moveSectionAction.bind(null, slug, guide.id, s.id)}
-        />
-      ))}
+      {sections.map((s, i) => {
+        const t = s.generated ? null : templateSectionFor(template, s.title);
+        return (
+          <SectionEditor
+            key={s.id}
+            index={i}
+            total={sections.length}
+            guideId={guide.id}
+            files={files}
+            section={{ id: s.id, title: s.title, body: s.body, refs: formatRefLines(s.refs), generated: s.generated }}
+            saveAction={saveSectionAction.bind(null, slug, guide.id, s.id)}
+            deleteAction={deleteSectionAction.bind(null, slug, guide.id, s.id)}
+            moveAction={moveSectionAction.bind(null, slug, guide.id, s.id)}
+            template={t ? { required: t.required, placeholder: placeholderFor(t) } : null}
+          />
+        );
+      })}
 
       <Panel title="Add a section">
         <ActionForm action={addSectionAction.bind(null, slug, guide.id)} resetOnSuccess className="flex flex-col gap-3">
@@ -102,7 +119,20 @@ export default async function EditGuidePage(props: PageProps<"/w/[slug]/[owner]/
             <label className="field-label" htmlFor="n-title">
               Title
             </label>
-            <input id="n-title" name="title" className="input" placeholder="e.g. Database migration" />
+            <input
+              id="n-title"
+              name="title"
+              className="input"
+              placeholder={unwritten[0] ? `e.g. ${unwritten[0].title}` : "e.g. Database migration"}
+              list={unwritten.length > 0 ? "template-titles" : undefined}
+            />
+            {unwritten.length > 0 ? (
+              <datalist id="template-titles">
+                {unwritten.map((t) => (
+                  <option key={t.title} value={t.title} />
+                ))}
+              </datalist>
+            ) : null}
           </div>
           <div>
             <p className="field-label">Explanation</p>

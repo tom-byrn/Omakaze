@@ -4,6 +4,7 @@ import { errorResponse, HttpError, readJson } from "@/lib/http";
 import { serializeRef, type RefInput } from "@/lib/guides/refs";
 import { createCompleteGuide, getGuide, getSections, guideUrl, GuideError, listGuideVersions } from "@/lib/guides/service";
 import { StaleHeadError } from "@/lib/github/pulls";
+import { missingRequiredSections } from "@/lib/guides/template-store";
 
 /** GET /api/v1/guides?pr=<url>&version=<n> — read a guide. */
 export async function GET(req: Request) {
@@ -86,6 +87,10 @@ export async function POST(req: Request) {
         autoCover: body.auto_cover,
       });
       const ws = await workspaceOf(p.workspaceId);
+      // Like coverage, a missing required section is reported but does not fail the request.
+      const template = guide.template?.sections.length
+        ? { name: guide.template.name, source: guide.template.source, missing_required: (await missingRequiredSections(guide)).map((s) => s.title) }
+        : null;
       return Response.json(
         {
           id: guide.id,
@@ -99,6 +104,7 @@ export async function POST(req: Request) {
             added_to_other_changes: sectionCoverage.uncovered.length > 0 && coverage.uncovered.length === 0,
           },
           warnings,
+          template,
         },
         { status: 201 },
       );

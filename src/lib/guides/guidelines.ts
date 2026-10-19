@@ -30,7 +30,7 @@ Diff references (refs)
 export const AGENT_WORKFLOW = `Workflow
 1. get_pull_request with the PR URL to see the files, hunks and head_sha.
 2. get_diff to read the code (page through large diffs with the cursor), and read_file for surrounding context when needed.
-3. Plan the sections.
+3. Plan the sections. If get_pull_request shows a guide template, follow it.
 4. Either call create_guide once with all sections, or call start_guide, then add_section for each section (the guide updates live for anyone viewing it), then finish_guide.
 5. Check the coverage report returned by create_guide/finish_guide and fix sections if important changes are uncovered.
 6. Reply with the guide URL.
