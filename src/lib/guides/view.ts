@@ -1,9 +1,10 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { guideViews, memberships, sectionReviews, users } from "@/db/schema";
+import { memberships, sectionReviews, users } from "@/db/schema";
 import { parseFiles } from "@/lib/diff/parse";
 import type { ParsedFile } from "@/lib/diff/types";
 import { getSnapshot } from "@/lib/github/pulls";
+import { carryReviewMarks, recordVisit, versionHistory, viewerChanges, type ViewerChanges } from "./progress";
 import { computeCoverage, refSelectsLine, type SectionRef } from "./refs";
 import { getSections, type Guide, type Section } from "./service";
 
@@ -45,10 +46,11 @@ export function sectionStats(refs: SectionRef[], files: ParsedFile[]): SectionSt
 }
 
 export async function loadGuideData(guide: Guide, viewerId: string) {
-  const [snapshot, sections, reviews, members] = await Promise.all([
+  const [visit, snapshot, sections, members] = await Promise.all([
+    // Reads the viewer's previous visit before recording this one.
+    recordVisit(guide, viewerId),
     getSnapshot(guide.snapshotId),
     getSections(guide.id),
-    db.select().from(sectionReviews).where(eq(sectionReviews.guideId, guide.id)),
     db
       .select({ id: users.id, name: users.name, avatarUrl: users.avatarUrl })
       .from(memberships)
@@ -57,20 +59,38 @@ export async function loadGuideData(guide: Guide, viewerId: string) {
   ]);
   const files = parseFiles(snapshot?.files ?? []);
   const coverage = computeCoverage(files, sections);
+  const history = versionHistory(guide, { files, sections });
+  // Marks the viewer made on earlier versions since they last opened this one (see progress.ts).
+  await carryReviewMarks(guide, { userId: viewerId, after: visit.previousView, history }).catch((err) => console.error("[guides] carrying review marks failed", err));
+  const reviews = await db.select().from(sectionReviews).where(eq(sectionReviews.guideId, guide.id));
   const reviewedBy = new Map<string, string[]>();
-  for (const r of reviews) reviewedBy.set(r.sectionId, [...(reviewedBy.get(r.sectionId) ?? []), r.userId]);
-
-  await db
-    .insert(guideViews)
-    .values({ guideId: guide.id, userId: viewerId })
-    .onConflictDoUpdate({ target: [guideViews.guideId, guideViews.userId], set: { lastViewedAt: sql`now()` } });
+  const carriedFrom = new Map<string, Record<string, number>>();
+  for (const r of reviews) {
+    reviewedBy.set(r.sectionId, [...(reviewedBy.get(r.sectionId) ?? []), r.userId]);
+    if (r.carriedFromVersion !== null) carriedFrom.set(r.sectionId, { ...carriedFrom.get(r.sectionId), [r.userId]: r.carriedFromVersion });
+  }
+  const marked = new Set(reviews.filter((r) => r.userId === viewerId).map((r) => r.sectionId));
+  const changes: ViewerChanges = await viewerChanges(guide, viewerId, marked, visit, history).catch((err) => {
+    console.error("[guides] comparing versions failed", err);
+    return { review: new Map(), visit: new Map(), sinceVisit: null };
+  });
 
   return {
     snapshot,
     files,
     coverage,
-    sections: sections.map((s: Section) => ({ ...s, stats: sectionStats(s.refs, files), reviewedBy: reviewedBy.get(s.id) ?? [] })),
+    sections: sections.map((s: Section) => ({
+      ...s,
+      stats: sectionStats(s.refs, files),
+      reviewedBy: reviewedBy.get(s.id) ?? [],
+      carriedFrom: carriedFrom.get(s.id) ?? {},
+      reviewChange: changes.review.get(s.id) ?? null,
+      visitChange: changes.visit.get(s.id) ?? null,
+    })),
     members: Object.fromEntries(members.map((m) => [m.id, { name: m.name, avatarUrl: m.avatarUrl }])),
     fileSections: coverage.fileSections,
+    /** The viewer's previous visit, and the versions published since (when this is one of them). */
+    lastVisitAt: visit.since,
+    sinceVisit: changes.sinceVisit,
   };
 }

@@ -1085,6 +1085,47 @@ h4 {
   outline-offset: -1px;
   background-image: linear-gradient(rgba(20, 125, 186, 0.1), rgba(20, 125, 186, 0.1));
 }
+/* Lines new since the guide version a member reviewed or last saw */
+.row-since .diff-code {
+  box-shadow: inset 3px 0 0 var(--color-highlight);
+}
+.row-since .diff-num {
+  background-image: linear-gradient(rgba(234, 224, 88, 0.5), rgba(234, 224, 88, 0.5));
+}
+/* Interdiff of a section between two versions: rows only in the newer one, only in the older one, or in both */
+.interdiff-table .diff-code[data-marker="+"]::before {
+  color: #1f8a85;
+}
+.interdiff-table .diff-code[data-marker="−"]::before {
+  color: var(--color-danger);
+}
+.interdiff-same {
+  color: rgba(0, 0, 0, 0.5);
+}
+.interdiff-same .diff-code {
+  color: rgba(36, 41, 46, 0.6);
+}
+.interdiff-added {
+  background: rgba(234, 224, 88, 0.22);
+}
+.interdiff-added .diff-num {
+  background: rgba(234, 224, 88, 0.45);
+  color: #6b5a00;
+}
+.interdiff-removed {
+  background: rgba(0, 0, 0, 0.03);
+}
+.interdiff-removed .diff-code {
+  color: rgba(36, 41, 46, 0.55);
+  text-decoration: line-through;
+  text-decoration-color: rgba(0, 0, 0, 0.3);
+}
+.interdiff-version {
+  font-family: var(--font-mono);
+  font-size: 10px !important;
+  letter-spacing: 0.06em;
+  text-align: left !important;
+}
 .row-selected {
   background-image: linear-gradient(rgba(234, 224, 88, 0.28), rgba(234, 224, 88, 0.28));
 }

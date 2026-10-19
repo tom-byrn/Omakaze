@@ -14,12 +14,14 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { Avatar } from "@/components/ui/Avatar";
+import type { SectionChange } from "@/lib/guides/carryover";
 import type { SectionRef } from "@/lib/guides/refs";
 import { timeAgo } from "@/lib/format";
 import type { CodeTarget } from "@/components/markdown/CodeRefLink";
 import { GenerationStatus } from "./GenerationStatus";
 import { useStoredBoolean } from "./useStoredBoolean";
 import { ReviewPanel } from "./ReviewPanel";
+import { InterdiffPanel, MARK_COLOR, ProgressCard, SectionNotice, SinceLastVisitBanner, sectionProgress, stepMark, type SectionProgress, type StepMark } from "./ReviewChanges";
 import { SectionDiffs } from "./SectionDiffs";
 import { groupThreads, type FocusTarget, type ReviewComment } from "./types";
 
@@ -33,6 +35,12 @@ export type ViewerSection = {
   additions: number;
   deletions: number;
   reviewedBy: string[];
+  /** Members whose mark carried over from an earlier version, with the version they reviewed. */
+  carriedFrom?: Record<string, number>;
+  /** For the viewer: the code changed since they reviewed the section in an earlier version. */
+  reviewChange?: SectionChange | null;
+  /** New or changed compared to the version that was current at the viewer's last visit. */
+  visitChange?: SectionChange | null;
 };
 
 export type ViewerFile = {
@@ -68,6 +76,10 @@ export type ViewerProps = {
   initialStep: number | "review" | "files";
   agentPrompt: string;
   canGenerate: boolean;
+  /** End of the viewer's previous visit (ISO); later comments by others are marked as new. */
+  lastVisitAt?: string | null;
+  /** Set when this version was published since the viewer's last visit. */
+  sinceVisit?: { at: string; baselineVersion: number; versions: number[] } | null;
 };
 
 async function getJson<T>(url: string): Promise<T> {
@@ -96,6 +108,10 @@ export function GuideViewer(props: ViewerProps) {
   const [reviewed, setReviewed] = useState<Set<string>>(
     () => new Set(sections.filter((s) => s.reviewedBy.includes(me.id)).map((s) => s.id)),
   );
+  // Marks of the viewer that carried over from an earlier version (section id → version reviewed).
+  const [carried, setCarried] = useState<Map<string, number>>(
+    () => new Map(sections.flatMap((s) => (s.carriedFrom?.[me.id] !== undefined ? [[s.id, s.carriedFrom[me.id]] as const] : []))),
+  );
   const [toast, setToast] = useState<{ text: string; href?: string; error?: boolean } | null>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
@@ -116,7 +132,13 @@ export function GuideViewer(props: ViewerProps) {
     refreshInterval: 30_000,
     revalidateOnFocus: true,
   });
-  const threadsByPath = useMemo(() => groupThreads(comments.data?.comments ?? []), [comments.data]);
+  const since = props.lastVisitAt ? Date.parse(props.lastVisitAt) : null;
+  // Comments by others since the viewer's last visit are marked as new.
+  const commentList = useMemo(
+    () => (comments.data?.comments ?? []).map((c) => (since !== null && !c.mine && Date.parse(c.createdAt) > since ? { ...c, isNew: true } : c)),
+    [comments.data, since],
+  );
+  const threadsByPath = useMemo(() => groupThreads(commentList), [commentList]);
 
   const flash = useCallback((text: string, opts: { href?: string; error?: boolean } = {}) => {
     setToast({ text, ...opts });
@@ -176,6 +198,12 @@ export function GuideViewer(props: ViewerProps) {
 
   async function toggleReviewed(sectionId: string, value?: boolean) {
     const next = value ?? !reviewed.has(sectionId);
+    setCarried((prev) => {
+      if (!prev.has(sectionId)) return prev;
+      const m = new Map(prev);
+      m.delete(sectionId);
+      return m;
+    });
     setReviewed((prev) => {
       const s = new Set(prev);
       if (next) s.add(sectionId);
@@ -222,11 +250,35 @@ export function GuideViewer(props: ViewerProps) {
 
   const current = step >= 1 && step <= sections.length ? sections[step - 1] : null;
   const reviewedCount = sections.filter((s) => reviewed.has(s.id)).length;
+  const progress = sections.map((s) => sectionProgress(s, reviewed, carried));
+  const carriedCount = progress.filter((p) => p.kind === "carried").length;
+  const rereviewCount = progress.filter((p) => p.kind === "rereview").length;
+  const currentProgress = current ? progress[step - 1] : null;
+  // The interdiff next to the code: against the version the viewer reviewed, else the one of their last visit.
+  const currentChange =
+    currentProgress?.kind === "rereview"
+      ? currentProgress.change
+      : current?.visitChange?.status === "changed" && currentProgress?.kind !== "carried"
+        ? current.visitChange
+        : null;
+  const firstVisitChange = sections.findIndex((s) => s.visitChange);
+  const showChanges = () => document.getElementById("section-changes")?.scrollIntoView({ behavior: "smooth", block: "start" });
   const blobBase = `${props.repo.htmlUrl}/blob/${guide.headSha}`;
   const generating = guide.status === "generating";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {props.sinceVisit ? (
+        <SinceLastVisitBanner
+          at={props.sinceVisit.at}
+          baselineVersion={props.sinceVisit.baselineVersion}
+          versions={props.sinceVisit.versions}
+          newSections={sections.filter((s) => s.visitChange?.status === "new").length}
+          changedSections={sections.filter((s) => s.visitChange?.status === "changed").length}
+          newComments={commentList.filter((c) => c.isNew).length}
+          onShow={firstVisitChange >= 0 ? () => setStep(firstVisitChange + 1) : undefined}
+        />
+      ) : null}
       {/* Stepper */}
       <nav className="flex items-stretch border-b border-solid border-black/15 bg-paper" aria-label="Guide sections">
         <div className="flex min-w-0 flex-1 overflow-x-auto">
@@ -238,6 +290,7 @@ export function GuideViewer(props: ViewerProps) {
               index={i + 1}
               active={step === i + 1}
               done={reviewed.has(s.id)}
+              mark={stepMark(progress[i], s.visitChange)}
               muted={s.generated}
               onClick={() => setStep(i + 1)}
             />
@@ -254,6 +307,12 @@ export function GuideViewer(props: ViewerProps) {
           <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">
             {reviewedCount}/{sections.length} reviewed
           </span>
+          {carriedCount > 0 ? (
+            <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">· {carriedCount} carried</span>
+          ) : null}
+          {rereviewCount > 0 ? (
+            <span className="hidden font-mono text-[10px] tracking-[0.08em] text-[#8a6d00] uppercase xl:inline">· {rereviewCount} to re-review</span>
+          ) : null}
           <button
             type="button"
             className={clsx("btn btn-ghost btn-xs ml-2", step === -1 && "bg-black/[0.06] text-ink")}
@@ -314,10 +373,13 @@ export function GuideViewer(props: ViewerProps) {
                           <span className={clsx("flex-1 font-serif text-[20px] leading-[1.15] tracking-[-0.015em] group-hover:underline group-hover:underline-offset-4", s.generated ? "text-black/55" : "text-black")}>
                             {s.title}
                           </span>
+                          <OverviewMark mark={stepMark(progress[i], s.visitChange)} progress={progress[i]} />
                           <span className="font-mono text-[10px] whitespace-nowrap text-black/45 uppercase">
                             {s.files.length} file{s.files.length === 1 ? "" : "s"}
                           </span>
-                          {reviewed.has(s.id) ? <RiCheckboxCircleFill size={15} className="self-center text-ink" /> : null}
+                          {reviewed.has(s.id) ? (
+                            <RiCheckboxCircleFill size={15} className={clsx("self-center", carried.has(s.id) ? "text-black/35" : "text-ink")} />
+                          ) : null}
                         </button>
                       </li>
                     ))}
@@ -334,6 +396,7 @@ export function GuideViewer(props: ViewerProps) {
                 guideId={guide.id}
                 sections={sections}
                 reviewed={reviewed}
+                progress={progress}
                 me={me}
                 prUrl={props.pull.htmlUrl}
                 onGoto={setStep}
@@ -357,14 +420,25 @@ export function GuideViewer(props: ViewerProps) {
                       Reviewed by
                       {current.reviewedBy
                         .filter((u) => u !== me.id)
-                        .map((u) => (
-                          <span key={u} title={members[u]?.name}>
-                            <Avatar src={members[u]?.avatarUrl} name={members[u]?.name} size={16} />
-                          </span>
-                        ))}
+                        .map((u) => {
+                          const from = current.carriedFrom?.[u];
+                          return (
+                            <span
+                              key={u}
+                              className="flex items-center gap-0.5"
+                              title={from === undefined ? members[u]?.name : `${members[u]?.name} (reviewed in v${from}, unchanged)`}
+                            >
+                              <Avatar src={members[u]?.avatarUrl} name={members[u]?.name} size={16} />
+                              {from !== undefined ? <span className="text-black/40">v{from}</span> : null}
+                            </span>
+                          );
+                        })}
                     </span>
                   ) : null}
                 </div>
+                {currentProgress ? (
+                  <SectionNotice progress={currentProgress} visit={current.visitChange} version={guide.version} onShowChanges={showChanges} />
+                ) : null}
                 <div className="mt-8">{current.body}</div>
                 <div className="mt-12 flex flex-wrap items-center gap-2 border-t border-dashed border-line pt-6">
                   <button
@@ -407,23 +481,45 @@ export function GuideViewer(props: ViewerProps) {
         <div ref={rightRef} className="min-h-0 overflow-y-auto bg-wash">
           <div className="px-4 py-6 lg:px-6">
             {step === 0 ? (
-              <OverviewRight files={files} sections={sections} coverage={props.coverage} onPick={(i) => setStep(i + 1)} />
-            ) : step === reviewStep ? (
-              <ConversationRight comments={comments.data?.comments ?? []} loading={!comments.data} prUrl={props.pull.htmlUrl} />
-            ) : (
-              <SectionDiffs
-                guideId={guide.id}
-                files={step === -1 ? files : (current?.files ?? [])}
-                refs={step === -1 ? [] : (current?.refs ?? [])}
-                mode={step === -1 ? "all" : "section"}
-                threadsByPath={threadsByPath}
-                focus={focus}
-                blobBase={blobBase}
-                wrap={wrap}
-                onComment={onComment}
-                onReply={onReply}
-                onDelete={onDelete}
+              <OverviewRight
+                files={files}
+                sections={sections}
+                coverage={props.coverage}
+                onPick={(i) => setStep(i + 1)}
+                progress={sections.length > 0 ? <ProgressCard progress={progress} /> : null}
               />
+            ) : step === reviewStep ? (
+              <ConversationRight comments={commentList} loading={!comments.data} prUrl={props.pull.htmlUrl} />
+            ) : (
+              <>
+                {currentChange && step !== -1 ? (
+                  <div className="mb-4">
+                    <InterdiffPanel
+                      change={currentChange}
+                      version={guide.version}
+                      title={
+                        currentProgress?.kind === "rereview"
+                          ? `Changed since you reviewed v${currentChange.version}`
+                          : `Changed since your last visit · v${currentChange.version}`
+                      }
+                    />
+                  </div>
+                ) : null}
+                <SectionDiffs
+                  guideId={guide.id}
+                  files={step === -1 ? files : (current?.files ?? [])}
+                  refs={step === -1 ? [] : (current?.refs ?? [])}
+                  mode={step === -1 ? "all" : "section"}
+                  threadsByPath={threadsByPath}
+                  focus={focus}
+                  blobBase={blobBase}
+                  wrap={wrap}
+                  onComment={onComment}
+                  onReply={onReply}
+                  onDelete={onDelete}
+                  newSince={currentChange && step !== -1 ? currentChange : null}
+                />
+              </>
             )}
           </div>
         </div>
@@ -454,6 +550,7 @@ function StepTab({
   index,
   active,
   done,
+  mark,
   muted,
   onClick,
 }: {
@@ -461,9 +558,12 @@ function StepTab({
   index: number | null;
   active: boolean;
   done: boolean;
+  /** Review state across versions (carried, re-review, new); defaults to done. */
+  mark?: StepMark | null;
   muted?: boolean;
   onClick: () => void;
 }) {
+  const m = mark ?? (done ? { label: "done", tone: "done" as const } : null);
   return (
     <button
       type="button"
@@ -475,16 +575,16 @@ function StepTab({
         active ? "bg-ink text-white" : "hover:bg-black/[0.03]",
       )}
     >
-      <span className={clsx("absolute inset-x-0 top-0 h-[2px]", done ? "bg-ink" : "bg-transparent")} />
+      <span className={clsx("absolute inset-x-0 top-0 h-[2px]", m ? MARK_COLOR[m.tone] : "bg-transparent")} />
       <span
         className={clsx(
           "flex items-center gap-1.5 font-mono text-[10px] tracking-[0.08em] uppercase",
           active ? "text-white/60" : "text-black/45",
         )}
       >
-        <span className={clsx("dot", active ? "bg-signal" : done ? "bg-ink" : "bg-[rgba(0,0,0,0.18)]")} />
+        <span className={clsx("dot", active ? "bg-signal" : m ? MARK_COLOR[m.tone] : "bg-[rgba(0,0,0,0.18)]")} />
         {index !== null ? String(index).padStart(2, "0") : active ? "Now" : "—"}
-        {done ? " · done" : ""}
+        {m ? ` · ${m.label}` : ""}
       </span>
       <span className={clsx("truncate font-serif text-[15px] leading-tight", active ? "text-white" : muted ? "text-black/50" : "text-black")}>
         {label}
@@ -498,11 +598,13 @@ function OverviewRight({
   sections,
   coverage,
   onPick,
+  progress,
 }: {
   files: ViewerFile[];
   sections: ViewerSection[];
   coverage: { total: number; covered: number };
   onPick: (sectionIndex: number) => void;
+  progress?: React.ReactNode;
 }) {
   const pct = coverage.total === 0 ? 100 : Math.round((coverage.covered / coverage.total) * 100);
   const additions = files.reduce((n, f) => n + f.additions, 0);
@@ -521,6 +623,7 @@ function OverviewRight({
           </div>
         ))}
       </div>
+      {progress}
       <div className="border border-black/15 bg-white">
         <p className="mono-label border-b border-dashed border-line px-4 py-3">Changed files</p>
         <ul>
@@ -612,6 +715,7 @@ function ConversationRight({ comments, loading, prUrl }: { comments: ReviewComme
                   <p className="text-[12px] text-muted">
                     <span className="text-ink">{c.user?.login}</span> · line {c.line ?? c.originalLine}
                     {c.outdated ? " · outdated" : ""} · {timeAgo(c.createdAt)}
+                    {c.isNew ? <span className="tag ml-2 border-blue-bright/40 text-blue-bright">New</span> : null}
                   </p>
                   <p className="mt-1 line-clamp-3 text-[13px] text-text">{c.body}</p>
                 </div>
@@ -624,5 +728,22 @@ function ConversationRight({ comments, loading, prUrl }: { comments: ReviewComme
         </div>
       ))}
     </div>
+  );
+}
+
+function OverviewMark({ mark, progress }: { mark: StepMark | null; progress: SectionProgress }) {
+  if (!mark || mark.tone === "done") return null;
+  const text =
+    progress.kind === "carried"
+      ? `Reviewed in v${progress.version}`
+      : progress.kind === "rereview"
+        ? `Changed since v${progress.version}`
+        : mark.tone === "new"
+          ? "New"
+          : "Changed";
+  return (
+    <span className="tag self-center">
+      <span className={clsx("dot", MARK_COLOR[mark.tone])} /> {text}
+    </span>
   );
 }

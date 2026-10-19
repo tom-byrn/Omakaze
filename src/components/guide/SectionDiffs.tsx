@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import type { FileView } from "@/lib/diff/fileview";
+import type { SectionChange } from "@/lib/guides/carryover";
 import type { SectionRef } from "@/lib/guides/refs";
 import { DiffFile, type DiffFileProps } from "./DiffFile";
 import type { FocusTarget, Thread } from "./types";
@@ -71,6 +72,7 @@ export function SectionDiffs({
   onComment,
   onReply,
   onDelete,
+  newSince,
 }: {
   guideId: string;
   files: { path: string; additions: number; deletions: number }[];
@@ -83,6 +85,8 @@ export function SectionDiffs({
   onComment: DiffFileProps["onComment"];
   onReply: DiffFileProps["onReply"];
   onDelete?: DiffFileProps["onDelete"];
+  /** Lines new since an earlier version are marked (see InterdiffPanel). */
+  newSince?: SectionChange | null;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -103,6 +107,7 @@ export function SectionDiffs({
           onComment={onComment}
           onReply={onReply}
           onDelete={onDelete}
+          newSince={newSince?.files.find((x) => x.path === f.path)?.marks}
         />
       ))}
     </div>

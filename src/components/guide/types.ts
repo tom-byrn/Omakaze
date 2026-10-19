@@ -12,6 +12,8 @@ export type ReviewComment = {
   htmlUrl: string;
   outdated: boolean;
   mine?: boolean;
+  /** Posted by someone else since the viewer's last visit. */
+  isNew?: boolean;
 };
 
 export type Thread = { root: ReviewComment; replies: ReviewComment[] };

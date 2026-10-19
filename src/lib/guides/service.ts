@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, lt, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, isNotNull, lt, max, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   guideSections,
@@ -16,6 +16,7 @@ import type { ParsedFile } from "@/lib/diff/types";
 import { env } from "@/lib/env";
 import { getOrCreateSnapshot, getSnapshot, type PullRow, type Snapshot } from "@/lib/github/pulls";
 import type { RepoContext } from "@/lib/github/connections";
+import { carryReviewMarks } from "./progress";
 import {
   computeCoverage,
   formatRef,
@@ -270,6 +271,11 @@ export async function updateSection(
     })
     .where(eq(guideSections.id, sectionId))
     .returning();
+  // A carried mark says the code was the same as in the version the member reviewed; new refs need a new comparison.
+  if (refs && JSON.stringify(refs) !== JSON.stringify(current.refs)) {
+    await db.delete(sectionReviews).where(and(eq(sectionReviews.sectionId, sectionId), isNotNull(sectionReviews.carriedFromVersion)));
+    await carryReviewMarks(guide, { sectionIds: [sectionId] }).catch((err) => console.error("[guides] carrying review marks failed", err));
+  }
   await db.update(guides).set({ updatedAt: new Date() }).where(eq(guides.id, guide.id));
   return { section, warnings };
 }
@@ -383,17 +389,22 @@ export async function finishGuide(
   // Coverage of the author's own sections, before "Other changes" fills the gaps.
   const sectionCoverage = computeCoverage(files, sections);
   let coverage = sectionCoverage;
+  let otherChangesId: string | null = null;
   if ((opts.autoCover ?? true) && coverage.uncovered.length > 0) {
     const refs = refsForUncovered(coverage.uncovered);
-    await db.insert(guideSections).values({
-      guideId,
-      position: sections.length + 1,
-      title: OTHER_CHANGES_TITLE,
-      body:
-        "Changes that are not part of the sections above. Most are small supporting edits; review them before approving.",
-      refs,
-      generated: true,
-    });
+    const [other] = await db
+      .insert(guideSections)
+      .values({
+        guideId,
+        position: sections.length + 1,
+        title: OTHER_CHANGES_TITLE,
+        body:
+          "Changes that are not part of the sections above. Most are small supporting edits; review them before approving.",
+        refs,
+        generated: true,
+      })
+      .returning({ id: guideSections.id });
+    otherChangesId = other.id;
     coverage = computeCoverage(files, await getSections(guideId));
   }
   const [updated] = await db
@@ -402,6 +413,15 @@ export async function finishGuide(
     .where(eq(guides.id, guideId))
     .returning();
   await appendGuideEvent(guideId, "Guide published");
+  // Members keep their marks on sections whose code did not change since an earlier version. Publishing
+  // again only recreates "Other changes", so only that section is compared again.
+  if (!guide.publishedAt || otherChangesId) {
+    const carried = await carryReviewMarks(updated, guide.publishedAt ? { sectionIds: [otherChangesId!] } : {}).catch((err) => {
+      console.error("[guides] carrying review marks failed", err);
+      return 0;
+    });
+    if (carried > 0) await appendGuideEvent(guideId, `Carried ${carried} review mark${carried === 1 ? "" : "s"} over from earlier versions`);
+  }
   await logActivity({
     workspaceId: guide.workspaceId,
     type: "guide.ready",

@@ -60,7 +60,7 @@ Omakaze is an open-source, self-hostable web app that turns GitHub pull requests
 - **Markdown explanations.** GitHub-flavored markdown with Mermaid diagrams, math, alert blocks, syntax-highlighted code blocks, images, videos and `diff:` links that jump to specific lines of the diff.
 - **Diff view.** Syntax highlighting, context that expands 20 lines at a time, to the enclosing block or to the whole file, an all-files view and optional line wrapping. Moved and copied code is detected and links to where it came from.
 - **Reviews on GitHub.** Line and multi-line comments, replies, deleting your own comments, and approve, request changes or comment. Everything is posted to the pull request.
-- **Review progress.** Mark sections as reviewed and see which other members reviewed them.
+- **Review progress.** Mark sections as reviewed and see which other members reviewed them. When new commits produce a new version, marks carry over to sections whose code did not change, and sections that changed since you reviewed them are flagged with an interdiff of what is new. A banner and markers show what changed and which comments are new since your last visit.
 - **Versions.** Every new guide for a pull request is a new version; older versions stay available. A guide written for an older head commit is marked as outdated.
 - **MCP server.** 17 tools and one prompt over Streamable HTTP at `/api/mcp`. Clients authenticate with OAuth 2.1 (dynamic client registration and PKCE) or an API token.
 - **Optional built-in AI generation.** Anthropic, OpenAI, Google, OpenRouter, local models with Ollama or LM Studio, or any OpenAI-compatible server such as vLLM or LiteLLM. Not needed if you write guides with your own agent over MCP.
