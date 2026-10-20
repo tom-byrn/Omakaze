@@ -19,7 +19,7 @@ export function AutoGenerateSelect({
   return (
     <select
       aria-label="Automatic guides"
-      className="input h-8 w-[170px] text-[13px]"
+      className="input h-8 w-[200px] text-[13px]"
       value={v}
       disabled={pending || disabled}
       onChange={(e) => {

@@ -1,5 +1,6 @@
-import { and, asc, desc, eq, gt, gte, lt, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, isNotNull, lt, max, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { violatesConstraint } from "@/db/errors";
 import {
   guideSections,
   guides,
@@ -16,6 +17,8 @@ import type { ParsedFile } from "@/lib/diff/types";
 import { env } from "@/lib/env";
 import { getOrCreateSnapshot, getSnapshot, type PullRow, type Snapshot } from "@/lib/github/pulls";
 import type { RepoContext } from "@/lib/github/connections";
+import { notifyGuidePublished } from "@/lib/notifications/hooks";
+import { carryReviewMarks } from "./progress";
 import {
   computeCoverage,
   formatRef,
@@ -27,6 +30,7 @@ import {
   type RefProblem,
   type SectionRef,
 } from "./refs";
+import { templateFor } from "./template-store";
 
 export type Guide = typeof guides.$inferSelect;
 export type Section = typeof guideSections.$inferSelect;
@@ -135,6 +139,8 @@ export async function startGuide(input: StartGuideInput): Promise<{ guide: Guide
   const { snapshot, pull } = await getOrCreateSnapshot(input.ctx, input.prNumber, {
     expectedHeadSha: input.expectedHeadSha,
   });
+  // Recorded with the guide, so checks and the editor use the template the guide was written for.
+  const template = await templateFor(input.workspaceId, input.ctx.repo);
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       const guide = await db.transaction(async (tx) => {
@@ -159,6 +165,7 @@ export async function startGuide(input: StartGuideInput): Promise<{ guide: Guide
             createdVia: input.createdVia,
             author: input.author ?? null,
             events: [{ at: new Date().toISOString(), message: "Guide started", level: "info" }],
+            template,
           })
           .returning();
         return row;
@@ -173,9 +180,11 @@ export async function startGuide(input: StartGuideInput): Promise<{ guide: Guide
         guideId: guide.id,
         data: { version: guide.version, via: input.createdVia },
       });
+      await updateGuideCheckFor(guide);
       return { guide, snapshot, pull };
     } catch (err) {
-      if (attempt < 4 && String(err).includes("guides_repo_pr_version_unique")) continue;
+      // Another guide took this version number at the same time: try the next one.
+      if (attempt < 4 && violatesConstraint(err, "guides_repo_pr_version_unique")) continue;
       throw err;
     }
   }
@@ -270,6 +279,11 @@ export async function updateSection(
     })
     .where(eq(guideSections.id, sectionId))
     .returning();
+  // A carried mark says the code was the same as in the version the member reviewed; new refs need a new comparison.
+  if (refs && JSON.stringify(refs) !== JSON.stringify(current.refs)) {
+    await db.delete(sectionReviews).where(and(eq(sectionReviews.sectionId, sectionId), isNotNull(sectionReviews.carriedFromVersion)));
+    await carryReviewMarks(guide, { sectionIds: [sectionId] }).catch((err) => console.error("[guides] carrying review marks failed", err));
+  }
   await db.update(guides).set({ updatedAt: new Date() }).where(eq(guides.id, guide.id));
   return { section, warnings };
 }
@@ -383,25 +397,40 @@ export async function finishGuide(
   // Coverage of the author's own sections, before "Other changes" fills the gaps.
   const sectionCoverage = computeCoverage(files, sections);
   let coverage = sectionCoverage;
+  let otherChangesId: string | null = null;
   if ((opts.autoCover ?? true) && coverage.uncovered.length > 0) {
     const refs = refsForUncovered(coverage.uncovered);
-    await db.insert(guideSections).values({
-      guideId,
-      position: sections.length + 1,
-      title: OTHER_CHANGES_TITLE,
-      body:
-        "Changes that are not part of the sections above. Most are small supporting edits; review them before approving.",
-      refs,
-      generated: true,
-    });
+    const [other] = await db
+      .insert(guideSections)
+      .values({
+        guideId,
+        position: sections.length + 1,
+        title: OTHER_CHANGES_TITLE,
+        body:
+          "Changes that are not part of the sections above. Most are small supporting edits; review them before approving.",
+        refs,
+        generated: true,
+      })
+      .returning({ id: guideSections.id });
+    otherChangesId = other.id;
     coverage = computeCoverage(files, await getSections(guideId));
   }
   const [updated] = await db
     .update(guides)
-    .set({ status: "ready", error: null, publishedAt: new Date() })
+    // Coverage of the author's own sections is kept for insights.
+    .set({ status: "ready", error: null, publishedAt: new Date(), changedLines: sectionCoverage.totalChanged, coveredLines: sectionCoverage.coveredChanged })
     .where(eq(guides.id, guideId))
     .returning();
   await appendGuideEvent(guideId, "Guide published");
+  // Members keep their marks on sections whose code did not change since an earlier version. Publishing
+  // again only recreates "Other changes", so only that section is compared again.
+  if (!guide.publishedAt || otherChangesId) {
+    const carried = await carryReviewMarks(updated, guide.publishedAt ? { sectionIds: [otherChangesId!] } : {}).catch((err) => {
+      console.error("[guides] carrying review marks failed", err);
+      return 0;
+    });
+    if (carried > 0) await appendGuideEvent(guideId, `Carried ${carried} review mark${carried === 1 ? "" : "s"} over from earlier versions`);
+  }
   await logActivity({
     workspaceId: guide.workspaceId,
     type: "guide.ready",
@@ -413,6 +442,8 @@ export async function finishGuide(
     data: { version: guide.version, sections: (await getSections(guideId)).length },
   });
   await afterGuideReady(updated);
+  // Members hear about a version when it is first published.
+  if (!guide.publishedAt) await notifyGuidePublished(updated.id, opts.actorUserId ?? guide.createdByUserId);
   return { guide: updated, coverage, sectionCoverage };
 }
 
@@ -434,6 +465,7 @@ export async function failGuide(guideId: string, error: string): Promise<void> {
     guideId,
     data: { error: error.slice(0, 300) },
   });
+  await updateGuideCheckFor(g);
 }
 
 /** Fail guides that were left in `generating` (see STALE_GUIDE_MINUTES). Returns how many. */
@@ -457,7 +489,8 @@ export async function failStaleGuides(): Promise<number> {
 }
 
 export async function deleteGuide(guideId: string): Promise<void> {
-  await db.delete(guides).where(eq(guides.id, guideId));
+  const [g] = await db.delete(guides).where(eq(guides.id, guideId)).returning({ repositoryId: guides.repositoryId, prNumber: guides.prNumber });
+  if (g) await updateGuideCheckFor(g);
 }
 
 /** One-shot creation used by the MCP `create_guide` tool and the REST API. */
@@ -524,4 +557,12 @@ async function afterGuideReady(guide: Guide): Promise<void> {
     const { enqueueJob } = await import("@/lib/jobs/queue");
     await enqueueJob("post_pr_comment", { guideId: guide.id }, { dedupeKey: `pr-comment:${guide.id}` });
   }
+  await updateGuideCheckFor(guide);
+}
+
+/** Queue an update of the pull request's guide check on GitHub (src/lib/github/guide-check.ts). */
+async function updateGuideCheckFor(guide: { repositoryId: string; prNumber: number }): Promise<void> {
+  // Imported here: the guide check module imports this one.
+  const { requestGuideCheck } = await import("@/lib/github/guide-check");
+  await requestGuideCheck(guide.repositoryId, guide.prNumber);
 }

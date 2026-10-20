@@ -109,7 +109,8 @@ export function serializeRef(ref: SectionRef): RefInput {
 
 export type RefProblem = { ref: string; level: "error" | "warning"; message: string };
 
-function closestPaths(path: string, files: ParsedFile[]): string[] {
+/** Up to three changed paths that look like `path`, for "Did you mean" hints. */
+export function closestPaths(path: string, files: ParsedFile[]): string[] {
   const base = path.split("/").pop() ?? path;
   return files
     .map((f) => f.path)

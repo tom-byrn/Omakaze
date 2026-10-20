@@ -39,6 +39,48 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm build
 
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: omakaze
+          POSTGRES_PASSWORD: omakaze
+          POSTGRES_DB: omakaze
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U omakaze"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The build only needs these to be valid; the tests use the E2E_* settings (see docs/development.md).
+      DATABASE_URL: postgres://omakaze:omakaze@localhost:5432/omakaze
+      APP_SECRET: ci-secret-0123456789abcdef0123456789abcdef
+      APP_URL: http://localhost:3100
+      E2E_DATABASE_URL: postgres://omakaze:omakaze@localhost:5432/omakaze_e2e
+      E2E_SERVER: start
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
   docker:
     runs-on: ubuntu-latest
     needs: check

@@ -1,15 +1,17 @@
 import { eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { jobs, repositories, workspaces } from "@/db/schema";
+import { guides, jobs, repositories, workspaces } from "@/db/schema";
 import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { resolveAiConfig } from "@/lib/ai/config";
 import { generateGuideWithAi } from "@/lib/ai/generate";
 import { AiError } from "@/lib/ai/providers";
 import { autoGenerateCandidates, maybeAutoGenerate } from "@/lib/automation";
 import { getRepoContext } from "@/lib/github/connections";
+import { runGuideCheckJob } from "@/lib/github/guide-check";
 import { syncRepositoryPulls } from "@/lib/github/pulls";
 import { postGuideSummaryComment } from "@/lib/github/summary-comment";
 import { appendGuideEvent, clearSections, failGuide, getGuide, startGuide } from "@/lib/guides/service";
+import { runNotificationJob } from "@/lib/notifications/jobs";
 import type { Job } from "./queue";
 
 /** Errors that should not be retried. */
@@ -59,6 +61,8 @@ async function generateGuide(job: Job) {
     await failGuide(guide.id, "No AI provider is configured. Add one in Settings → AI.");
     return;
   }
+  // Which configuration writes the guide, e.g. a member's ChatGPT plan (shown in insights).
+  await db.update(guides).set({ aiSource: cfg.source }).where(eq(guides.id, guide.id));
   try {
     await generateGuideWithAi(guide, cfg);
   } catch (err) {
@@ -101,6 +105,12 @@ export async function runJob(job: Job): Promise<void> {
       return postGuideSummaryComment(String(job.payload.guideId));
     case "poll_repos":
       return pollRepos();
+    case "update_guide_check":
+      return runGuideCheckJob(job);
+    case "notify_event":
+    case "send_notification_email":
+    case "post_notification_webhook":
+      return runNotificationJob(job);
     default:
       throw new PermanentJobError(`Unknown job type ${job.type}`);
   }

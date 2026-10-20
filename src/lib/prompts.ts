@@ -3,6 +3,11 @@ export function agentPrompt(prUrl: string): string {
   return `Create a guided PR for ${prUrl} using the Omakaze MCP.`;
 }
 
+/** Prompt that asks an agent to answer the review comments on a PR and improve its guide. */
+export function reviewCommentsPrompt(prUrl: string): string {
+  return `Address the review comments on ${prUrl} using the Omakaze MCP.`;
+}
+
 /** Prompt that connects an agent to this instance's MCP server. */
 export function setupPrompt(appUrl: string): string {
   const mcpUrl = `${appUrl}/api/mcp`;

@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import type { FileView } from "@/lib/diff/fileview";
+import type { SectionChange } from "@/lib/guides/carryover";
 import type { SectionRef } from "@/lib/guides/refs";
+import { withShareToken } from "@/lib/share/url";
 import { DiffFile, type DiffFileProps } from "./DiffFile";
 import type { FocusTarget, Thread } from "./types";
 
@@ -29,11 +31,11 @@ function useNearViewport<T extends Element>(eager: boolean) {
 }
 
 function FileLoader(
-  props: Omit<DiffFileProps, "view"> & { guideId: string; path: string; eager: boolean; additions: number; deletions: number },
+  props: Omit<DiffFileProps, "view"> & { guideId: string; path: string; eager: boolean; additions: number; deletions: number; shareToken?: string },
 ) {
   const { ref, near } = useNearViewport<HTMLDivElement>(props.eager || props.focus?.path === props.path);
   const { data, error } = useSWR<FileView>(
-    near ? `/api/guides/${props.guideId}/file?path=${encodeURIComponent(props.path)}` : null,
+    near ? withShareToken(`/api/guides/${props.guideId}/file?path=${encodeURIComponent(props.path)}`, props.shareToken) : null,
     fetcher,
     { revalidateOnFocus: false, revalidateIfStale: false },
   );
@@ -71,6 +73,10 @@ export function SectionDiffs({
   onComment,
   onReply,
   onDelete,
+  newSince,
+  onResolve,
+  showResolved,
+  shareToken,
 }: {
   guideId: string;
   files: { path: string; additions: number; deletions: number }[];
@@ -80,9 +86,16 @@ export function SectionDiffs({
   focus: FocusTarget | null;
   blobBase: string;
   wrap: boolean;
-  onComment: DiffFileProps["onComment"];
-  onReply: DiffFileProps["onReply"];
+  /** Missing in the read-only view, like onReply. */
+  onComment?: DiffFileProps["onComment"];
+  onReply?: DiffFileProps["onReply"];
   onDelete?: DiffFileProps["onDelete"];
+  /** Lines new since an earlier version are marked (see InterdiffPanel). */
+  newSince?: SectionChange | null;
+  onResolve?: DiffFileProps["onResolve"];
+  showResolved?: boolean;
+  /** A share link's token, sent with file requests in the read-only view. */
+  shareToken?: string;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -103,6 +116,10 @@ export function SectionDiffs({
           onComment={onComment}
           onReply={onReply}
           onDelete={onDelete}
+          newSince={newSince?.files.find((x) => x.path === f.path)?.marks}
+          onResolve={onResolve}
+          showResolved={showResolved}
+          shareToken={shareToken}
         />
       ))}
     </div>

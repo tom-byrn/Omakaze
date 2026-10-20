@@ -28,7 +28,7 @@ pnpm test
 pnpm build
 ```
 
-If your change includes a migration, also run `pnpm db:migrate` against a local database.
+If your change includes a migration, also run `pnpm db:migrate` against a local database. For changes to pages or flows, run `pnpm test:e2e` and add or update a spec in `e2e/`; it seeds its own database and needs no GitHub access (see [Demo data and end-to-end tests](docs/development.md#demo-data-and-end-to-end-tests)).
 
 ## Commits
 

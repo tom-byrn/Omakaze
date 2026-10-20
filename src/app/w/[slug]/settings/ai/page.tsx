@@ -8,7 +8,7 @@ import { chatgptConfigFor, chatgptPlansEnabled } from "@/lib/ai/chatgpt";
 import { describeAiConfig, PROVIDERS, resolveAiConfig } from "@/lib/ai/config";
 import { env } from "@/lib/env";
 import { requireWorkspace, roleAtLeast } from "@/lib/workspaces";
-import { listAiModelsAction, saveAiInstructionsAction, saveAiSettingsAction, saveChatgptPlansAction } from "../actions";
+import { listAiModelsAction, saveAiSettingsAction, saveChatgptPlansAction } from "../actions";
 
 export const metadata = { title: "AI provider" };
 
@@ -110,30 +110,16 @@ export default async function AiSettingsPage(props: PageProps<"/w/[slug]/setting
           )}
         </Panel>
       ) : null}
-      {admin ? (
-        <Panel
-          title="Extra instructions"
-          description="Added to every built-in generation in this workspace, whichever provider is in effect."
-        >
-          <ActionForm action={saveAiInstructionsAction.bind(null, slug)} className="flex max-w-[620px] flex-col gap-3">
-            <textarea
-              id="instructions"
-              name="instructions"
-              aria-label="Extra instructions"
-              className="input"
-              rows={4}
-              maxLength={4000}
-              defaultValue={workspace.aiInstructions ?? ""}
-              placeholder="e.g. Always include a section on database migrations. Write in British English."
-            />
-            <div>
-              <SubmitButton pendingText="Saving…">Save instructions</SubmitButton>
-            </div>
-          </ActionForm>
-        </Panel>
-      ) : (
-        <p className="text-[13px] text-muted">Only admins can change the AI provider.</p>
-      )}
+      <Panel
+        title="Writing instructions"
+        description="Instructions and the section outline for every guide are part of the guide template, which the built-in AI follows with whichever provider is in effect, and which agents over MCP receive too."
+        footer={
+          <Link href={`/w/${slug}/settings/template`} className="link text-[13px]">
+            {workspace.aiInstructions || workspace.guideTemplate ? "Edit the guide template" : "Set up a guide template"}
+          </Link>
+        }
+      />
+      {admin ? null : <p className="text-[13px] text-muted">Only admins can change the AI provider.</p>}
     </div>
   );
 }

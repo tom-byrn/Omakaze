@@ -1,6 +1,6 @@
 # REST API
 
-The REST API under `/api/v1` lists pull requests, reads and creates guides, and starts AI generation. It uses the same validation as the [MCP server](mcp.md). The routes are in `src/app/api/v1/`.
+The REST API under `/api/v1` lists pull requests, reads guides (as JSON or Markdown) and creates them, and starts AI generation. It uses the same validation as the [MCP server](mcp.md). The routes are in `src/app/api/v1/`.
 
 ## Authentication
 
@@ -23,21 +23,32 @@ Endpoints that take a `pr` accept a pull request URL (`https://github.com/acme/w
 | Method and path | Purpose |
 | --- | --- |
 | `GET /api/v1/pulls` | List pull requests with the status of their latest guide |
-| `GET /api/v1/guides` | Read a guide |
+| `GET /api/v1/guides` | Read a guide, as JSON or as a Markdown file |
 | `POST /api/v1/guides` | Create and publish a complete guide |
 | `POST /api/v1/generate` | Start AI generation for a pull request |
 
 ### GET /api/v1/pulls
 
-Lists up to 500 pull requests from the workspace's followed repositories, most recently updated first.
+Lists up to 500 pull requests from the workspace's followed repositories, most recently updated first. The limit applies after `state`, `repo` and `filter`.
 
 | Query parameter | Description |
 | --- | --- |
 | `state` | `open` (default), `closed` (closed without merging), `merged` or `all` |
-| `repo` | Optional. `owner/name` of a followed repository (case does not matter); 404 if the workspace does not follow it. The filter is applied to the 500 most recently updated pull requests of the workspace. |
+| `repo` | Optional. `owner/name` of a followed repository (case does not matter); 404 if the workspace does not follow it. |
+| `filter` | Optional. `all` (default), `needs-review`, `mine` or `assigned`, for the user the token belongs to (see below). Other values return 400. |
+
+The filters match the token user's linked GitHub account (the **Account** page) against the requested reviewers, author and assignees GitHub reports:
+
+| `filter` | Pull requests |
+| --- | --- |
+| `needs-review` | Open pull requests where the user's review is requested, or whose latest published guide has sections the user hasn't marked as reviewed, unless the user opened the pull request. A pending request counts even when every section is marked, because the review on GitHub is still missing. |
+| `mine` | Opened by the user |
+| `assigned` | Assigned to the user |
+
+Requests to a team are listed in `requested_teams` but are not matched to the team's members. Without a linked GitHub account, `mine` and `assigned` are empty and `needs-review` only contains pull requests with unreviewed guide sections, including the user's own.
 
 ```sh
-curl -sS "$OMAKAZE_URL/api/v1/pulls?state=open&repo=acme/web" \
+curl -sS "$OMAKAZE_URL/api/v1/pulls?filter=needs-review&repo=acme/web" \
   -H "Authorization: Bearer $OMAKAZE_TOKEN"
 ```
 
@@ -53,13 +64,19 @@ curl -sS "$OMAKAZE_URL/api/v1/pulls?state=open&repo=acme/web" \
       "author": "octocat",
       "url": "https://github.com/acme/web/pull/412",
       "updated_at": "2026-10-17T09:12:44.000Z",
-      "guide": { "version": 2, "status": "ready", "head_sha": "9f2c1e0b..." }
+      "guide": { "version": 2, "status": "ready", "head_sha": "9f2c1e0b..." },
+      "requested_reviewers": ["hubot"],
+      "requested_teams": ["Frontend"],
+      "assignees": ["octocat"],
+      "review_progress": { "version": 2, "sections": 6, "reviewed": 2 }
     }
   ]
 }
 ```
 
-`guide` is `null` when the pull request has no guide. Guide statuses are `draft`, `generating`, `ready` and `failed`.
+- `guide` is `null` when the pull request has no guide. Guide statuses are `draft`, `generating`, `ready` and `failed`.
+- `requested_reviewers` and `assignees` are GitHub logins; `requested_teams` are team names. GitHub removes a reviewer from `requested_reviewers` once they submit a review.
+- `review_progress` is the token user's progress on the latest published guide: its `version`, its number of `sections` (including "Other changes") and how many of them the user marked as `reviewed`. It is `null` when the pull request has no published guide.
 
 The list comes from Omakaze's cache of GitHub data. The cache is refreshed by webhooks, by polling (for repositories with automatic guides) and when members open the workspace in the browser, so recent pull requests can be missing if none of these has run.
 
@@ -71,6 +88,8 @@ Reads the latest guide of a pull request, or a specific version.
 | --- | --- |
 | `pr` | Required. Pull request URL or `owner/repo%23number` |
 | `version` | Optional. A positive integer; without it, the latest version is returned. 400 if it is not a positive integer, 404 if the version does not exist. |
+| `format` | Optional. `json` (default) or `md` for the [Markdown export](#markdown-export) |
+| `embed_images` | Optional, with `format=md`. `true` embeds the workspace's uploaded images in the file as `data:` URLs |
 
 ```sh
 curl -sS "$OMAKAZE_URL/api/v1/guides?pr=https://github.com/acme/web/pull/412" \
@@ -116,6 +135,31 @@ curl -sS "$OMAKAZE_URL/api/v1/guides?pr=https://github.com/acme/web/pull/412" \
 - `url` opens the guide in Omakaze; it requires signing in as a member of the workspace.
 
 Returns 404 when the pull request has no guide or the requested version does not exist.
+
+#### Markdown export
+
+With `format=md`, the response is the guide as one Markdown file (`Content-Type: text/markdown`, with a `Content-Disposition` file name such as `acme-web-pr412-v2.md`). It is the same file as **Export → Markdown** in the guide viewer.
+
+```sh
+curl -sS -OJ "$OMAKAZE_URL/api/v1/guides?pr=acme/web%23412&version=2&format=md" \
+  -H "Authorization: Bearer $OMAKAZE_TOKEN"
+```
+
+The file contains, in this order:
+
+- the title, the pull request, its author and branches, the head commit, the guide version, who wrote it, the [guide template](ai.md#guide-templates) and missing required sections, and the guide's URL in Omakaze;
+- a list of contents with links to the headings, and a note when the pull request has newer commits than the guide;
+- the summary under **Overview**;
+- each section: its explanation, then under **Diff** each file it references, with its status and a link to the file on GitHub, the ref captions, and the lines it selects as a `diff` code block with `---`/`+++` file headers. Hunk refs give whole hunks; line ranges give the selected lines with up to three unchanged lines around them, under a `@@` header recomputed for that part of the hunk. Context expansion (`expand`) is not applied, and line ranges outside the diff are named instead of shown;
+- **Coverage**: how many changed lines the sections cover, how many only the automatic "Other changes" section covers, and any that no section covers.
+
+Markdown in the summary and the sections is copied as written, including Mermaid diagrams and math, with these changes so that it reads the same outside Omakaze:
+
+- headings move down so they sit below the section headings (a `#` heading becomes `###`);
+- relative URLs of links and images become absolute, resolved against the guide's URL as in the browser. Uploaded files keep their URLs under `/api/assets/`, which require signing in as a member; with `embed_images=true`, uploaded images of the workspace (up to 25 MB in total) are embedded instead. Videos and PDFs stay links;
+- `diff:` links point to the lines on GitHub at the guide's head commit, or at the merge base for `old:` lines.
+
+To get a PDF, open the guide's print layout in a browser (**Export → PDF (print)**, at `/w/<workspace>/<owner>/<repo>/pull/<number>/print?v=<version>`) and choose **Save as PDF** in the print dialog. The API has no PDF format.
 
 ### POST /api/v1/guides
 
@@ -181,11 +225,18 @@ Response, `201 Created`:
       "level": "warning",
       "message": "Line range does not overlap any changed lines; it will be shown as unchanged context."
     }
-  ]
+  ],
+  "template": {
+    "name": "Feature",
+    "source": "workspace",
+    "missing_required": ["Tests"]
+  }
 }
 ```
 
 `coverage` describes the sections you sent, before the automatic section is added. Each entry of `uncovered` has `path`, `hunk`, `start`, `end`, `side` (`new` or `old`), `changedLines` and `wholeHunk`. `added_to_other_changes` is `true` when uncovered changes were put into the automatic "Other changes" section, and `false` when everything was covered or `auto_cover` was `false`.
+
+`template` describes the [guide template](ai.md#guide-templates) the guide was written for: its `name`, `source` (`workspace`, or `repository` when the repository has its own outline) and `missing_required`, the titles of required sections that no section with a body or refs matches. Like coverage, missing sections do not fail the request. `template` is `null` when there is no outline.
 
 ### POST /api/v1/generate
 
@@ -225,7 +276,7 @@ Errors are JSON objects with an `error` message:
 
 | Status | Cause |
 | --- | --- |
-| 400 | The body is not valid JSON (`The request body must be valid JSON.`), the body or query does not match the expected fields, `version` is not a positive integer, or `pr` is not a pull request reference |
+| 400 | The body is not valid JSON (`The request body must be valid JSON.`), the body or query does not match the expected fields, `version` is not a positive integer, `filter` is not one of the listed values, `format` is not `json` or `md`, or `pr` is not a pull request reference |
 | 401 | Missing, invalid, expired or revoked token, or a browser session instead of a token (`Use an API token: Authorization: Bearer <token>`) |
 | 404 | The repository is not followed and the token's user cannot add it, no GitHub connection can access it, the `repo` filter names a repository that is not followed, the pull request has no guide, or the requested version does not exist |
 | 409 | `POST /api/v1/guides`: `head_sha` does not match the pull request's current head. `POST /api/v1/generate`: no AI provider is configured for the workspace, or the latest guide of the pull request is still being generated. Any request that reads from GitHub: the repository has no usable GitHub connection, for example because the connection was removed or suspended, or its linked account has to sign in again. |
@@ -268,4 +319,4 @@ Notes:
 
 ## Other routes
 
-The web interface uses further routes under `/api` (for example `/api/guides/<id>/comments`, `/api/guides/<id>/file` and `/api/w/<slug>/sync`). They are internal and can change without notice. `/api/health` is described in [self-hosting.md](self-hosting.md#health-check).
+The web interface uses further routes under `/api` (for example `/api/guides/<id>/comments`, `/api/guides/<id>/file`, `/api/guides/<id>/export` and `/api/w/<slug>/sync`). They are internal and can change without notice. `/api/health` is described in [self-hosting.md](self-hosting.md#health-check).

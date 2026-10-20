@@ -1,8 +1,17 @@
 import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { violatesConstraint } from "@/db/errors";
 import { jobs } from "@/db/schema";
 
-export type JobType = "generate_guide" | "post_pr_comment" | "poll_repos";
+export type JobType =
+  | "generate_guide"
+  | "post_pr_comment"
+  | "poll_repos"
+  | "update_guide_check"
+  // Notifications (src/lib/notifications/jobs.ts)
+  | "notify_event"
+  | "send_notification_email"
+  | "post_notification_webhook";
 export type Job = typeof jobs.$inferSelect;
 
 export async function enqueueJob(
@@ -28,9 +37,14 @@ export async function enqueueJob(
       .returning();
     return job;
   } catch (err) {
-    if (String(err).includes("jobs_dedupe_active_unique")) return null;
+    if (isDedupeConflict(err)) return null;
     throw err;
   }
+}
+
+/** A queued or running job has the key. */
+export function isDedupeConflict(err: unknown): boolean {
+  return violatesConstraint(err, "jobs_dedupe_active_unique");
 }
 
 /** Atomically claim the next runnable job (SKIP LOCKED makes multiple workers safe). */

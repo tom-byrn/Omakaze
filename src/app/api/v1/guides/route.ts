@@ -1,17 +1,23 @@
 import { z } from "zod";
 import { apiPrincipal, resolvePullForApi, workspaceOf } from "@/lib/api-v1";
 import { errorResponse, HttpError, readJson } from "@/lib/http";
+import { flag, guideMarkdownResponse } from "@/lib/guides/export-data";
 import { serializeRef, type RefInput } from "@/lib/guides/refs";
 import { createCompleteGuide, getGuide, getSections, guideUrl, GuideError, listGuideVersions } from "@/lib/guides/service";
 import { StaleHeadError } from "@/lib/github/pulls";
+import { missingRequiredSections } from "@/lib/guides/template-store";
 
-/** GET /api/v1/guides?pr=<url>&version=<n> — read a guide. */
+/** GET /api/v1/guides?pr=<url>&version=<n>[&format=md] — read a guide, as JSON or as a Markdown file. */
 export async function GET(req: Request) {
   try {
     const p = await apiPrincipal(req);
     const url = new URL(req.url);
     const pr = url.searchParams.get("pr");
     if (!pr) throw new HttpError(400, "pr is required");
+    const format = url.searchParams.get("format") ?? "json";
+    if (format !== "json" && format !== "md") throw new HttpError(400, "format must be json or md");
+    const embedImages = url.searchParams.get("embed_images");
+    if (embedImages !== null && !["true", "false", "1", "0"].includes(embedImages)) throw new HttpError(400, "embed_images must be true or false");
     const { ctx, number } = await resolvePullForApi(p, pr);
     const versions = await listGuideVersions(ctx.repo.id, number);
     const versionParam = url.searchParams.get("version");
@@ -25,6 +31,7 @@ export async function GET(req: Request) {
     if (!meta) throw new HttpError(404, "No guide for this pull request");
     const guide = (await getGuide(meta.id))!;
     const ws = await workspaceOf(p.workspaceId);
+    if (format === "md") return await guideMarkdownResponse(guide, ctx.repo, ws.slug, { embedImages: flag(embedImages) });
     const sections = await getSections(guide.id);
     return Response.json({
       id: guide.id,
@@ -86,6 +93,10 @@ export async function POST(req: Request) {
         autoCover: body.auto_cover,
       });
       const ws = await workspaceOf(p.workspaceId);
+      // Like coverage, a missing required section is reported but does not fail the request.
+      const template = guide.template?.sections.length
+        ? { name: guide.template.name, source: guide.template.source, missing_required: (await missingRequiredSections(guide)).map((s) => s.title) }
+        : null;
       return Response.json(
         {
           id: guide.id,
@@ -99,6 +110,7 @@ export async function POST(req: Request) {
             added_to_other_changes: sectionCoverage.uncovered.length > 0 && coverage.uncovered.length === 0,
           },
           warnings,
+          template,
         },
         { status: 201 },
       );

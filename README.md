@@ -28,7 +28,7 @@
 </p>
 
 <p align="center">
-  <a href="docs/mcp.md"><img src="https://img.shields.io/badge/MCP-17_tools-25fff9?style=flat-square&logo=modelcontextprotocol&logoColor=white&labelColor=141518" alt="MCP: 17 tools"></a>
+  <a href="docs/mcp.md"><img src="https://img.shields.io/badge/MCP-22_tools-25fff9?style=flat-square&logo=modelcontextprotocol&logoColor=white&labelColor=141518" alt="MCP: 22 tools"></a>
   <a href="docs/development.md"><img src="https://img.shields.io/badge/Next.js-16-141518?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
   <a href="docs/development.md"><img src="https://img.shields.io/badge/React-19-141518?style=flat-square&logo=react&logoColor=61dafb" alt="React 19"></a>
   <a href="docs/development.md"><img src="https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"></a>
@@ -60,11 +60,20 @@ Omakaze is an open-source, self-hostable web app that turns GitHub pull requests
 - **Markdown explanations.** GitHub-flavored markdown with Mermaid diagrams, math, alert blocks, syntax-highlighted code blocks, images, videos and `diff:` links that jump to specific lines of the diff.
 - **Diff view.** Syntax highlighting, context that expands 20 lines at a time, to the enclosing block or to the whole file, an all-files view and optional line wrapping. Moved and copied code is detected and links to where it came from.
 - **Reviews on GitHub.** Line and multi-line comments, replies, deleting your own comments, and approve, request changes or comment. Everything is posted to the pull request.
-- **Review progress.** Mark sections as reviewed and see which other members reviewed them.
+- **Suggested changes and conversations.** Insert a suggestion with the selected lines, edit it and see the change before posting; suggestions from GitHub show as small diffs. Resolve and unresolve conversations; resolved ones are collapsed until you show them.
+- **Review progress.** Mark sections as reviewed and see which other members reviewed them. When new commits produce a new version, marks carry over to sections whose code did not change, and sections that changed since you reviewed them are flagged with an interdiff of what is new. A banner and markers show what changed and which comments are new since your last visit.
+- **Guide templates.** An ordered outline of sections, required or optional, with guidance and writing instructions, set per workspace and overridden per repository. Starters for features, bug fixes and migrations. The built-in AI, MCP agents, the REST API and the editor follow it, and members see which required sections a guide is missing.
+- **Needs my review.** The pull request list filters by what needs your review (your review is requested on GitHub, or a published guide has sections you haven't reviewed), pull requests you opened and ones assigned to you. Each row shows the requested reviewers and how many sections you reviewed.
+- **Guide check on GitHub.** A check run or commit status on the pull request shows how many sections are reviewed and links to the guide. It can be informational, or required: it passes only when every section is reviewed by enough members, so it can block merging as a required status check.
+- **Export.** Download a guide as one Markdown file with each section's explanation and diff, or print it (or save it as a PDF) in a layout made for paper: a cover with the metadata, a page per section, highlighted diffs with line numbers and rendered diagrams.
+- **Insights.** Guides created by source, review speed, completion and the sections reviewers skip, coverage, template compliance, the most discussed sections and files, and per-member numbers, over 7, 30 or 90 days and per repository. Every panel downloads as CSV.
 - **Versions.** Every new guide for a pull request is a new version; older versions stay available. A guide written for an older head commit is marked as outdated.
-- **MCP server.** 17 tools and one prompt over Streamable HTTP at `/api/mcp`. Clients authenticate with OAuth 2.1 (dynamic client registration and PKCE) or an API token.
+- **Read-only share links.** Share one version of a guide, or always the latest version of a pull request, with people outside the workspace. They read the guide and its diffs without signing in; comments from GitHub are included only if you choose. Links expire after 1, 7 or 30 days or never, can be revoked, and are listed in **Settings → Share links**. Workspaces choose who can create them, and an instance can turn them off.
+- **Notifications.** Email when a guide is ready for your review, when a guide you reviewed has a new version (with the sections you reviewed that changed), and about replies and comments on your pull requests, from Omakaze and GitHub. Events close together become one email; each member picks what they get, mutes workspaces and can unsubscribe in one click. Workspaces can post published guides, new versions and completed reviews to Slack or a signed JSON webhook.
+- **MCP server.** 22 tools and two prompts over Streamable HTTP at `/api/mcp`. Clients authenticate with OAuth 2.1 (dynamic client registration and PKCE) or an API token.
+- **Reviews by agents.** Over MCP, an agent can read the review conversations, reply in them, comment on lines with suggested changes, resolve conversations and submit reviews, as the member whose token it uses. Approvals by agents are off unless an admin allows them.
 - **Optional built-in AI generation.** Anthropic, OpenAI, Google, OpenRouter, local models with Ollama or LM Studio, or any OpenAI-compatible server such as vLLM or LiteLLM. Not needed if you write guides with your own agent over MCP.
-- **REST API.** List pull requests, read and create guides, and start AI generation.
+- **REST API.** List pull requests (all of them, or the ones that need the token user's review), read guides (as JSON or Markdown) and create them, and start AI generation.
 - **Automation.** Generate a guide when a pull request opens, create a new version when commits are pushed, skip drafts, and post a summary comment on the pull request.
 - **Workspaces.** Members with owner, admin and member roles, invite links (optionally limited to one confirmed email address) and an activity log.
 - **GitHub access.** A GitHub App installation (the app can be created from the admin page in one step), a personal access token, or a member's linked GitHub account. GitHub Enterprise Server is supported.
@@ -145,6 +154,12 @@ For each pull request, give the agent this prompt:
 
 ```text
 Create a guided PR for <PR URL> using the Omakaze MCP.
+```
+
+To have it answer the review comments, improve the guide where it was unclear and resolve the conversations it answered:
+
+```text
+Address the review comments on <PR URL> using the Omakaze MCP.
 ```
 
 **Settings → API tokens & MCP** also shows a setup prompt that asks an agent to add the server itself. The tools, reference syntax and authentication details are in [docs/mcp.md](docs/mcp.md).

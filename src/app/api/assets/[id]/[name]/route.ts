@@ -1,18 +1,26 @@
 import { getPrincipal } from "@/lib/guides/access";
 import { errorResponse, HttpError } from "@/lib/http";
+import { assertSharedAsset, SHARE_RESPONSE_HEADERS, shareTokenOf } from "@/lib/share/access";
 import { getAsset, readAssetData } from "@/lib/storage/assets";
 import { getMembership } from "@/lib/workspaces";
 
-/** Serve an uploaded image or video to workspace members (with Range support for video seeking). */
+/**
+ * Serve an uploaded image or video to workspace members, or through a share link to a guide that
+ * shows it (with Range support for video seeking).
+ */
 export async function GET(req: Request, ctx: RouteContext<"/api/assets/[id]/[name]">) {
   try {
     const { id } = await ctx.params;
-    const principal = await getPrincipal(req);
-    if (!principal) throw new HttpError(401, "Sign in to view this file");
+    const shareToken = shareTokenOf(req);
+    const principal = shareToken === null ? await getPrincipal(req) : null;
+    if (shareToken === null && !principal) throw new HttpError(401, "Sign in to view this file");
     const asset = await getAsset(id);
     if (!asset) throw new HttpError(404, "Not found");
-    if (principal.tokenWorkspaceId && principal.tokenWorkspaceId !== asset.workspaceId) throw new HttpError(404, "Not found");
-    if (!(await getMembership(asset.workspaceId, principal.user.id))) throw new HttpError(404, "Not found");
+    if (shareToken !== null) await assertSharedAsset(req, shareToken, asset);
+    else if (principal) {
+      if (principal.tokenWorkspaceId && principal.tokenWorkspaceId !== asset.workspaceId) throw new HttpError(404, "Not found");
+      if (!(await getMembership(asset.workspaceId, principal.user.id))) throw new HttpError(404, "Not found");
+    }
     const data = await readAssetData(asset);
     const headers: Record<string, string> = {
       "Content-Type": asset.contentType,
@@ -20,6 +28,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/assets/[id]/[nam
       "Cache-Control": "private, max-age=31536000, immutable",
       "X-Content-Type-Options": "nosniff",
       "Content-Disposition": `inline; filename="${asset.filename}"`,
+      ...(shareToken !== null ? SHARE_RESPONSE_HEADERS : {}),
     };
     if (asset.contentType === "image/svg+xml") headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
     const range = req.headers.get("range");

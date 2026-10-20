@@ -38,6 +38,11 @@ export type JsonRequest<T> = {
   jsonSchema: Record<string, unknown>;
   schemaName: string;
   maxTokens?: number;
+  /**
+   * Soft check of a valid answer, e.g. required template sections. A message repeats the request once
+   * with it appended; the second answer is used either way, or the first if the second is invalid.
+   */
+  check?: (value: T) => string | null;
 };
 
 const ANTHROPIC_DEFAULT_URL = "https://api.anthropic.com";
@@ -236,17 +241,34 @@ async function requestJson<T>(cfg: AiConfig, req: JsonRequest<T>): Promise<strin
   }
 }
 
-/** Ask the model for JSON matching `schema`. Retries once with the validation error on bad output. */
+/**
+ * Ask the model for JSON matching `schema`. Retries once with the validation error on bad output, or
+ * with the message from `check`; a repeat that goes wrong falls back to the checked answer.
+ */
 export async function generateJson<T>(cfg: AiConfig, req: JsonRequest<T>): Promise<T> {
   let user = req.user;
+  let fallback: { value: T } | null = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
-    const raw = await requestJson(cfg, { ...req, user });
+    let raw: string;
     try {
-      return validate(extractJson(raw), req.schema);
+      raw = await requestJson(cfg, { ...req, user });
     } catch (err) {
+      if (fallback) return fallback.value;
+      throw err;
+    }
+    let value: T;
+    try {
+      value = validate(extractJson(raw), req.schema);
+    } catch (err) {
+      if (fallback) return fallback.value;
       if (attempt === 2 || !(err instanceof AiError)) throw err;
       user = `${req.user}\n\nYour previous answer could not be used: ${err.message}\nReturn only a JSON object matching the schema.`;
+      continue;
     }
+    const problem = attempt === 1 ? (req.check?.(value) ?? null) : null;
+    if (!problem) return value;
+    fallback = { value };
+    user = `${req.user}\n\n${problem}\nReturn the complete JSON object again.`;
   }
   throw new AiError("Unreachable");
 }

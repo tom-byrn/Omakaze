@@ -3,23 +3,31 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DiffStat, PrStateTag, prStateOf } from "@/components/app/Badges";
 import { GenerateButton } from "@/components/app/GenerateButton";
+import { ExportMenu } from "@/components/guide/ExportMenu";
+import { GuideCheckStatus } from "@/components/guide/GuideCheckStatus";
 import { GuideViewer } from "@/components/guide/GuideViewer";
 import { VersionSelect } from "@/components/guide/VersionSelect";
 import { WatchLatestGuide } from "@/components/guide/WatchLatestGuide";
 import { NoGuide } from "@/components/guide/NoGuide";
+import { TemplateGapsNotice } from "@/components/guide/TemplateChecklist";
 import { Markdown } from "@/components/markdown/Markdown";
+import { ShareDialog } from "@/components/share/ShareDialog";
 import { Avatar } from "@/components/ui/Avatar";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { getGitHubAccount } from "@/lib/auth/users";
 import { shortSha, timeAgo } from "@/lib/format";
 import { findWorkspaceRepo, getRepoContext } from "@/lib/github/connections";
+import { getGuideCheckView } from "@/lib/github/guide-check";
 import { getCachedPull, pullNeedsRefresh, syncPull } from "@/lib/github/pulls";
 import { listGuideVersions, getGuide } from "@/lib/guides/service";
+import { missingRequiredSections } from "@/lib/guides/template-store";
 import { loadGuideData } from "@/lib/guides/view";
 import { agentPrompt } from "@/lib/prompts";
 import { requireWorkspace } from "@/lib/workspaces";
 import { startManualGuideAction } from "./edit/actions";
+import { createShareLinkAction } from "@/app/w/[slug]/share-actions";
+import { shareDialogData } from "@/app/w/[slug]/share-rows";
 
 export async function generateMetadata(props: PageProps<"/w/[slug]/[owner]/[repo]/pull/[number]">) {
   const { owner, repo, number } = await props.params;
@@ -29,7 +37,7 @@ export async function generateMetadata(props: PageProps<"/w/[slug]/[owner]/[repo
 export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo]/pull/[number]">) {
   const { slug, owner, repo: repoName, number } = await props.params;
   const sp = await props.searchParams;
-  const { workspace, user } = await requireWorkspace(slug);
+  const { workspace, user, role } = await requireWorkspace(slug);
   const repo = await findWorkspaceRepo(workspace.id, owner, repoName);
   const prNumber = Number(number);
   if (!repo || !Number.isInteger(prNumber) || prNumber < 1) notFound();
@@ -52,6 +60,12 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
   const prompt = agentPrompt(pull.htmlUrl);
   const outdated = guide && guide.headSha !== pull.headSha;
   const sectionParam = typeof sp.section === "string" ? sp.section : null;
+  // Required sections of the guide's template that it lacks. This page is only served to members.
+  const template = guide?.template?.sections.length && guide.status !== "generating" ? guide.template : null;
+  const templateGaps = template ? await missingRequiredSections(guide!) : [];
+  const check = await getGuideCheckView(repo.id, pull.number);
+  // Read-only share links (src/lib/share), when the instance and the workspace allow them.
+  const share = guide ? await shareDialogData(slug, workspace, { userId: user.id, role }, { repositoryId: repo.id, prNumber }) : null;
 
   const bar = (
     <div className="border-b border-solid border-black/15 bg-paper">
@@ -78,15 +92,36 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
             <DiffStat additions={pull.additions} deletions={pull.deletions} />
             {pull.changedFiles !== null ? <span>{pull.changedFiles} files</span> : null}
             <span>updated {timeAgo(pull.githubUpdatedAt)}</span>
+            {pull.state === "open" && check.mode !== "off" ? (
+              <GuideCheckStatus slug={slug} repositoryId={repo.id} prNumber={pull.number} headSha={pull.headSha} pullUrl={pull.htmlUrl} initial={check} />
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {versions.length > 0 ? <VersionSelect versions={versions.map((v) => ({ version: v.version, status: v.status, headSha: shortSha(v.headSha) }))} current={selectedMeta?.version ?? null} /> : null}
           <CopyButton text={prompt} label="Copy agent prompt" className="btn btn-secondary btn-sm" />
+          {guide && share ? (
+            <ShareDialog
+              slug={slug}
+              version={guide.version}
+              versionReady={guide.status === "ready"}
+              prNumber={pull.number}
+              createAction={createShareLinkAction.bind(null, slug, guide.id)}
+              cannotCreate={share.cannotCreate}
+              links={share.links}
+            />
+          ) : null}
           {guide ? (
             <Link href={`/w/${slug}/${repo.fullName}/pull/${pull.number}/edit?v=${guide.version}`} className="btn btn-ghost btn-sm">
               Edit
             </Link>
+          ) : null}
+          {guide ? (
+            <ExportMenu
+              version={guide.version}
+              markdownHref={`/api/guides/${guide.id}/export?format=md`}
+              printHref={`/w/${slug}/${repo.fullName}/pull/${pull.number}/print?v=${guide.version}&autoprint=1`}
+            />
           ) : null}
           {guide ? (
             <GenerateButton
@@ -127,6 +162,9 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
           This guide covers {shortSha(guide!.headSha)}. The pull request now points to {shortSha(pull.headSha)}.
           <span className="text-body">Regenerate, or ask your agent to update it.</span>
         </div>
+      ) : null}
+      {template ? (
+        <TemplateGapsNotice template={template} missing={templateGaps} editHref={`/w/${slug}/${repo.fullName}/pull/${pull.number}/edit?v=${guide!.version}`} />
       ) : null}
     </div>
   );
@@ -193,7 +231,12 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
           additions: s.stats.additions,
           deletions: s.stats.deletions,
           reviewedBy: s.reviewedBy,
+          carriedFrom: s.carriedFrom,
+          reviewChange: s.reviewChange,
+          visitChange: s.visitChange,
         }))}
+        lastVisitAt={data.lastVisitAt?.toISOString() ?? null}
+        sinceVisit={data.sinceVisit ? { ...data.sinceVisit, at: data.sinceVisit.at.toISOString() } : null}
         files={data.files.map((f) => ({
           path: f.path,
           status: f.status,

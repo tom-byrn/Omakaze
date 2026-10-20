@@ -2,6 +2,7 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import { GitHubError } from "@/lib/github/client";
 import { getRepoContext } from "@/lib/github/connections";
+import { clearReviewRequest, githubLoginOf } from "@/lib/github/people";
 import { postIssueComment, submitReview } from "@/lib/github/review";
 import { requireGuideAccess } from "@/lib/guides/access";
 import { guidePath } from "@/lib/guides/service";
@@ -37,6 +38,9 @@ export async function POST(req: Request, ctx: RouteContext<"/api/guides/[id]/rev
         return Response.json({ ok: true, htmlUrl: c.html_url });
       }
       const r = await submitReview(rc, guide.prNumber, author, { event, body, commitSha: guide.headSha }, meta);
+      // GitHub drops the reviewer's pending request once they review; mirror that in the cache.
+      const login = r.postedAs === "user" ? await githubLoginOf(principal.user.id) : null;
+      if (login) await clearReviewRequest(guide.repositoryId, guide.prNumber, login);
       return Response.json({ ok: true, htmlUrl: r.html_url, state: r.state, postedAs: r.postedAs });
     } catch (err) {
       if (err instanceof GitHubError) throw new HttpError(err.status === 403 ? 403 : 502, err.message);

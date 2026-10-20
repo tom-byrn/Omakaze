@@ -164,12 +164,14 @@ export async function getInstallation(installationId: number): Promise<GhInstall
 }
 
 /**
- * Permissions the app has on GitHub and where to change them, or null when GitHub can't be asked.
- * Used to point out permissions that older apps were created without.
+ * Permissions and events the app has on GitHub and where to change them, or null when GitHub
+ * can't be asked. Used to point out permissions and events that older apps were created without.
  */
-export async function getAppGrant(app: GitHubAppConfig): Promise<{ permissions: Record<string, string>; settingsUrl: string } | null> {
+export async function getAppGrant(
+  app: GitHubAppConfig,
+): Promise<{ permissions: Record<string, string>; events: string[] | null; settingsUrl: string } | null> {
   try {
-    const info = await gh<{ slug: string; permissions: Record<string, string>; owner?: { login: string; type: string } }>(
+    const info = await gh<{ slug: string; permissions: Record<string, string>; events?: string[]; owner?: { login: string; type: string } }>(
       appJwt(app),
       "/app",
     );
@@ -178,16 +180,27 @@ export async function getAppGrant(app: GitHubAppConfig): Promise<{ permissions: 
       info.owner?.type === "Organization"
         ? `${base}/organizations/${info.owner.login}/settings/apps/${info.slug}/permissions`
         : `${base}/settings/apps/${info.slug}/permissions`;
-    return { permissions: info.permissions ?? {}, settingsUrl };
+    return { permissions: info.permissions ?? {}, events: info.events ?? null, settingsUrl };
   } catch {
     return null;
   }
+}
+
+/** Repository permissions the guide check needs that an app created before they were added lacks. */
+export function missingGuideCheckPermissions(permissions: Record<string, string>): string[] {
+  const missing: string[] = [];
+  if (permissions.checks !== "write") missing.push("Checks");
+  if (permissions.statuses !== "write") missing.push("Commit statuses");
+  return missing;
 }
 
 export function installUrl(app: GitHubAppConfig, state: string): string {
   const base = app.htmlUrl ?? `${env().GITHUB_URL}/apps/${app.slug}`;
   return `${base}/installations/new?state=${encodeURIComponent(state)}`;
 }
+
+/** Webhook events the app subscribes to. Apps created before an event was added lack it (see /admin). */
+export const APP_EVENTS = ["pull_request", "pull_request_review", "pull_request_review_comment", "pull_request_review_thread"];
 
 /** Manifest used by the setup page to create a GitHub App in one step. */
 export function buildAppManifest(name: string) {
@@ -208,9 +221,13 @@ export function buildAppManifest(name: string) {
       metadata: "read",
       pull_requests: "write",
       issues: "write",
+      // The guide check: a check run for installations, and commit statuses for linked accounts
+      // whose user token comes from this app.
+      checks: "write",
+      statuses: "write",
       // Lets "Sign in with GitHub" read the user's verified email address.
       email_addresses: "read",
     },
-    default_events: ["pull_request", "pull_request_review", "pull_request_review_comment"],
+    default_events: [...APP_EVENTS],
   };
 }

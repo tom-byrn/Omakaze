@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const SECTIONS = ["repos", "activity", "settings"] as const;
+const SECTIONS = ["repos", "activity", "insights", "settings"] as const;
 
 export function NavLinks({ slug }: { slug: string }) {
   const pathname = usePathname();
@@ -14,6 +14,7 @@ export function NavLinks({ slug }: { slug: string }) {
     { key: "pulls", href: base, label: "Pull requests" },
     { key: "repos", href: `${base}/repos`, label: "Repositories" },
     { key: "activity", href: `${base}/activity`, label: "Activity" },
+    { key: "insights", href: `${base}/insights`, label: "Insights" },
     { key: "settings", href: `${base}/settings`, label: "Settings" },
   ];
   return (

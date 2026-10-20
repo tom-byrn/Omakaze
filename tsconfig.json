@@ -20,5 +20,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
-  "exclude": ["node_modules", "examples", "demo"]
+  "exclude": ["node_modules", "examples", "demo", "scripts/demo-data/repo"]
 }

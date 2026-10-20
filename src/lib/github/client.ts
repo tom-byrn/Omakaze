@@ -225,6 +225,9 @@ export type GhPull = {
   changed_files?: number;
   commits?: number;
   merged?: boolean;
+  requested_reviewers?: { login: string; avatar_url?: string | null }[];
+  requested_teams?: { name: string; slug?: string }[];
+  assignees?: { login: string; avatar_url?: string | null }[];
 };
 
 export type GhPullFile = {
@@ -246,10 +249,13 @@ export type GhReviewComment = {
   line: number | null;
   original_line: number | null;
   start_line: number | null;
+  original_start_line?: number | null;
   side: "LEFT" | "RIGHT" | null;
   start_side?: "LEFT" | "RIGHT" | null;
   commit_id: string;
   original_commit_id: string;
+  /** The hunk up to the commented line, at original_commit_id. */
+  diff_hunk?: string;
   body: string;
   user: { login: string; avatar_url: string } | null;
   created_at: string;

@@ -4,10 +4,16 @@ import { comments } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
 import { getUserGitHubToken } from "@/lib/auth/users";
 import { env } from "@/lib/env";
+import { notifyComment, notifyReview } from "@/lib/notifications/hooks";
 import { gh, ghPaginate, GitHubError, type GhIssueComment, type GhReviewComment } from "./client";
 import type { RepoContext } from "./connections";
 
 type Author = { id: string; name: string };
+
+/** Where a post came from. `agent` is the MCP client's name when an agent posted it, kept in the activity log. */
+type PostMeta = { workspaceId: string; guideId: string | null; link?: string; agent?: string };
+
+const agentData = (meta: { agent?: string }) => (meta.agent ? { agent: meta.agent } : {});
 
 /** Token used to post on behalf of a user: their own GitHub credential if linked, else the workspace connection. */
 async function postingCredentials(user: Author, ctx: RepoContext): Promise<{ token: string; as: "user" | "connection" }[]> {
@@ -44,7 +50,9 @@ async function withPoster<T>(
   throw lastErr;
 }
 
-const commentCache = new Map<string, { at: number; data: GhReviewComment[] }>();
+// On globalThis, so the webhook route's invalidation reaches the cache other routes read.
+const globalForComments = globalThis as unknown as { __omakazeReviewComments?: Map<string, { at: number; data: GhReviewComment[] }> };
+const commentCache = (globalForComments.__omakazeReviewComments ??= new Map());
 
 /** Drop cached review comments, e.g. when a webhook says they changed on GitHub. */
 export function invalidateReviewComments(repositoryId: string, prNumber: number): void {
@@ -83,7 +91,7 @@ export async function createReviewComment(
   prNumber: number,
   user: Author,
   input: NewReviewComment,
-  meta: { workspaceId: string; guideId: string | null; sectionId: string | null; link?: string },
+  meta: PostMeta & { sectionId: string | null },
 ): Promise<GhReviewComment> {
   const { result, as } = await withPoster(user, ctx, (token, as) =>
     gh<GhReviewComment>(token, `/repos/${ctx.repo.owner}/${ctx.repo.name}/pulls/${prNumber}/comments`, {
@@ -126,7 +134,21 @@ export async function createReviewComment(
     repositoryId: ctx.repo.id,
     prNumber,
     guideId: meta.guideId,
-    data: { path: input.path, line: input.line, url: result.html_url },
+    data: { path: input.path, line: input.line, url: result.html_url, ...agentData(meta) },
+  });
+  await notifyComment({
+    repositoryId: ctx.repo.id,
+    prNumber,
+    commentId: result.id,
+    inReplyTo: null,
+    actorUserId: user.id,
+    actorLogin: null,
+    body: input.body,
+    path: input.path,
+    line: input.line,
+    url: result.html_url,
+    sectionId: meta.sectionId,
+    via: "omakaze",
   });
   return result;
 }
@@ -137,7 +159,7 @@ export async function replyToReviewComment(
   user: Author,
   inReplyTo: number,
   body: string,
-  meta: { workspaceId: string; guideId: string | null; link?: string },
+  meta: PostMeta,
 ): Promise<GhReviewComment> {
   const { result, as } = await withPoster(user, ctx, (token, as) =>
     gh<GhReviewComment>(token, `/repos/${ctx.repo.owner}/${ctx.repo.name}/pulls/${prNumber}/comments/${inReplyTo}/replies`, {
@@ -169,7 +191,22 @@ export async function replyToReviewComment(
     repositoryId: ctx.repo.id,
     prNumber,
     guideId: meta.guideId,
-    data: { path: result.path, reply: true, url: result.html_url },
+    data: { path: result.path, reply: true, url: result.html_url, ...agentData(meta) },
+  });
+  await notifyComment({
+    repositoryId: ctx.repo.id,
+    prNumber,
+    commentId: result.id,
+    // GitHub answers with the conversation's root.
+    inReplyTo: result.in_reply_to_id ?? inReplyTo,
+    actorUserId: user.id,
+    actorLogin: null,
+    body,
+    path: result.path,
+    line: result.line ?? result.original_line,
+    url: result.html_url,
+    sectionId: null,
+    via: "omakaze",
   });
   return result;
 }
@@ -181,7 +218,7 @@ export async function submitReview(
   prNumber: number,
   user: Author,
   input: { event: ReviewEvent; body: string; commitSha: string },
-  meta: { workspaceId: string; guideId: string | null; link?: string },
+  meta: PostMeta,
 ): Promise<{ id: number; html_url: string; state: string; postedAs: "user" | "connection" }> {
   const { result, as } = await withPoster(user, ctx, (token, as) => {
     // Approvals posted through a shared connection would be attributed to the connection owner.
@@ -216,7 +253,18 @@ export async function submitReview(
     repositoryId: ctx.repo.id,
     prNumber,
     guideId: meta.guideId,
-    data: { event: input.event, url: result.html_url },
+    data: { event: input.event, url: result.html_url, ...agentData(meta) },
+  });
+  await notifyReview({
+    repositoryId: ctx.repo.id,
+    prNumber,
+    reviewId: result.id,
+    state: result.state,
+    body: input.body,
+    url: result.html_url,
+    actorUserId: user.id,
+    actorLogin: null,
+    via: "omakaze",
   });
   return { ...result, postedAs: as };
 }
@@ -226,7 +274,7 @@ export async function postIssueComment(
   prNumber: number,
   user: Author,
   body: string,
-  meta: { workspaceId: string; guideId: string | null; link?: string },
+  meta: PostMeta,
 ): Promise<GhIssueComment> {
   const { result, as } = await withPoster(user, ctx, (token, as) =>
     gh<GhIssueComment>(token, `/repos/${ctx.repo.owner}/${ctx.repo.name}/issues/${prNumber}/comments`, {
@@ -245,6 +293,30 @@ export async function postIssueComment(
     githubId: result.id,
     githubUrl: result.html_url,
     postedAs: as,
+  });
+  await logActivity({
+    workspaceId: meta.workspaceId,
+    type: "comment.posted",
+    actorUserId: user.id,
+    repositoryId: ctx.repo.id,
+    prNumber,
+    guideId: meta.guideId,
+    data: { conversation: true, url: result.html_url, ...agentData(meta) },
+  });
+  await notifyComment({
+    repositoryId: ctx.repo.id,
+    prNumber,
+    commentId: result.id,
+    inReplyTo: null,
+    actorUserId: user.id,
+    actorLogin: null,
+    body,
+    path: null,
+    line: null,
+    url: result.html_url,
+    sectionId: null,
+    via: "omakaze",
+    conversation: true,
   });
   return result;
 }

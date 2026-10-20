@@ -29,6 +29,62 @@
       "when": 1792361201606,
       "tag": "0003_chatgpt_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792439106061,
+      "tag": "0004_guide_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792441853391,
+      "tag": "0005_needs_my_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792442328209,
+      "tag": "0006_review_carryover",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792443349084,
+      "tag": "0007_guide_check",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792446525386,
+      "tag": "0008_mcp_review_tools",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792449363022,
+      "tag": "0009_share_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792450283668,
+      "tag": "0010_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792450344959,
+      "tag": "0011_review_insights",
+      "breakpoints": true
     }
   ]
 }

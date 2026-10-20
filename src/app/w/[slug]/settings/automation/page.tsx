@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GuideCheckSettings } from "@/components/settings/GuideCheckSettings";
 import { Panel } from "@/components/settings/Panel";
 import { ActionForm } from "@/components/ui/ActionForm";
 import { SubmitButton } from "@/components/ui/SubmitButton";
@@ -6,7 +7,7 @@ import { resolveAiConfig } from "@/lib/ai/config";
 import { env } from "@/lib/env";
 import { formatInterval } from "@/lib/format";
 import { requireWorkspace, roleAtLeast } from "@/lib/workspaces";
-import { saveAutomationAction } from "../actions";
+import { saveAutomationAction, saveGuideCheckAction } from "../actions";
 
 export const metadata = { title: "Automation" };
 
@@ -90,6 +91,7 @@ export default async function AutomationPage(props: PageProps<"/w/[slug]/setting
           ) : null}
         </ActionForm>
       </Panel>
+      <GuideCheckSettings workspace={workspace} admin={admin} action={saveGuideCheckAction.bind(null, slug)} />
     </div>
   );
 }

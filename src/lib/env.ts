@@ -48,6 +48,14 @@ const schema = z.object({
   SMTP_URL: optionalString,
   SMTP_FROM: z.string().default("Omakaze <no-reply@localhost>"),
 
+  // Notifications
+  /** Email notifications, Slack and JSON webhooks for the whole instance. */
+  NOTIFICATIONS_ENABLED: bool(true),
+  /** How long the first email notification waits for others, for members who get them "within a few minutes". */
+  NOTIFICATIONS_GROUP_SECONDS: z.coerce.number().int().min(0).max(3600).default(300),
+  /** Let Slack and JSON webhooks reach loopback and private network addresses (e.g. Mattermost on your network). */
+  WEBHOOKS_ALLOW_PRIVATE_NETWORK: bool(false),
+
   // Storage
   STORAGE_DRIVER: z.enum(["database", "filesystem"]).default("database"),
   STORAGE_DIR: z.string().default("./data/uploads"),
@@ -60,6 +68,9 @@ const schema = z.object({
   AI_BASE_URL: optionalString,
   /** Let users connect their own ChatGPT plan with Sign in with ChatGPT. */
   CHATGPT_PLAN_ENABLED: bool(true),
+
+  /** Read-only share links (/s/<token>). Off stops every link on the instance; workspaces can turn them off too. */
+  SHARE_LINKS_ENABLED: bool(true),
 
   /**
    * How many reverse proxies in front of the app append to X-Forwarded-For. The client address used
