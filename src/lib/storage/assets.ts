@@ -122,7 +122,7 @@ export async function deleteAsset(asset: Asset): Promise<void> {
   await db.delete(assets).where(eq(assets.id, asset.id));
 }
 
-/** Download a remote image/video for upload_asset(url). Private network addresses are refused. */
+/** Download a remote image/video for upload_asset(url). Private network addresses are refused unless ASSETS_ALLOW_PRIVATE_NETWORK is set. */
 export async function fetchRemoteAsset(url: string): Promise<{ data: Buffer; contentType: string | null; filename: string }> {
   let parsed: URL;
   try {
@@ -131,7 +131,10 @@ export async function fetchRemoteAsset(url: string): Promise<{ data: Buffer; con
     throw new AssetError("Invalid URL");
   }
   try {
-    const file = await fetchPublicUrl(parsed, { maxBytes: env().MAX_UPLOAD_MB * 1024 * 1024 });
+    const file = await fetchPublicUrl(parsed, {
+      maxBytes: env().MAX_UPLOAD_MB * 1024 * 1024,
+      allowPrivate: env().ASSETS_ALLOW_PRIVATE_NETWORK,
+    });
     return {
       data: file.data,
       contentType: file.contentType,

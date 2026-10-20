@@ -85,21 +85,24 @@ export type RemoteFile = { data: Buffer; contentType: string | null; url: URL };
 
 /**
  * Download a public http(s) URL with a size limit. Every hop of a redirect is checked again, and
- * IP literals and DNS answers in private ranges are refused.
+ * IP literals and DNS answers in private ranges are refused, unless `allowPrivate` is set.
  */
-export function fetchPublicUrl(url: URL, opts: { maxBytes: number; timeoutMs?: number; redirects?: number }): Promise<RemoteFile> {
+export function fetchPublicUrl(
+  url: URL,
+  opts: { maxBytes: number; timeoutMs?: number; redirects?: number; allowPrivate?: boolean },
+): Promise<RemoteFile> {
   const redirects = opts.redirects ?? 3;
   return new Promise((resolve, reject) => {
     if (url.protocol !== "http:" && url.protocol !== "https:") return reject(new RemoteFetchError("Only http(s) URLs are supported"));
     if (url.username || url.password) return reject(new RemoteFetchError("URLs with credentials are not supported"));
     const host = url.hostname.replace(/^\[|\]$/g, "");
-    if (isIP(host) && !isPublicAddress(host)) return reject(new RemoteFetchError("Private network addresses are not allowed"));
+    if (!opts.allowPrivate && isIP(host) && !isPublicAddress(host)) return reject(new RemoteFetchError("Private network addresses are not allowed"));
 
     const client = url.protocol === "https:" ? https : http;
     const req = client.get(
       url,
       {
-        lookup: publicLookup as never,
+        ...(opts.allowPrivate ? {} : { lookup: publicLookup as never }),
         timeout: opts.timeoutMs ?? 30_000,
         headers: { "user-agent": "Omakaze", accept: "image/*,video/*,application/pdf;q=0.9,*/*;q=0.5" },
       },
