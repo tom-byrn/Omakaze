@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { Features } from "@/components/landing/Features";
 import { Footer } from "@/components/landing/Footer";
 import { ProductSchematic } from "@/components/landing/ProductSchematic";
 import { SideNote } from "@/components/landing/SideNote";
@@ -22,33 +23,6 @@ const TERMINAL_LINES: TerminalLine[] = [
   { text: "cp .env.example .env", command: true },
   { text: "docker compose up -d", command: true },
   { text: "# open http://localhost:3000", command: false },
-];
-
-const FEATURES = [
-  {
-    title: "Changes that are understandable.",
-    body: "Changes are grouped by what they do. A file can appear in several sections, and every changed line ends up in one.",
-  },
-  {
-    title: "Markdown that does more.",
-    body: "Headings, tables, Mermaid diagrams, math, code blocks, screenshots and screen recordings next to the code.",
-  },
-  {
-    title: "Context when you need it.",
-    body: "Expand unchanged lines in steps of twenty, show the enclosing function, or open the whole file.",
-  },
-  {
-    title: "Comments go to GitHub.",
-    body: "Comment on a line, reply to a thread, approve or request changes. Everything is posted to the pull request.",
-  },
-  {
-    title: "Shared by the team.",
-    body: "Workspaces with invites and roles. Everyone sees the same guides and who reviewed which section.",
-  },
-  {
-    title: "Automatic when you want it.",
-    body: "Generate a guide for every new pull request and a new version on every push, with OpenRouter, Anthropic, OpenAI or a local model.",
-  },
 ];
 
 /** Calls to action: the app for this instance, or the self-hosting guide on a landing-only deploy. */
@@ -160,14 +134,7 @@ export default async function LandingPage() {
           <SideNote note="features" side="right" />
           <span className="eyebrow">Features</span>
           <h2 className="h2 mt-6 max-w-[620px]">What reviewers get.</h2>
-          <div className="mt-12 grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="relative flex min-h-[230px] flex-col justify-between gap-8 border border-black/15 bg-white px-8 pt-8 pb-6 grain">
-                <p className="font-serif text-[26px] leading-[1.1] tracking-[-0.01em] text-black lg:text-[28px]">{f.title}</p>
-                <p className="body-copy">{f.body}</p>
-              </div>
-            ))}
-          </div>
+          <Features />
         </div>
       </section>
 
