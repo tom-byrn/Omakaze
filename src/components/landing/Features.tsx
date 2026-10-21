@@ -1,17 +1,26 @@
-import { RiArrowRightUpLine, RiCheckboxBlankCircleLine, RiCheckboxCircleFill, RiErrorWarningFill, RiErrorWarningLine, RiFileEditLine, RiLock2Line } from "@remixicon/react";
+import {
+  RiArrowDownSLine,
+  RiArrowUpSLine,
+  RiBracesLine,
+  RiCheckboxCircleFill,
+  RiCheckLine,
+  RiExpandUpDownLine,
+  RiLinksLine,
+  RiPlayFill,
+} from "@remixicon/react";
 import clsx from "clsx";
 import type { ReactNode } from "react";
-import { DiffStat, GuideChip, PrStateTag } from "@/components/app/Badges";
+import { DiffStat } from "@/components/app/Badges";
 
 const K = "#D73A49"; // keyword
 const F = "#6F42C1"; // function
 const N = "#005CC5"; // number / constant
-const S = "#032F62"; // string
+const C = "#6A737D"; // comment
 const D = "#24292E"; // default
 const ADD = "#1f8a85";
-const AMBER = "#8a6d00";
 
 type Seg = [string, string?];
+type Line = { n: number; kind: "ctx" | "add"; segs: Seg[] };
 
 function Code({ segs }: { segs: Seg[] }) {
   return (
@@ -38,473 +47,399 @@ function PanelHeader({ left, right }: { left: ReactNode; right?: ReactNode }) {
   );
 }
 
-function Initial({ name, tone }: { name: string; tone: string }) {
+function FileHeader({ status, path, add, del, extra }: { status: string; path: string; add: number; del: number; extra?: ReactNode }) {
   return (
-    <span className={`flex h-4 w-4 shrink-0 items-center justify-center font-mono text-[8px] text-white uppercase ${tone}`}>{name[0]}</span>
-  );
-}
-
-function Squares({ total, done }: { total: number; done: number }) {
-  return (
-    <span className="flex gap-[2px]">
-      {Array.from({ length: total }, (_, i) => (
-        <span key={i} className={clsx("h-2 w-2 border", i < done ? "border-ink bg-ink" : "border-black/25 bg-white")} />
-      ))}
-    </span>
-  );
-}
-
-/* Re-review --------------------------------------------------------- */
-
-const REREVIEW_SECTIONS = [
-  { title: "Data model", state: "carried" },
-  { title: "Mortgage math", state: "carried" },
-  { title: "Offers API", state: "rereview" },
-  { title: "Sale listing page", state: "open" },
-] as const;
-
-type InterdiffRow = { op: "same" | "added" | "removed"; line: number; segs: Seg[] };
-
-const INTERDIFF: InterdiffRow[] = [
-  { op: "same", line: 15, segs: [["const ", K], ["offer = "], ["validateOffer", F], ["("], ["await ", K], ["req."], ["json", F], ["());"]] },
-  { op: "removed", line: 16, segs: [["if (!offer.ok) return Response.json(offer, { status: 422 });"]] },
-  { op: "added", line: 16, segs: [["if ", K], ["(!offer.ok) "], ["return ", K], ["Response."], ["json", F], ["(offer.error, { status: "], ["422", N], [" });"]] },
-  { op: "added", line: 17, segs: [["if ", K], ["("], ["await ", K], ["isSold", F], ["(params.id)) "], ["return ", K], ["Response."], ["json", F], ["(null, { status: "], ["409", N], [" });"]] },
-  { op: "same", line: 18, segs: [["return ", K], ["Response."], ["json", F], ["("], ["await ", K], ["createOffer", F], ["(params.id, offer));"]] },
-];
-
-function ReReviewMockup() {
-  return (
-    <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <Panel className="self-start">
-        <PanelHeader left="acme/web #412 · version 3" right="2 new commits" />
-        <ul>
-          {REREVIEW_SECTIONS.map((s, i) => (
-            <li key={s.title} className="flex items-center gap-2.5 border-t border-dashed border-line px-3 py-2 first:border-t-0">
-              {s.state === "carried" ? (
-                <RiCheckboxCircleFill size={15} className="shrink-0 text-black/35" />
-              ) : s.state === "rereview" ? (
-                <RiErrorWarningLine size={15} className="shrink-0 text-[#b08d00]" />
-              ) : (
-                <RiCheckboxBlankCircleLine size={15} className="shrink-0 text-black/30" />
-              )}
-              <span className="font-mono text-[10px] text-black/45">{String(i + 1).padStart(2, "0")}</span>
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink">{s.title}</span>
-              {s.state === "carried" ? (
-                <span className="font-mono text-[9px] tracking-[0.08em] whitespace-nowrap text-black/45 uppercase">Reviewed in v2, unchanged</span>
-              ) : s.state === "rereview" ? (
-                <span className="font-mono text-[9px] tracking-[0.08em] whitespace-nowrap uppercase" style={{ color: AMBER }}>
-                  Changed since v2
-                </span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-        <p className="border-t border-dashed border-line px-3 py-2.5 text-[11.5px] leading-[17px] text-body">
-          2 sections carried over from version 2. 1 changed since you reviewed it.
-        </p>
-      </Panel>
-      <div className="hidden self-start border border-[#b08d00]/40 bg-white @2xl:block">
-        <div className="flex items-center gap-2 border-b border-dashed border-[#b08d00]/30 bg-highlight/15 px-3 py-2 font-mono text-[9px] tracking-[0.08em] uppercase">
-          <span className="text-[#6b5a00]">Changed since you reviewed v2</span>
-          <span className="ml-auto whitespace-nowrap text-black/55">1 file · 2 new · 1 removed</span>
-        </div>
-        <div className="flex items-center gap-2 border-b border-dashed border-line bg-paper px-3 py-1.5">
-          <span className="tag">changed</span>
-          <span className="truncate font-mono text-[11px] text-ink">api/offers.ts</span>
-        </div>
-        <div className="font-mono text-[10.5px] leading-[19px]">
-          {INTERDIFF.map((r, i) => (
-            <div
-              key={i}
-              className={clsx(
-                "grid grid-cols-[30px_28px_minmax(0,1fr)]",
-                r.op === "added" && "bg-highlight/[0.22]",
-                r.op === "removed" && "bg-black/[0.03]",
-              )}
-            >
-              <span className={clsx("pl-2 text-[9px] tracking-[0.06em]", r.op === "added" ? "bg-highlight/45 text-[#6b5a00]" : "text-black/40")}>
-                {r.op === "added" ? "v3" : r.op === "removed" ? "v2" : ""}
-              </span>
-              <span className={clsx("pr-2 text-right text-[10px] text-black/35", r.op === "added" && "bg-highlight/45")}>{r.line}</span>
-              <span className={clsx("truncate pl-2 whitespace-pre", r.op === "removed" && "text-black/45 line-through decoration-black/30", r.op === "same" && "opacity-60")}>
-                <span style={{ color: ADD }}>+</span> {r.op === "removed" ? r.segs[0][0] : <Code segs={r.segs} />}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* Coverage ---------------------------------------------------------- */
-
-const COVERAGE = [
-  { title: "Data model", lines: 412, tone: "bg-ink" },
-  { title: "Checkout API", lines: 688, tone: "bg-signal" },
-  { title: "Payment form", lines: 531, tone: "bg-blue-bright" },
-  { title: "Tests", lines: 314, tone: "bg-black/25" },
-];
-const OTHER_LINES = 37;
-const TOTAL_LINES = COVERAGE.reduce((n, s) => n + s.lines, OTHER_LINES);
-const HATCH = "bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.4)_0_1.5px,transparent_1.5px_4px)]";
-
-function CoverageMockup() {
-  const total = TOTAL_LINES.toLocaleString("en");
-  return (
-    <Panel>
-      <PanelHeader left="Coverage" right={<span className="text-ink">{`${total} / ${total} lines`}</span>} />
-      <div className="px-3 pt-3 pb-2">
-        <div className="flex h-[8px] gap-px">
-          {COVERAGE.map((s) => (
-            <span key={s.title} className={s.tone} style={{ width: `${(s.lines / TOTAL_LINES) * 100}%` }} />
-          ))}
-          <span className={HATCH} style={{ width: `${Math.max(3, (OTHER_LINES / TOTAL_LINES) * 100)}%` }} />
-        </div>
-      </div>
-      <ul className="text-[12px]">
-        {COVERAGE.map((s, i) => (
-          <li key={s.title} className="flex items-center gap-2.5 border-t border-dashed border-line px-3 py-[5px]">
-            <span className={clsx("h-2 w-2 shrink-0", s.tone)} />
-            <span className="font-mono text-[10px] text-black/45">{String(i + 1).padStart(2, "0")}</span>
-            <span className="flex-1 truncate text-ink">{s.title}</span>
-            <span className="font-mono text-[10.5px] text-black/55">{s.lines}</span>
-          </li>
-        ))}
-        <li className="flex items-center gap-2.5 border-t border-dashed border-line px-3 py-[5px]">
-          <span className={clsx("h-2 w-2 shrink-0 border border-black/30", HATCH)} />
-          <span className="font-mono text-[10px] text-black/45">05</span>
-          <span className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="truncate text-ink">Other changes</span>
-            <span className="shrink-0 border border-dashed border-black/25 px-1 font-mono text-[8.5px] tracking-[0.06em] text-black/50 uppercase">Auto</span>
-          </span>
-          <span className="font-mono text-[10.5px] text-black/55">{OTHER_LINES}</span>
-        </li>
-      </ul>
-      <p className="border-t border-dashed border-line px-3 py-2 font-mono text-[10px] text-black/45">pnpm-lock.yaml · 2 snapshots</p>
-    </Panel>
-  );
-}
-
-/* Guide check ------------------------------------------------------- */
-
-function CheckMockup() {
-  return (
-    <Panel>
-      <PanelHeader left="Checks" right="acme/web #412" />
-      {[
-        ["ci / test", "Successful in 4m 12s"],
-        ["ci / lint", "Successful in 48s"],
-      ].map(([name, note]) => (
-        <div key={name} className="flex items-center gap-2.5 border-b border-dashed border-line px-3 py-2 text-[12px]">
-          <RiCheckboxCircleFill size={15} className="shrink-0" style={{ color: ADD }} />
-          <span className="font-medium text-ink">{name}</span>
-          <span className="truncate text-muted">{note}</span>
-        </div>
-      ))}
-      <div className="flex gap-2.5 border-b border-dashed border-line bg-highlight/[0.12] px-3 py-2.5 text-[12px]">
-        <RiErrorWarningFill size={15} className="mt-px shrink-0 text-[#b08d00]" />
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2">
-            <span className="font-medium text-ink">Omakaze guide</span>
-            <span className="tag h-[17px] px-1 text-[8.5px]">Required</span>
-          </p>
-          <p className="mt-1 truncate text-text">4 of 6 sections reviewed by 2 members</p>
-          <div className="mt-2">
-            <Squares total={6} done={4} />
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2.5 px-3 py-2.5">
-        <RiLock2Line size={14} className="shrink-0 text-black/45" />
-        <span className="flex-1 truncate text-[12px] text-text">Merging is blocked</span>
-        <span className="btn btn-primary btn-xs pointer-events-none opacity-35">Merge</span>
-      </div>
-    </Panel>
-  );
-}
-
-/* Needs my review --------------------------------------------------- */
-
-const QUEUE = [
-  {
-    n: 412,
-    title: "Add offers to sale listings",
-    author: "maya",
-    tone: "bg-blue-deep",
-    add: 1184,
-    del: 212,
-    requested: true,
-    sections: 6,
-    reviewed: 3,
-    version: 3,
-  },
-  {
-    n: 208,
-    title: "Retry webhook deliveries with backoff",
-    author: "sam",
-    tone: "bg-olive",
-    add: 326,
-    del: 41,
-    requested: true,
-    sections: 4,
-    reviewed: 0,
-    version: 1,
-  },
-  {
-    n: 405,
-    title: "Store prices in cents",
-    author: "jun",
-    tone: "bg-moved",
-    add: 540,
-    del: 498,
-    requested: false,
-    sections: 7,
-    reviewed: 5,
-    version: 2,
-  },
-];
-
-function QueueMockup() {
-  const tabs: [string, number][] = [
-    ["Needs my review", 3],
-    ["Mine", 2],
-    ["Assigned", 1],
-    ["All", 14],
-  ];
-  return (
-    <div>
-      <div className="flex overflow-hidden">
-        {tabs.map(([label, n], i) => (
-          <span
-            key={label}
-            className={clsx(
-              "flex h-8 shrink-0 items-center gap-1.5 border-b px-3 text-[12px] tracking-[-0.02em] whitespace-nowrap first:pl-0",
-              i === 0 ? "border-solid border-ink text-ink" : "border-dashed border-line text-nav",
-            )}
-          >
-            {label}
-            {i === 0 ? (
-              <span className="inline-flex h-[15px] min-w-[15px] items-center justify-center bg-ink px-1 font-mono text-[9px] text-white">{n}</span>
-            ) : (
-              <span className="font-mono text-[9px] text-black/45">{n}</span>
-            )}
-          </span>
-        ))}
-        <span className="min-w-4 flex-1 border-b border-dashed border-line" />
-      </div>
-      <Panel className="mt-3">
-        <ul>
-          {QUEUE.map((p) => (
-            <li key={p.n} className="flex items-center gap-3 border-t border-dashed border-line px-3 py-2.5 first:border-t-0">
-              <PrStateTag state="open" />
-              <div className="min-w-0 flex-1">
-                <p className="flex items-baseline gap-2 text-[13px] leading-[18px] tracking-[-0.01em] text-ink">
-                  <span className="font-mono text-[11px] text-meta">#{p.n}</span>
-                  <span className="truncate">{p.title}</span>
-                </p>
-                <div className="mt-1 flex items-center gap-x-3 overflow-hidden text-[11px] whitespace-nowrap text-muted">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Initial name={p.author} tone={p.tone} />
-                    {p.author}
-                  </span>
-                  {p.requested ? (
-                    <span className="tag hidden h-[17px] border-ink/40 px-1 text-[8.5px] text-ink @sm:inline-flex">
-                      <span className="dot h-[5px] w-[5px] bg-blue-bright" /> Review requested
-                    </span>
-                  ) : null}
-                  <span className="inline-flex items-center gap-1.5">
-                    <Squares total={p.sections} done={p.reviewed} />
-                    <span className="font-mono text-[10px]">
-                      {p.reviewed}/{p.sections}
-                      <span className="hidden @xl:inline"> sections reviewed by you</span>
-                    </span>
-                  </span>
-                  <span className="hidden @3xl:inline">
-                    <DiffStat additions={p.add} deletions={p.del} />
-                  </span>
-                </div>
-              </div>
-              <div className="hidden shrink-0 items-center gap-2 @lg:flex">
-                <GuideChip status="ready" version={p.version} />
-                <span className="btn btn-primary btn-xs pointer-events-none">Open guide</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </Panel>
-    </div>
-  );
-}
-
-/* Moved code and suggestions ---------------------------------------- */
-
-const MOVED_LINES: Seg[][] = [
-  [["export ", K], ["function ", K], ["validateOffer", F], ["(body) {"]],
-  [["  if ", K], ["(!"], ["Number", F], ["."], ["isInteger", F], ["(body.amountCents))"]],
-  [["    return ", K], ["{ ok: "], ["false", N], [", error: "], ['"amount"', S], [" };"]],
-  [["  return ", K], ["{ ok: "], ["true", N], [", ...body };"]],
-  [["}"]],
-];
-
-function SuggestionRow({ kind, line, before, change, after }: { kind: "add" | "del"; line: number; before: string; change: string; after: string }) {
-  return (
-    <div className={clsx("grid grid-cols-[30px_minmax(0,1fr)]", kind === "add" ? "bg-[rgba(78,211,207,0.14)]" : "bg-[rgba(191,0,15,0.065)]")}>
-      <span className={clsx("pr-2 text-right text-[10px] text-black/35", kind === "add" ? "bg-[rgba(78,211,207,0.24)]" : "bg-[rgba(191,0,15,0.12)]")}>{line}</span>
-      <span className="truncate pl-2 whitespace-pre text-[#24292E]">
-        <span className={kind === "add" ? "text-[#1f8a85]" : "text-danger"}>{kind === "add" ? "+" : "−"}</span> {before}
-        <span className={kind === "add" ? "bg-[rgba(78,211,207,0.42)]" : "bg-[rgba(191,0,15,0.16)]"}>{change}</span>
-        {after}
+    <div className="flex items-center gap-2 border-b border-dashed border-line bg-paper px-3 py-2">
+      <span className="tag">{status}</span>
+      <span className="truncate font-mono text-[11px] text-ink">{path}</span>
+      <span className="ml-auto flex shrink-0 items-center gap-2">
+        {extra}
+        <DiffStat additions={add} deletions={del} />
       </span>
     </div>
   );
 }
 
-function SuggestionFigure() {
+function Diff({ lines }: { lines: Line[] }) {
   return (
-    <div className="border border-black/15 bg-white">
-      <div className="flex items-center gap-1.5 border-b border-dashed border-line bg-paper px-2.5 py-1">
-        <RiFileEditLine size={12} className="text-black/45" />
-        <span className="font-mono text-[9px] tracking-[0.08em] text-black/55 uppercase">Suggested change</span>
-      </div>
-      <div className="font-mono text-[10.5px] leading-[19px]">
-        <SuggestionRow kind="del" line={5} before="    return { ok: false, " change={'error: "amount"'} after=" };" />
-        <SuggestionRow kind="add" line={5} before="    return { ok: false, " change={'field: "amountCents"'} after=" };" />
-      </div>
+    <div className="font-mono text-[10.5px] leading-[19px]">
+      {lines.map((l, i) => (
+        <div key={i} className={clsx("grid grid-cols-[34px_minmax(0,1fr)]", l.kind === "add" && "bg-[rgba(78,211,207,0.14)]")}>
+          <span className={clsx("pr-2 text-right text-[10px] text-black/35", l.kind === "add" && "bg-[rgba(78,211,207,0.24)]")}>{l.n}</span>
+          <span className="truncate pl-2 whitespace-pre">
+            <span className={l.kind === "add" ? "text-[#1f8a85]" : "text-black/30"}>{l.kind === "add" ? "+" : " "}</span> <Code segs={l.segs} />
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
 
-function MovedMockup() {
+const PEOPLE = {
+  maya: "bg-blue-deep",
+  sam: "bg-olive",
+  jun: "bg-moved",
+  you: "bg-ink",
+} as const;
+
+function Person({ name, size = 16 }: { name: keyof typeof PEOPLE; size?: number }) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center border border-white font-mono text-white uppercase ${PEOPLE[name]}`}
+      style={{ width: size, height: size, fontSize: size * 0.5 }}
+    >
+      {name[0]}
+    </span>
+  );
+}
+
+function Checked() {
+  return (
+    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center bg-ink text-white">
+      <RiCheckLine size={11} />
+    </span>
+  );
+}
+
+/* Changes that are understandable ------------------------------------ */
+
+const SECTIONS = [
+  { title: "Data model", files: ["db/schema.ts", "drizzle/0012_offers.sql"], lines: 412, tone: "bg-ink" },
+  { title: "Checkout API", files: ["api/checkout.ts", "db/schema.ts"], shared: true, lines: 688, tone: "bg-signal" },
+  { title: "Payment form", files: ["components/PaymentForm.tsx"], lines: 531, tone: "bg-blue-bright" },
+  { title: "Tests", files: ["tests/checkout.test.ts"], lines: 314, tone: "bg-black/25" },
+];
+const OTHER_LINES = 37;
+const TOTAL_LINES = SECTIONS.reduce((n, s) => n + s.lines, OTHER_LINES);
+const HATCH = "bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.4)_0_1.5px,transparent_1.5px_4px)]";
+
+function SectionsMockup() {
+  const total = TOTAL_LINES.toLocaleString("en");
   return (
     <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-2">
       <Panel>
-        <div className="flex items-center gap-2 border-b border-dashed border-line bg-paper px-3 py-2">
-          <span className="tag">added</span>
-          <span className="truncate font-mono text-[11px] text-ink">api/validate.ts</span>
-          <span className="ml-auto shrink-0">
-            <DiffStat additions={24} deletions={0} />
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 border-b border-dashed border-moved/30 bg-moved/[0.06] px-3 py-[3px] text-[11px] text-moved">
-          <RiArrowRightUpLine size={12} />
-          Moved from <span className="font-mono text-[10.5px]">api/listings.ts:88</span>
-        </div>
-        <div className="font-mono text-[10.5px] leading-[19px]">
-          {MOVED_LINES.map((segs, i) => (
-            <div key={i} className="grid grid-cols-[30px_minmax(0,1fr)] bg-[rgba(78,211,207,0.14)]">
-              <span className="bg-[rgba(78,211,207,0.24)] pr-2 text-right text-[10px] text-black/35">{i + 3}</span>
-              <span className="truncate pl-2 whitespace-pre shadow-[inset_2px_0_0_var(--color-moved)]">
-                <span style={{ color: ADD }}>+</span> <Code segs={segs} />
-              </span>
-            </div>
+        <PanelHeader left="acme/web #412 · 4 sections" right="in review order" />
+        <ul>
+          {SECTIONS.map((s, i) => (
+            <li key={s.title} className="flex gap-2.5 border-t border-dashed border-line px-3 py-2 first:border-t-0">
+              <span className="font-mono text-[10px] leading-[18px] text-black/45">{String(i + 1).padStart(2, "0")}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] leading-[18px] text-ink">{s.title}</p>
+                <p className="mt-0.5 flex items-center gap-1.5 overflow-hidden whitespace-nowrap">
+                  {s.files.map((f) => (
+                    <span key={f} className="border border-dashed border-blue-deep/40 bg-blue-bright/[0.06] px-1 font-mono text-[9.5px] text-blue-deep">
+                      {f}
+                    </span>
+                  ))}
+                  {s.shared ? <span className="font-mono text-[8.5px] tracking-[0.06em] text-black/45 uppercase">also in 01</span> : null}
+                </p>
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </Panel>
-      <div className="@2xl:hidden">
-        <SuggestionFigure />
-      </div>
-      <Panel className="hidden @2xl:block">
-        <div className="flex items-center border-b border-dashed border-line bg-paper text-[11px]">
-          <span className="px-3 py-1.5 text-nav">Write</span>
-          <span className="border-x border-dashed border-line bg-white px-3 py-1.5 text-ink">Preview</span>
-          <span className="ml-auto pr-3 font-mono text-[9px] tracking-[0.08em] text-black/45 uppercase">Line 5</span>
-        </div>
-        <div className="px-3 pt-2.5 pb-3">
-          <p className="text-[12px] leading-[18px] text-text">Return the field so the form can point at it.</p>
-          <div className="mt-2">
-            <SuggestionFigure />
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <span className="btn btn-primary btn-xs pointer-events-none">Comment on GitHub</span>
-            <span className="text-[11px] text-muted">Cancel</span>
+      <Panel className="hidden self-center @2xl:block">
+        <PanelHeader left="Coverage" right={<span className="text-ink">{`${total} / ${total} lines`}</span>} />
+        <div className="px-3 pt-3 pb-2">
+          <div className="flex h-[8px] gap-px">
+            {SECTIONS.map((s) => (
+              <span key={s.title} className={s.tone} style={{ width: `${(s.lines / TOTAL_LINES) * 100}%` }} />
+            ))}
+            <span className={HATCH} style={{ width: `${Math.max(3, (OTHER_LINES / TOTAL_LINES) * 100)}%` }} />
           </div>
         </div>
+        <ul className="text-[12px]">
+          {SECTIONS.map((s, i) => (
+            <li key={s.title} className="flex items-center gap-2.5 border-t border-dashed border-line px-3 py-[5px]">
+              <span className={clsx("h-2 w-2 shrink-0", s.tone)} />
+              <span className="font-mono text-[10px] text-black/45">{String(i + 1).padStart(2, "0")}</span>
+              <span className="flex-1 truncate text-ink">{s.title}</span>
+              <span className="font-mono text-[10.5px] text-black/55">{s.lines}</span>
+            </li>
+          ))}
+          <li className="flex items-center gap-2.5 border-t border-dashed border-line px-3 py-[5px]">
+            <span className={clsx("h-2 w-2 shrink-0", HATCH)} />
+            <span className="font-mono text-[10px] text-black/45">05</span>
+            <span className="flex-1 truncate text-ink">Other changes</span>
+            <span className="font-mono text-[10.5px] text-black/55">{OTHER_LINES}</span>
+          </li>
+        </ul>
       </Panel>
     </div>
   );
 }
 
-/* Share links and export -------------------------------------------- */
+/* Markdown that does more -------------------------------------------- */
 
-function ShareMockup() {
+function MarkdownMockup() {
   return (
     <Panel>
-      <PanelHeader left="Share #412" right="read-only" />
-      <div className="flex flex-col gap-2.5 p-3">
-        <div className="grid grid-cols-2 gap-2 text-[11.5px]">
-          {[
-            ["This version (v3)", true],
-            ["Latest version", false],
-          ].map(([label, on]) => (
-            <span key={String(label)} className={clsx("flex items-center gap-2 border px-2.5 py-2", on ? "border-ink bg-paper text-ink" : "border-black/15 text-text")}>
-              <span className={clsx("flex h-3 w-3 shrink-0 items-center justify-center border", on ? "border-ink" : "border-black/30")}>
-                {on ? <span className="h-1.5 w-1.5 bg-ink" /> : null}
-              </span>
-              <span className="truncate">{label}</span>
-            </span>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[9px] tracking-[0.08em] text-black/55 uppercase">Expires</span>
-          <span className="flex flex-1 border border-tab text-[11px]">
-            {["1 day", "7 days", "30 days", "Never"].map((d, i) => (
-              <span key={d} className={clsx("flex-1 py-1 text-center whitespace-nowrap", i > 0 && "border-l border-tab", d === "7 days" ? "bg-ink text-white" : "text-text")}>
-                {d}
+      <PanelHeader left="Section 02 / 04" right="markdown" />
+      <div className="flex flex-col gap-2.5 px-3 pt-2.5 pb-3">
+        <p className="font-serif text-[18px] leading-none tracking-[-0.02em] text-black">Checkout API</p>
+        <div className="relative border border-black/15 px-3 pt-4 pb-2.5">
+          <span className="absolute top-1 right-1.5 font-mono text-[8px] tracking-[0.08em] text-black/35 uppercase">mermaid</span>
+          <div className="flex items-center font-mono text-[9px] text-ink">
+            {["Cart", "POST /checkout", "Stripe"].map((box, i) => (
+              <span key={box} className="contents">
+                {i > 0 ? <span className="h-px min-w-3 flex-1 bg-black/40" /> : null}
+                <span className={clsx("border border-black/40 px-1.5 py-[3px] whitespace-nowrap", i === 1 ? "bg-mist" : "bg-white")}>{box}</span>
               </span>
             ))}
-          </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 border border-dashed border-ink/40 bg-paper p-2">
-          <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink">omakaze.acme.dev/s/9QxK2vTm</code>
-          <span className="btn btn-primary btn-xs pointer-events-none">Copy link</span>
+        <div className="border border-black/15 border-l-[3px] border-l-blue-deep px-2.5 py-1.5 text-[11.5px] leading-[17px] text-text">
+          <span className="mr-1.5 font-mono text-[9px] tracking-[0.08em] text-blue-deep uppercase">Note</span>
+          Totals are stored in cents.
         </div>
-      </div>
-      <div className="flex items-center gap-2 border-t border-dashed border-line px-3 py-2">
-        <span className="font-mono text-[9px] tracking-[0.08em] text-black/55 uppercase">Export</span>
-        <span className="tag ml-auto h-[18px]">Markdown</span>
-        <span className="tag h-[18px]">Print · PDF</span>
+        <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-2">
+          <div className="flex items-center justify-center border border-black/15 px-2 py-2 font-serif text-[14px] whitespace-nowrap text-ink italic">
+            total = Σ pᵢ · qᵢ
+          </div>
+          <div className="relative flex items-center justify-center bg-ink">
+            <RiPlayFill size={16} className="text-white" />
+            <span className="absolute right-1.5 bottom-1 font-mono text-[8.5px] text-white/70">0:14</span>
+          </div>
+        </div>
       </div>
     </Panel>
   );
 }
 
-/* Cards ------------------------------------------------------------- */
+/* Context when you need it ------------------------------------------- */
+
+const CONTEXT_ABOVE: Line[] = [
+  { n: 41, kind: "ctx", segs: [["export ", K], ["async ", K], ["function ", K], ["checkout", F], ["(cart) {"]] },
+  { n: 42, kind: "add", segs: [["  const ", K], ["total = "], ["sumCents", F], ["(cart.items);"]] },
+  { n: 43, kind: "add", segs: [["  if ", K], ["(total <= "], ["0", N], [") "], ["return ", K], ["confirm", F], ["(cart);"]] },
+];
+
+const CONTEXT_BELOW: Line[] = [
+  { n: 90, kind: "ctx", segs: [["  const ", K], ["intent = "], ["await ", K], ["stripe.paymentIntents."], ["create", F], ["({"]] },
+  { n: 91, kind: "add", segs: [["    amount: total, "], ["// cents", C]] },
+  { n: 92, kind: "ctx", segs: [["  });"]] },
+];
+
+function ContextMockup() {
+  return (
+    <Panel>
+      <FileHeader
+        status="modified"
+        path="api/checkout.ts"
+        add={38}
+        del={6}
+        extra={
+          <span className="hidden items-center gap-1 border border-black/15 px-1.5 py-[2px] text-[10.5px] text-ui @xs:inline-flex">
+            <RiExpandUpDownLine size={12} /> Whole file
+          </span>
+        }
+      />
+      <Diff lines={CONTEXT_ABOVE} />
+      <div className="flex flex-wrap items-center gap-1 border-y border-dashed border-black/10 bg-mist px-2 py-1 text-[10.5px] text-ui">
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-[2px]">
+          <RiArrowDownSLine size={12} /> 20
+        </span>
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-[2px]">
+          <RiArrowUpSLine size={12} /> 20
+        </span>
+        <span className="inline-flex items-center gap-1 px-1.5 py-[2px]">
+          <RiExpandUpDownLine size={12} /> Show 46 unchanged lines
+        </span>
+        <span className="inline-flex items-center gap-1 border border-black/20 bg-white/70 px-1.5 py-[2px] text-ink">
+          <RiBracesLine size={12} /> Enclosing block
+        </span>
+      </div>
+      <Diff lines={CONTEXT_BELOW} />
+    </Panel>
+  );
+}
+
+/* Comments go to GitHub ---------------------------------------------- */
+
+const COMMENT_LINES: Line[] = [
+  { n: 42, kind: "add", segs: [["  const ", K], ["total = "], ["sumCents", F], ["(cart.items);"]] },
+  { n: 43, kind: "add", segs: [["  if ", K], ["(total <= "], ["0", N], [") "], ["throw ", K], ["new ", K], ["CheckoutError", F], ["();"]] },
+];
+
+function CommentsMockup() {
+  return (
+    <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+      <Panel>
+        <FileHeader status="modified" path="api/checkout.ts" add={38} del={6} />
+        <Diff lines={COMMENT_LINES} />
+        <div className="flex flex-col gap-2 border-t border-dashed border-black/10 bg-wash px-3 py-2.5">
+          <div className="border border-black/15 bg-white px-2.5 py-2">
+            <p className="flex items-center gap-1.5 text-[10.5px] text-muted">
+              <Person name="maya" size={14} /> <span className="text-ink">maya</span> · 2h ago
+            </p>
+            <p className="mt-1 text-[11.5px] leading-[16px] text-text">Should a zero total skip payment instead of throwing?</p>
+          </div>
+          <div className="border border-ink/50 bg-white px-2.5 py-2">
+            <p className="text-[11.5px] leading-[16px] text-text">Yes, a free order should go straight to confirmation.</p>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="btn btn-primary btn-xs pointer-events-none">Reply on GitHub</span>
+              <span className="text-[10.5px] text-muted">Cancel</span>
+            </div>
+          </div>
+        </div>
+      </Panel>
+      <div className="hidden self-center @2xl:block">
+        <Panel>
+          <PanelHeader left="Finish your review" right="acme/web #412" />
+          <div className="flex flex-col gap-2.5 p-3">
+            <div className="flex gap-1.5 text-[11px]">
+              {[
+                ["Comment", false],
+                ["Approve", false],
+                ["Request changes", true],
+              ].map(([t, on]) => (
+                <span
+                  key={String(t)}
+                  className={clsx("flex items-center gap-1.5 border px-2 py-1 whitespace-nowrap", on ? "border-ink bg-ink text-white" : "border-black/15 text-text")}
+                >
+                  <span className={clsx("dot h-[6px] w-[6px]", on ? "bg-signal" : "border border-black/30")} />
+                  {t}
+                </span>
+              ))}
+            </div>
+            <p className="border border-black/15 px-2.5 py-2 text-[11.5px] leading-[16px] text-text">Good once a zero total skips payment.</p>
+            <span className="btn btn-primary btn-xs pointer-events-none self-start">Submit review</span>
+          </div>
+        </Panel>
+        <p className="mt-2 flex items-center gap-1.5 font-mono text-[10px]" style={{ color: ADD }}>
+          <RiCheckboxCircleFill size={13} /> Changes requested on acme/web#412
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* Shared by the team ------------------------------------------------- */
+
+const MEMBERS = [
+  { name: "maya", email: "maya@acme.dev", role: "Owner" },
+  { name: "sam", email: "sam@acme.dev", role: "Admin" },
+  { name: "jun", email: "jun@acme.dev", role: "Member" },
+] as const;
+
+const REVIEWED_BY: { title: string; by: (keyof typeof PEOPLE)[] }[] = [
+  { title: "Data model", by: ["maya", "sam"] },
+  { title: "Checkout API", by: ["maya"] },
+  { title: "Payment form", by: ["sam", "jun"] },
+  { title: "Tests", by: [] },
+];
+
+function TeamMockup() {
+  return (
+    <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-2">
+      <Panel className="self-center">
+        <PanelHeader left="Members · acme" right="3 members" />
+        <ul>
+          {MEMBERS.map((m) => (
+            <li key={m.name} className="flex items-center gap-2.5 border-b border-dashed border-line px-3 py-2">
+              <Person name={m.name} size={20} />
+              <span className="text-[12.5px] text-ink">{m.name}</span>
+              <span className="truncate font-mono text-[10px] text-muted">{m.email}</span>
+              <span className={clsx("tag ml-auto h-[18px]", m.role === "Owner" && "border-ink/40 text-ink")}>{m.role}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="flex items-center gap-2 px-3 py-2">
+          <RiLinksLine size={13} className="shrink-0 text-black/45" />
+          <span className="truncate text-[11.5px] text-text">Invite link · member</span>
+          <span className="btn btn-secondary btn-xs pointer-events-none ml-auto">Copy link</span>
+        </div>
+      </Panel>
+      <Panel className="hidden self-center @2xl:block">
+        <PanelHeader left="acme/web #412 · version 3" right="reviewed by" />
+        <ul>
+          {REVIEWED_BY.map((s, i) => (
+            <li key={s.title} className="flex items-center gap-2.5 border-t border-dashed border-line px-3 py-[9px] first:border-t-0">
+              <span className="font-mono text-[10px] text-black/45">{String(i + 1).padStart(2, "0")}</span>
+              <span className="flex-1 truncate text-[12.5px] text-ink">{s.title}</span>
+              {s.by.length > 0 ? (
+                <span className="flex -space-x-1">
+                  {s.by.map((p) => (
+                    <Person key={p} name={p} size={18} />
+                  ))}
+                </span>
+              ) : (
+                <span className="font-mono text-[9px] tracking-[0.08em] text-black/40 uppercase">Not reviewed</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </Panel>
+    </div>
+  );
+}
+
+/* Automatic when you want it ----------------------------------------- */
+
+function AutomationMockup() {
+  return (
+    <Panel>
+      <PanelHeader left="Pull request automation" right="acme/web" />
+      {["Create a guide for every new pull request", "Create a new version when commits are pushed", "Skip draft pull requests"].map((t) => (
+        <div key={t} className="flex items-center gap-2.5 border-b border-dashed border-line px-3 py-2 text-[12px] text-ink">
+          <Checked />
+          <span className="truncate">{t}</span>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 border-b border-dashed border-line px-3 py-2">
+        <span className="font-mono text-[9px] tracking-[0.08em] text-black/55 uppercase">Model</span>
+        <span className="flex flex-1 border border-tab text-[10.5px]">
+          {["Anthropic", "OpenAI", "OpenRouter", "Local"].map((p, i) => (
+            <span key={p} className={clsx("flex-1 py-[3px] text-center whitespace-nowrap", i > 0 && "border-l border-tab", i === 0 ? "bg-ink text-white" : "text-text")}>
+              {p}
+            </span>
+          ))}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-text">
+        <span className="dot animate-pulse-dot bg-blue-bright" />
+        <span className="font-mono text-[10.5px] text-meta">#412</span>
+        <span className="truncate">2 commits pushed · writing version 4</span>
+      </div>
+    </Panel>
+  );
+}
+
+/* Cards -------------------------------------------------------------- */
 
 const FEATURES: { title: string; body: string; wide?: boolean; mockup: ReactNode }[] = [
   {
-    title: "Re-review only what changed.",
-    body: "After a push, your marks stay on sections whose code didn't change. Sections that did are flagged, with an interdiff of what is new since you reviewed them.",
+    title: "Changes that are understandable.",
+    body: "Changes are grouped by what they do. A file can appear in several sections, and every changed line ends up in one.",
     wide: true,
-    mockup: <ReReviewMockup />,
+    mockup: <SectionsMockup />,
   },
   {
-    title: "Every changed line has a section.",
-    body: "Coverage counts the changed lines each section covers. Anything left over goes into an Other changes section when the guide is published.",
-    mockup: <CoverageMockup />,
+    title: "Markdown that does more.",
+    body: "Headings, tables, Mermaid diagrams, math, code blocks, screenshots and screen recordings next to the code.",
+    mockup: <MarkdownMockup />,
   },
   {
-    title: "A check that means it was read.",
-    body: "The guide check shows review progress on the pull request. Make it required and it passes only when every section has enough reviewers.",
-    mockup: <CheckMockup />,
+    title: "Context when you need it.",
+    body: "Expand unchanged lines in steps of twenty, show the enclosing function, or open the whole file.",
+    mockup: <ContextMockup />,
   },
   {
-    title: "A queue that knows what you've read.",
-    body: "Needs my review lists the pull requests that wait on your review or have sections you haven't reviewed, with your progress on each.",
+    title: "Comments go to GitHub.",
+    body: "Comment on a line, reply to a thread, approve or request changes. Everything is posted to the pull request.",
     wide: true,
-    mockup: <QueueMockup />,
+    mockup: <CommentsMockup />,
   },
   {
-    title: "Refactors that read like refactors.",
-    body: "Moved and copied code links to where it came from, so a moved function doesn't read as new code. Suggested changes show the result before you post them.",
+    title: "Shared by the team.",
+    body: "Workspaces with invites and roles. Everyone sees the same guides and who reviewed which section.",
     wide: true,
-    mockup: <MovedMockup />,
+    mockup: <TeamMockup />,
   },
   {
-    title: "Share it outside the workspace.",
-    body: "Read-only links for people without an account, expiring after 1, 7 or 30 days. Or export the guide as Markdown or a PDF.",
-    mockup: <ShareMockup />,
+    title: "Automatic when you want it.",
+    body: "Generate a guide for every new pull request and a new version on every push, with OpenRouter, Anthropic, OpenAI or a local model.",
+    mockup: <AutomationMockup />,
   },
 ];
 
