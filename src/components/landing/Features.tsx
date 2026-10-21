@@ -9,6 +9,7 @@ import {
   RiPlayFill,
 } from "@remixicon/react";
 import clsx from "clsx";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { DiffStat } from "@/components/app/Badges";
 
@@ -171,35 +172,76 @@ function SectionsMockup() {
 
 /* Markdown that does more -------------------------------------------- */
 
+/** One rendered markdown element, labeled with what it is. */
+function Tile({ label, dark, bottom, className, children }: { label: string; dark?: boolean; bottom?: boolean; className?: string; children: ReactNode }) {
+  return (
+    <div className={clsx("relative h-[50px] overflow-hidden border", dark ? "border-ink bg-ink" : "border-black/15 bg-white", className)}>
+      {children}
+      <span
+        className={clsx(
+          "absolute right-0 px-1 font-mono text-[7.5px] leading-[11px] tracking-[0.08em] uppercase",
+          bottom ? "bottom-0" : "top-0",
+          dark ? "bg-black/40 text-white/75" : "bg-white/85 text-black/40",
+        )}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function MarkdownMockup() {
   return (
     <Panel>
       <PanelHeader left="Section 02 / 04" right="markdown" />
-      <div className="flex flex-col gap-2.5 px-3 pt-2.5 pb-3">
-        <p className="font-serif text-[18px] leading-none tracking-[-0.02em] text-black">Checkout API</p>
-        <div className="relative border border-black/15 px-3 pt-4 pb-2.5">
-          <span className="absolute top-1 right-1.5 font-mono text-[8px] tracking-[0.08em] text-black/35 uppercase">mermaid</span>
-          <div className="flex items-center font-mono text-[9px] text-ink">
-            {["Cart", "POST /checkout", "Stripe"].map((box, i) => (
-              <span key={box} className="contents">
-                {i > 0 ? <span className="h-px min-w-3 flex-1 bg-black/40" /> : null}
-                <span className={clsx("border border-black/40 px-1.5 py-[3px] whitespace-nowrap", i === 1 ? "bg-mist" : "bg-white")}>{box}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="border border-black/15 border-l-[3px] border-l-blue-deep px-2.5 py-1.5 text-[11.5px] leading-[17px] text-text">
-          <span className="mr-1.5 font-mono text-[9px] tracking-[0.08em] text-blue-deep uppercase">Note</span>
-          Totals are stored in cents.
-        </div>
-        <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-2">
-          <div className="flex items-center justify-center border border-black/15 px-2 py-2 font-serif text-[14px] whitespace-nowrap text-ink italic">
+      <div className="flex flex-col gap-2 px-3 pt-2.5 pb-3">
+        <p className="font-serif text-[17px] leading-none tracking-[-0.02em] text-black">
+          <span className="mr-1.5 font-mono text-[10px] tracking-normal text-black/30">##</span>
+          Checkout API
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <Tile label="mermaid" className="flex items-center px-2 pt-2">
+            <div className="flex w-full items-center font-mono text-[8px] text-ink">
+              {["Cart", "API", "Stripe"].map((box, i) => (
+                <span key={box} className="contents">
+                  {i > 0 ? <span className="h-px min-w-2 flex-1 bg-black/40" /> : null}
+                  <span className={clsx("border border-black/40 px-1 py-[2px]", i === 1 ? "bg-mist" : "bg-white")}>{box}</span>
+                </span>
+              ))}
+            </div>
+          </Tile>
+          <Tile label="table" bottom>
+            <div className="grid grid-cols-2 text-[8.5px] leading-[12px] text-text">
+              <span className="bg-paper px-1.5 py-[2px] font-mono text-[7.5px] tracking-[0.06em] text-black/50 uppercase">Input</span>
+              <span className="bg-paper px-1.5 py-[2px] font-mono text-[7.5px] tracking-[0.06em] text-black/50 uppercase">Default</span>
+              {["Term", "30 years", "Tax rate", "1.1%"].map((c) => (
+                <span key={c} className="border-t border-dashed border-line px-1.5 py-[1px]">
+                  {c}
+                </span>
+              ))}
+            </div>
+          </Tile>
+          <Tile label="ts" className="flex flex-col justify-center px-2 font-mono text-[8.5px] leading-[13px] whitespace-nowrap">
+            <span>
+              <Code segs={[["const ", K], ["t = "], ["sum", F], ["(cart);"]]} />
+            </span>
+            <span>
+              <Code segs={[["if ", K], ["(t <= "], ["0", N], [") "], ["return", K], [";"]]} />
+            </span>
+          </Tile>
+          <Tile label="math" className="flex items-center justify-center font-serif text-[14px] whitespace-nowrap text-ink italic">
             total = Σ pᵢ · qᵢ
-          </div>
-          <div className="relative flex items-center justify-center bg-ink">
-            <RiPlayFill size={16} className="text-white" />
-            <span className="absolute right-1.5 bottom-1 font-mono text-[8.5px] text-white/70">0:14</span>
-          </div>
+          </Tile>
+          <Tile label="screenshot">
+            <Image src="/landing/listing-house.webp" alt="" fill sizes="200px" className="object-cover" />
+          </Tile>
+          <Tile label="recording" dark className="flex items-center justify-center">
+            <Image src="/landing/listing-house-2.webp" alt="" fill sizes="200px" className="object-cover opacity-45" />
+            <span className="relative flex h-6 w-6 items-center justify-center bg-white/90">
+              <RiPlayFill size={13} className="text-ink" />
+            </span>
+            <span className="absolute bottom-0.5 left-1.5 font-mono text-[8px] text-white/80">0:14</span>
+          </Tile>
         </div>
       </div>
     </Panel>
