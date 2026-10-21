@@ -6,10 +6,8 @@ import {
   RiCheckLine,
   RiExpandUpDownLine,
   RiLinksLine,
-  RiPlayFill,
 } from "@remixicon/react";
 import clsx from "clsx";
-import Image from "next/image";
 import type { ReactNode } from "react";
 import { DiffStat } from "@/components/app/Badges";
 
@@ -173,15 +171,14 @@ function SectionsMockup() {
 /* Markdown that does more -------------------------------------------- */
 
 /** One rendered markdown element, labeled with what it is. */
-function Tile({ label, dark, bottom, className, children }: { label: string; dark?: boolean; bottom?: boolean; className?: string; children: ReactNode }) {
+function Tile({ label, bottom, className, children }: { label: string; bottom?: boolean; className?: string; children: ReactNode }) {
   return (
-    <div className={clsx("relative h-[50px] overflow-hidden border", dark ? "border-ink bg-ink" : "border-black/15 bg-white", className)}>
+    <div className={clsx("relative h-[62px] overflow-hidden border border-black/15 bg-white", className)}>
       {children}
       <span
         className={clsx(
-          "absolute right-0 px-1 font-mono text-[7.5px] leading-[11px] tracking-[0.08em] uppercase",
+          "absolute right-0 bg-white/85 px-1 font-mono text-[7.5px] leading-[11px] tracking-[0.08em] text-black/40 uppercase",
           bottom ? "bottom-0" : "top-0",
-          dark ? "bg-black/40 text-white/75" : "bg-white/85 text-black/40",
         )}
       >
         {label}
@@ -231,16 +228,6 @@ function MarkdownMockup() {
           </Tile>
           <Tile label="math" className="flex items-center justify-center font-serif text-[14px] whitespace-nowrap text-ink italic">
             total = Σ pᵢ · qᵢ
-          </Tile>
-          <Tile label="screenshot">
-            <Image src="/landing/listing-house.webp" alt="" fill sizes="200px" className="object-cover" />
-          </Tile>
-          <Tile label="recording" dark className="flex items-center justify-center">
-            <Image src="/landing/listing-house-2.webp" alt="" fill sizes="200px" className="object-cover opacity-45" />
-            <span className="relative flex h-6 w-6 items-center justify-center bg-white/90">
-              <RiPlayFill size={13} className="text-ink" />
-            </span>
-            <span className="absolute bottom-0.5 left-1.5 font-mono text-[8px] text-white/80">0:14</span>
           </Tile>
         </div>
       </div>
