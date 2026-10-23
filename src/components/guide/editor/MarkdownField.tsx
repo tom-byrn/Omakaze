@@ -52,7 +52,7 @@ export function MarkdownField({
   }
 
   return (
-    <div className="border border-[#cfcfcf] bg-white focus-within:border-ink">
+    <div className="border border-black/[0.19] bg-white focus-within:border-ink">
       <div className="flex flex-wrap items-center gap-1 border-b border-dashed border-line bg-paper px-2 py-1">
         <button type="button" className="btn btn-ghost btn-xs" onClick={() => fileRef.current?.click()} disabled={busy}>
           <RiImageAddLine size={13} /> {busy ? "Uploading…" : "Image or video"}

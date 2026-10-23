@@ -34,7 +34,7 @@ export default async function SharingSettingsPage(props: PageProps<"/w/[slug]/se
               name="shareLinksEnabled"
               defaultChecked={workspace.shareLinksEnabled}
               disabled={!admin}
-              className="mt-1 h-4 w-4 accent-[#141518]"
+              className="mt-1 h-4 w-4 accent-ink"
             />
             <span>
               <span className="block text-[14px] text-ink">Allow share links in this workspace</span>

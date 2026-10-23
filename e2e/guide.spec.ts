@@ -29,7 +29,7 @@ test.describe("Guide viewer", () => {
     await caption(page, "Arrow keys move between sections", "Keyboard");
     await page.keyboard.press("ArrowRight");
     await expect(page.getByText("Section 02 / 06")).toBeVisible();
-    await expect(page.locator("figure.md-mermaid svg")).toBeVisible();
+    await expect(page.locator("figure.md-mermaid .mermaid-light svg")).toBeVisible();
     await expect(page).toHaveURL(/section=2/);
     await shot(page, "guide-section-mermaid");
     await pause(page);

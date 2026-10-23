@@ -93,7 +93,7 @@ function Axes({ f, columns, tick }: { f: Frame; columns: ChartColumn[]; tick: (n
             x2={f.width - M.right}
             y1={f.y(t)}
             y2={f.y(t)}
-            stroke={i === 0 ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.07)"}
+            className={i === 0 ? "stroke-black/30" : "stroke-black/[0.07]"}
             strokeWidth={1}
             shapeRendering="crispEdges"
           />
@@ -125,7 +125,7 @@ function Tip({ f, i, heading, lines }: { f: Frame; i: number; heading: string; l
   const left = right + w > f.width - 2 ? Math.max(2, f.center(i) - 10 - w) : right;
   return (
     <g className="pointer-events-none opacity-0 transition-opacity duration-100 group-hover:opacity-100" aria-hidden="true">
-      <rect x={left} y={M.top} width={w} height={h} fill="#fff" stroke="rgba(0,0,0,0.3)" shapeRendering="crispEdges" />
+      <rect x={left} y={M.top} width={w} height={h} className="fill-white stroke-black/30" shapeRendering="crispEdges" />
       <text x={left + pad} y={M.top + pad + 9} fontSize={10} className="fill-meta font-mono uppercase" letterSpacing="0.06em">
         {heading}
       </text>
@@ -150,9 +150,9 @@ function Tip({ f, i, heading, lines }: { f: Frame; i: number; heading: string; l
 /** Series key in tooltips: a square for bars, a short line for lines. */
 function Key({ series, x, y }: { series: ChartSeries; x: number; y: number }) {
   return series.marker ? (
-    <line x1={x} x2={x + 10} y1={y} y2={y} stroke={series.color} strokeWidth={2} />
+    <line x1={x} x2={x + 10} y1={y} y2={y} style={{ stroke: series.color }} strokeWidth={2} />
   ) : (
-    <rect x={x + 1} y={y - 4} width={8} height={8} fill={series.color} />
+    <rect x={x + 1} y={y - 4} width={8} height={8} style={{ fill: series.color }} />
   );
 }
 
@@ -198,9 +198,8 @@ function HitLayer({
                 x2={f.center(i)}
                 y1={M.top}
                 y2={M.top + f.plotH}
-                stroke="rgba(0,0,0,0.25)"
                 strokeWidth={1}
-                className="pointer-events-none opacity-0 group-hover:opacity-100"
+                className="pointer-events-none stroke-black/25 opacity-0 group-hover:opacity-100"
                 shapeRendering="crispEdges"
               />
             ) : null}
@@ -232,7 +231,7 @@ export function ColumnChart({ label, series, columns, format = compactNumber, ti
               // A 2px gap in the surface color separates stacked segments.
               const gap = j < parts.length - 1 && h > 3 ? 2 : 0;
               const rect = (
-                <rect key={p.s.key} x={f.center(i) - barW / 2} y={top + gap} width={barW} height={Math.max(1, h - gap)} fill={p.s.color} shapeRendering="crispEdges" />
+                <rect key={p.s.key} x={f.center(i) - barW / 2} y={top + gap} width={barW} height={Math.max(1, h - gap)} style={{ fill: p.s.color }} shapeRendering="crispEdges" />
               );
               base = top;
               return rect;
@@ -270,13 +269,13 @@ export function LineChart({ label, series, columns, format = compactNumber, tick
               {segments
                 .filter((seg) => seg.length > 1)
                 .map((seg, k) => (
-                  <polyline key={k} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                  <polyline key={k} points={seg.map((p) => p.join(",")).join(" ")} fill="none" style={{ stroke: s.color }} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
                 ))}
               {segments.flat().map(([x, y], k) =>
                 s.marker === "square" ? (
-                  <rect key={k} x={x - 4} y={y - 4} width={8} height={8} fill={s.color} stroke="#fff" strokeWidth={2} />
+                  <rect key={k} x={x - 4} y={y - 4} width={8} height={8} style={{ fill: s.color }} className="stroke-white" strokeWidth={2} />
                 ) : (
-                  <circle key={k} cx={x} cy={y} r={4} fill={s.color} stroke="#fff" strokeWidth={2} />
+                  <circle key={k} cx={x} cy={y} r={4} style={{ fill: s.color }} className="stroke-white" strokeWidth={2} />
                 ),
               )}
             </g>
@@ -301,8 +300,8 @@ export function Legend({ series, className, minimum = 2 }: { series: ChartSeries
         <li key={s.key} className="flex items-center gap-1.5 text-[12px] text-ui">
           {s.marker ? (
             <svg width="16" height="10" aria-hidden="true">
-              <line x1="0" x2="16" y1="5" y2="5" stroke={s.color} strokeWidth="2" />
-              {s.marker === "square" ? <rect x="4.5" y="1.5" width="7" height="7" fill={s.color} /> : <circle cx="8" cy="5" r="3.5" fill={s.color} />}
+              <line x1="0" x2="16" y1="5" y2="5" style={{ stroke: s.color }} strokeWidth="2" />
+              {s.marker === "square" ? <rect x="4.5" y="1.5" width="7" height="7" style={{ fill: s.color }} /> : <circle cx="8" cy="5" r="3.5" style={{ fill: s.color }} />}
             </svg>
           ) : (
             <span className="inline-block h-2.5 w-2.5" style={{ background: s.color }} aria-hidden="true" />

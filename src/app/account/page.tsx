@@ -3,6 +3,7 @@ import { AppHeader } from "@/components/app/AppHeader";
 import { ChatgptPlanPanel } from "@/components/settings/ChatgptPlanPanel";
 import { blockerText, CheckRow, Note } from "@/components/settings/NotificationFields";
 import { Panel } from "@/components/settings/Panel";
+import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { ActionForm } from "@/components/ui/ActionForm";
 import { Avatar } from "@/components/ui/Avatar";
 import { ConfirmButton } from "@/components/ui/ConfirmButton";
@@ -102,6 +103,10 @@ export default async function AccountPage(props: PageProps<"/account">) {
           </ActionForm>
         </Panel>
 
+        <Panel title="Appearance" description="Follow your system's setting, or always use the light or dark theme. Saved in this browser.">
+          <ThemeSwitcher className="max-w-[360px]" />
+        </Panel>
+
         <div id="notifications" className="scroll-mt-24">
           <Panel
             title="Notifications"
@@ -160,7 +165,7 @@ export default async function AccountPage(props: PageProps<"/account">) {
                           className="flex cursor-pointer flex-col gap-1 border border-black/15 bg-white px-4 py-3 transition-colors hover:border-black/40 has-[:checked]:border-ink has-[:checked]:bg-paper has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink"
                         >
                           <span className="flex items-center gap-2">
-                            <input type="radio" name="digest" value={o.value} defaultChecked={prefs.digest === o.value} className="accent-[#141518]" />
+                            <input type="radio" name="digest" value={o.value} defaultChecked={prefs.digest === o.value} className="accent-ink" />
                             <span className="text-[14px] text-ink">{o.label}</span>
                           </span>
                           <span className="text-[12px] leading-[18px] text-muted">{o.help}</span>

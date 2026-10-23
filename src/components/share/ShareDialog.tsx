@@ -41,7 +41,7 @@ export function ShareDialog({
         ref={ref}
         onClose={() => setFormKey((k) => k + 1)}
         aria-labelledby="share-dialog-title"
-        className="m-auto max-h-[calc(100vh-32px)] w-[calc(100%-32px)] max-w-[560px] border border-black/15 bg-white p-0 text-ink backdrop:bg-black/40"
+        className="m-auto max-h-[calc(100vh-32px)] w-[calc(100%-32px)] max-w-[560px] border border-black/15 bg-white p-0 text-ink backdrop:bg-[rgb(0_0_0/0.45)]"
       >
         <div className="flex items-start gap-3 border-b border-dashed border-line px-6 py-5">
           <div className="min-w-0 flex-1">
@@ -109,7 +109,7 @@ export function ShareDialog({
                   </select>
                 </div>
                 <label className="flex h-10 cursor-pointer items-center gap-2 text-[13px] text-ink">
-                  <input type="checkbox" name="comments" className="h-4 w-4 accent-[#141518]" />
+                  <input type="checkbox" name="comments" className="h-4 w-4 accent-ink" />
                   Include review comments from GitHub
                 </label>
               </div>
@@ -140,7 +140,7 @@ function TargetOption({ value, title, help, defaultChecked, disabled }: { value:
   return (
     <label className="flex cursor-pointer flex-col gap-1 border border-black/15 bg-white px-4 py-3 transition-colors hover:border-black/40 has-[:checked]:border-ink has-[:checked]:bg-paper has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink">
       <span className="flex items-center gap-2">
-        <input type="radio" name="target" value={value} defaultChecked={defaultChecked} disabled={disabled} className="accent-[#141518]" />
+        <input type="radio" name="target" value={value} defaultChecked={defaultChecked} disabled={disabled} className="accent-ink" />
         <span className="text-[14px] font-medium text-ink">{title}</span>
       </span>
       <span className="text-[12px] leading-[18px] text-muted">{help}</span>

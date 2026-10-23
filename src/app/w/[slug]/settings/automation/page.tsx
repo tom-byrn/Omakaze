@@ -14,7 +14,7 @@ export const metadata = { title: "Automation" };
 function Toggle({ name, label, help, defaultChecked, disabled }: { name: string; label: string; help: string; defaultChecked: boolean; disabled?: boolean }) {
   return (
     <label className="flex cursor-pointer items-start gap-3 border-t border-dashed border-line py-4 first:border-t-0">
-      <input type="checkbox" name={name} defaultChecked={defaultChecked} disabled={disabled} className="mt-1 h-4 w-4 accent-[#141518]" />
+      <input type="checkbox" name={name} defaultChecked={defaultChecked} disabled={disabled} className="mt-1 h-4 w-4 accent-ink" />
       <span>
         <span className="block text-[14px] text-ink">{label}</span>
         <span className="block text-[13px] leading-[20px] text-body">{help}</span>

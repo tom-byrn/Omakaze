@@ -6,15 +6,16 @@ import Link from "next/link";
  * version (public/logo-white.svg) for dark surfaces, where the black one disappears.
  */
 export function LogoMark({ size = 26, invert = false }: { size?: number; invert?: boolean }) {
+  const image = (src: string, className?: string) => (
+    <Image src={src} alt="" aria-hidden="true" width={size} height={size} loading="eager" className={className} />
+  );
+  if (invert) return image("/logo-white.svg");
+  // The app's dark theme swaps to the white mark (globals.css).
   return (
-    <Image
-      src={invert ? "/logo-white.svg" : "/logo.svg"}
-      alt=""
-      aria-hidden="true"
-      width={size}
-      height={size}
-      loading="eager"
-    />
+    <>
+      {image("/logo.svg", "logo-light")}
+      {image("/logo-white.svg", "logo-dark")}
+    </>
   );
 }
 

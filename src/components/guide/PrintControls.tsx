@@ -48,7 +48,7 @@ export function PrintControls({ backHref, label, autoPrint }: { backHref: string
 
   return (
     <div
-      className="print-controls sticky top-0 z-20 border-b border-dashed border-line bg-[rgba(252,252,252,0.97)] backdrop-blur-md print:hidden"
+      className="print-controls sticky top-0 z-20 border-b border-dashed border-line bg-paper/97 backdrop-blur-md print:hidden"
       data-print-ready={ready ? "true" : "false"}
     >
       <div className="mx-auto flex max-w-[880px] flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3">

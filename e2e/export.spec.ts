@@ -149,7 +149,7 @@ test.describe("Export", () => {
     const sections = page.locator("section.print-page");
     await expect(sections).toHaveCount(7);
     const validation = page.getByRole("region", { name: "Section 2: Validating a code" });
-    await expect(validation.locator("figure.md-mermaid svg")).toBeVisible();
+    await expect(validation.locator("figure.md-mermaid .mermaid-light svg")).toBeVisible();
     const migration = page.getByRole("region", { name: "Section 1: Promo codes table" }).locator('.print-file[data-path="db/migrations/0018_promo_codes.sql"]');
     await expect(migration).toContainText('CREATE TABLE "promo_codes"');
     await expect(migration.locator("tr.row-add").first().locator("td.diff-num").nth(1)).toHaveText("1");

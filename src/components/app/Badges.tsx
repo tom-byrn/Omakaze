@@ -62,7 +62,7 @@ export function DiffStat({ additions, deletions }: { additions: number | null; d
   if (additions === null && deletions === null) return null;
   return (
     <span className="font-mono text-[11px] tracking-[0.02em] whitespace-nowrap">
-      <span className="text-[#1f8a85]">+{(additions ?? 0).toLocaleString("en")}</span>{" "}
+      <span className="text-added">+{(additions ?? 0).toLocaleString("en")}</span>{" "}
       <span className="text-danger">−{(deletions ?? 0).toLocaleString("en")}</span>
     </span>
   );

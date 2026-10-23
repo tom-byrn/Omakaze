@@ -85,7 +85,7 @@ function Block({ block }: { block: SlackBlock }) {
               rel="noreferrer"
               className={clsx(
                 "inline-flex h-7 items-center border px-3 text-[13px] font-medium",
-                b.style === "primary" ? "border-[#007a5a] bg-[#007a5a] text-white" : "border-black/25 bg-white text-fg hover:bg-wash",
+                b.style === "primary" ? "border-[#007a5a] bg-[#007a5a] text-[#fff]" : "border-black/25 bg-white text-fg hover:bg-wash",
               )}
             >
               {b.text.text}

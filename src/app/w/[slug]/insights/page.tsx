@@ -44,12 +44,12 @@ export const metadata = { title: "Insights" };
 const SOURCE_SERIES: ChartSeries[] = GUIDE_ORIGINS.map((o) => ({ key: o, label: ORIGIN_LABELS[o], color: ORIGIN_COLORS[o] }));
 
 const SPEED_SERIES: ChartSeries[] = [
-  { key: "first", label: "First section reviewed", color: "#141518", marker: "circle" },
-  { key: "all", label: "All sections reviewed", color: "#898989", marker: "square" },
+  { key: "first", label: "First section reviewed", color: "var(--color-ink)", marker: "circle" },
+  { key: "all", label: "All sections reviewed", color: "var(--color-meta)", marker: "square" },
 ];
 
 /** One hue light to dark, in the product's neutrals: not reviewed, partly, fully. */
-const COMPLETION_COLORS: Record<CompletionState, string> = { full: "#141518", partial: "#565656", none: "#a8a8a8" };
+const COMPLETION_COLORS: Record<CompletionState, string> = { full: "var(--color-ink)", partial: "var(--color-ui)", none: "var(--color-solid)" };
 
 const hoursTick = (h: number) => `${h} h`;
 
@@ -119,7 +119,7 @@ export default async function InsightsPage(props: PageProps<"/w/[slug]/insights"
               className={clsx(
                 "flex h-10 items-center px-4 font-serif text-[15px]",
                 i > 0 && "border-l border-tab",
-                d === days ? "bg-ink text-[#f2f2f2]" : "bg-paper text-black hover:bg-black/[0.03]",
+                d === days ? "bg-ink text-white" : "bg-paper text-black hover:bg-black/[0.03]",
               )}
               aria-current={d === days ? "page" : undefined}
             >

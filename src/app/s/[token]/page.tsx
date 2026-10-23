@@ -59,7 +59,7 @@ export default async function SharedGuidePage(props: PageProps<"/s/[token]">) {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" data-shared-guide>
-      <header className="flex h-16 flex-none items-center gap-4 border-b border-dashed border-line-header bg-[rgba(252,252,252,0.97)] px-4 lg:px-6">
+      <header className="flex h-16 flex-none items-center gap-4 border-b border-dashed border-line-header bg-paper/97 px-4 lg:px-6">
         <Logo />
         <span className="h-6 border-l border-dashed border-line" aria-hidden="true" />
         <p className="min-w-0 flex-1 truncate text-[13px] text-body">

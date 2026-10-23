@@ -45,7 +45,7 @@ function FileLoader(
       <div className="flex items-center gap-2 border-b border-dashed border-line bg-paper px-3 py-2">
         <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-ink">{props.path}</span>
         <span className="font-mono text-[11px]">
-          <span className="text-[#1f8a85]">+{props.additions}</span> <span className="text-danger">−{props.deletions}</span>
+          <span className="text-added">+{props.additions}</span> <span className="text-danger">−{props.deletions}</span>
         </span>
       </div>
       {error ? (

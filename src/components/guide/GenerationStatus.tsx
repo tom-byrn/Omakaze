@@ -70,7 +70,7 @@ export function GenerationStatus({
       <ol className="max-h-48 overflow-auto px-4 py-3 font-mono text-[11px] leading-[18px] text-ui">
         {events.length === 0 ? <li>Waiting for the first update…</li> : null}
         {events.map((e, i) => (
-          <li key={i} className={e.level === "error" ? "text-danger" : e.level === "warn" ? "text-[#8a6d00]" : undefined}>
+          <li key={i} className={e.level === "error" ? "text-danger" : e.level === "warn" ? "text-warn" : undefined}>
             <span className="text-black/35">{new Date(e.at).toLocaleTimeString("en", { hour12: false })}</span> {e.message}
           </li>
         ))}

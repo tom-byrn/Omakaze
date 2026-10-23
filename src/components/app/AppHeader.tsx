@@ -1,6 +1,7 @@
 import { RiArrowDownSLine, RiCheckLine, RiAddLine } from "@remixicon/react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/Avatar";
+import { ThemeSwitcher } from "@/components/theme/ThemeSwitcher";
 import { LogoMark } from "@/components/ui/Logo";
 import { NavLinks } from "./NavLinks";
 
@@ -16,7 +17,7 @@ export function AppHeader({
   workspaces: WorkspaceItem[];
 }) {
   return (
-    <header className="sticky top-0 z-30 h-16 border-b border-dashed border-line-header bg-[rgba(252,252,252,0.97)] backdrop-blur-md">
+    <header className="sticky top-0 z-30 h-16 border-b border-dashed border-line-header bg-paper/97 backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-[1560px] items-center gap-6 px-4 lg:px-8">
         <Link href={current ? `/w/${current.slug}` : "/"} className="flex items-center gap-2.5" aria-label="Home">
           <LogoMark />
@@ -59,10 +60,14 @@ export function AppHeader({
             <summary className="flex cursor-pointer list-none items-center gap-2" aria-label="Account menu">
               <Avatar src={user.avatarUrl} name={user.name} size={28} />
             </summary>
-            <div className="absolute right-0 top-[calc(100%+12px)] z-40 w-60 border border-solid bg-paper grain">
+            <div className="absolute right-0 top-[calc(100%+12px)] z-40 w-64 border border-solid bg-paper grain">
               <div className="border-b border-dashed border-line px-3 py-3">
                 <p className="truncate text-[14px] text-ink">{user.name}</p>
                 {user.email ? <p className="truncate font-mono text-[11px] text-meta">{user.email}</p> : null}
+              </div>
+              <div className="border-b border-dashed border-line px-3 py-2.5">
+                <p className="mono-label mb-2">Theme</p>
+                <ThemeSwitcher />
               </div>
               <Link href="/account" className="block px-3 py-2 text-[14px] text-ui hover:bg-black/[0.04] hover:text-ink">
                 Account

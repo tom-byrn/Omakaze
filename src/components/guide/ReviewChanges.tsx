@@ -149,8 +149,8 @@ export function SectionNotice({
   }
   if (progress.kind === "rereview") {
     return (
-      <div className="mt-6 border border-[#b08d00]/40 bg-highlight/15 px-4 py-3" role="note" aria-label="Changed since you reviewed">
-        <p className="mono-label text-[#8a6d00]">Changed since you reviewed v{progress.version}</p>
+      <div className="mt-6 border border-warn-line/40 bg-highlight/15 px-4 py-3" role="note" aria-label="Changed since you reviewed">
+        <p className="mono-label text-warn">Changed since you reviewed v{progress.version}</p>
         <p className="mt-1 text-[13px] leading-[20px] text-text">{describeChange(progress.change.files)}.</p>
         <button type="button" className="link mt-2 text-[13px]" onClick={onShowChanges}>
           Show what changed
@@ -259,12 +259,12 @@ export function InterdiffPanel({ change, title, version }: { change: SectionChan
   const added = change.files.reduce((n, f) => n + f.added, 0);
   const removed = change.files.reduce((n, f) => n + f.removed, 0);
   return (
-    <section id="section-changes" aria-label="What changed" className="scroll-mt-4 border border-[#b08d00]/40 bg-white">
-      <header className="flex items-center gap-2 border-b border-dashed border-[#b08d00]/30 bg-highlight/15 px-3 py-2">
+    <section id="section-changes" aria-label="What changed" className="scroll-mt-4 border border-warn-line/40 bg-white">
+      <header className="flex items-center gap-2 border-b border-dashed border-warn-line/30 bg-highlight/15 px-3 py-2">
         <button type="button" onClick={() => setOpen((o) => !o)} className="text-black/45 hover:text-ink" aria-label={open ? "Collapse changes" : "Expand changes"}>
           {open ? <RiArrowUpSLine size={16} /> : <RiArrowDownSLine size={16} />}
         </button>
-        <span className="mono-label text-[#6b5a00]">{title}</span>
+        <span className="mono-label text-warn-deep">{title}</span>
         <span className="ml-auto font-mono text-[11px] whitespace-nowrap text-black/55">
           {plural(change.files.length, "file")} · {added} new · {removed} removed
         </span>

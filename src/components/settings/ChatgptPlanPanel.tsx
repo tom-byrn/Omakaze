@@ -243,7 +243,7 @@ function WelcomeDialog({ onClose }: { onClose: () => void }) {
       ref={ref}
       onClose={onClose}
       aria-labelledby="chatgpt-welcome-title"
-      className="m-auto max-w-[440px] border border-black/15 bg-white p-6 text-ink backdrop:bg-black/40"
+      className="m-auto max-w-[440px] border border-black/15 bg-white p-6 text-ink backdrop:bg-[rgb(0_0_0/0.45)]"
     >
       <div className="flex flex-col gap-3">
         <ChatgptLogo size={24} />
