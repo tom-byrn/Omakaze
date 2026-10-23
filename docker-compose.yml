@@ -8,7 +8,7 @@ name: omakaze
 services:
   app:
     # Builds the image from this checkout. To run a published image instead, replace `build: .`
-    # with `image: ghcr.io/tom-byrn/omakaze:latest` (see .github/workflows/release.yml).
+    # with a released version, such as `image: ghcr.io/tom-byrn/omakaze:0.1.0` (`latest` follows main).
     build: .
     restart: unless-stopped
     env_file: .env
