@@ -38,7 +38,7 @@ export function McpClientTabs({ mcpUrl }: { mcpUrl: string }) {
             className={clsx(
               "h-9 px-3 font-serif text-[14px]",
               i > 0 && "border-l border-tab",
-              active === c.id ? "bg-ink text-[#f2f2f2]" : "bg-paper text-black hover:bg-black/[0.03]",
+              active === c.id ? "bg-ink text-white" : "bg-paper text-black hover:bg-black/[0.03]",
             )}
           >
             {c.label}

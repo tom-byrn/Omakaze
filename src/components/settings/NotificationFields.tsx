@@ -18,7 +18,7 @@ export function CheckRow({
 }) {
   return (
     <label className="flex cursor-pointer items-start gap-3 border-t border-dashed border-line py-3.5 first:border-t-0 has-[:disabled]:cursor-not-allowed">
-      <input type="checkbox" name={name} value={value} defaultChecked={defaultChecked} disabled={disabled} className="mt-1 h-4 w-4 shrink-0 accent-[#141518]" />
+      <input type="checkbox" name={name} value={value} defaultChecked={defaultChecked} disabled={disabled} className="mt-1 h-4 w-4 shrink-0 accent-ink" />
       <span className="min-w-0">
         <span className="block text-[14px] text-ink">{label}</span>
         {help ? <span className="block text-[13px] leading-[20px] text-body">{help}</span> : null}

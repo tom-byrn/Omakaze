@@ -72,7 +72,7 @@ export function StateTabs({
           className={clsx(
             "relative flex h-10 items-center gap-2 px-4 font-serif text-[15px]",
             i > 0 && "border-l border-tab",
-            current === s ? "bg-ink text-[#f2f2f2]" : "bg-paper text-black hover:bg-black/[0.03]",
+            current === s ? "bg-ink text-white" : "bg-paper text-black hover:bg-black/[0.03]",
           )}
           aria-current={current === s ? "page" : undefined}
         >

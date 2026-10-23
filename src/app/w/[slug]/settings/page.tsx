@@ -27,7 +27,7 @@ export default async function GeneralSettingsPage(props: PageProps<"/w/[slug]/se
               URL
             </label>
             <div className="flex items-center">
-              <span className="flex h-10 items-center border border-r-0 border-[#cfcfcf] bg-wash px-3 font-mono text-[12px] text-meta">
+              <span className="flex h-10 items-center border border-r-0 border-black/[0.19] bg-wash px-3 font-mono text-[12px] text-meta">
                 {env().APP_URL.replace(/^https?:\/\//, "")}/w/
               </span>
               <input id="slug" name="slug" defaultValue={workspace.slug} className="input font-mono" disabled={!admin} required />

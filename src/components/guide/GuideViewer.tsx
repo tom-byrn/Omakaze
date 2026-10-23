@@ -363,7 +363,7 @@ export function GuideViewer(props: ViewerProps) {
             <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">· {carriedCount} carried</span>
           ) : null}
           {rereviewCount > 0 ? (
-            <span className="hidden font-mono text-[10px] tracking-[0.08em] text-[#8a6d00] uppercase xl:inline">· {rereviewCount} to re-review</span>
+            <span className="hidden font-mono text-[10px] tracking-[0.08em] text-warn uppercase xl:inline">· {rereviewCount} to re-review</span>
           ) : null}
           <button
             type="button"
@@ -478,7 +478,7 @@ export function GuideViewer(props: ViewerProps) {
                     {current.files.length} file{current.files.length === 1 ? "" : "s"}
                   </span>
                   <span>
-                    <span className="text-[#1f8a85]">+{current.additions}</span> <span className="text-danger">−{current.deletions}</span>
+                    <span className="text-added">+{current.additions}</span> <span className="text-danger">−{current.deletions}</span>
                   </span>
                   {current.reviewedBy.filter((u) => u !== me.id).length > 0 ? (
                     <span className="flex items-center gap-1.5">
@@ -671,7 +671,7 @@ function StepTab({
           active ? "text-white/60" : "text-black/45",
         )}
       >
-        <span className={clsx("dot", active ? "bg-signal" : m ? MARK_COLOR[m.tone] : "bg-[rgba(0,0,0,0.18)]")} />
+        <span className={clsx("dot", active ? "bg-signal" : m ? MARK_COLOR[m.tone] : "bg-black/[0.18]")} />
         {index !== null ? String(index).padStart(2, "0") : active ? "Now" : "—"}
         {m ? ` · ${m.label}` : ""}
       </span>
@@ -722,7 +722,7 @@ function OverviewRight({
                 {f.path}
               </span>
               <span className="font-mono text-[11px] whitespace-nowrap">
-                <span className="text-[#1f8a85]">+{f.additions}</span> <span className="text-danger">−{f.deletions}</span>
+                <span className="text-added">+{f.additions}</span> <span className="text-danger">−{f.deletions}</span>
               </span>
               <span className="flex gap-1">
                 {f.sections.map((i) => (

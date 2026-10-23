@@ -12,10 +12,11 @@ import {
   RiFileCopy2Line,
 } from "@remixicon/react";
 import clsx from "clsx";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { FileView } from "@/lib/diff/fileview";
 import type { Tok } from "@/lib/diff/highlight";
 import type { MoveLink } from "@/lib/diff/moves";
+import { darkTokenColor } from "@/lib/diff/token-colors";
 import type { SectionRef } from "@/lib/guides/refs";
 import type { CodeTarget } from "@/components/markdown/CodeRefLink";
 import { CommentThread, Composer, type SuggestionBase } from "./CommentThread";
@@ -40,11 +41,12 @@ function Code({ tokens, palette }: { tokens: Tok[]; palette: string[] }) {
       {tokens.map((t, i) => (
         <span
           key={i}
+          className={t[1] ? "tk" : undefined}
           style={{
-            color: t[1] ? palette[t[1]] : undefined,
+            ...(t[1] ? { "--tk": palette[t[1]], "--tk-dark": darkTokenColor(palette[t[1]]) } : null),
             fontStyle: t[2] && t[2] & 1 ? "italic" : undefined,
             fontWeight: t[2] && t[2] & 2 ? 600 : undefined,
-          }}
+          } as CSSProperties}
         >
           {t[0]}
         </span>
@@ -238,7 +240,7 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
           )}
         </span>
         <span className="font-mono text-[11px] whitespace-nowrap">
-          <span className="text-[#1f8a85]">+{view.additions}</span> <span className="text-danger">−{view.deletions}</span>
+          <span className="text-added">+{view.additions}</span> <span className="text-danger">−{view.deletions}</span>
         </span>
         {!collapsed && rows.length > 0 ? (
           <button

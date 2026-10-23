@@ -176,7 +176,7 @@ test.describe("Share links", () => {
     // GitHub's comments are shown read-only: no replies, resolving, new comments or committing suggestions.
     const sam = promo.locator("[data-thread]").filter({ hasText: "Copy nit" });
     await expect(sam.locator("[data-suggestion] tr.row-add")).toHaveText(/Add a little more to your cart to use this code/);
-    await expect(viewer.locator("figure.md-mermaid svg")).toBeVisible();
+    await expect(viewer.locator("figure.md-mermaid .mermaid-light svg")).toBeVisible();
     await reveal(sam);
     await expect(sam.getByRole("button", { name: "Reply…" })).toHaveCount(0);
     await expect(sam.getByRole("button", { name: "Resolve conversation" })).toHaveCount(0);

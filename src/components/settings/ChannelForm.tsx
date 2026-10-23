@@ -67,7 +67,7 @@ export function ChannelForm({
                 value={e}
                 checked={events.includes(e)}
                 onChange={(ev) => setEvents((list) => (ev.target.checked ? [...list, e] : list.filter((x) => x !== e)))}
-                className="mt-1 h-4 w-4 shrink-0 accent-[#141518]"
+                className="mt-1 h-4 w-4 shrink-0 accent-ink"
               />
               <span className="min-w-0">
                 <span className="block text-[14px] text-ink">{CHANNEL_EVENT_LABELS[e].label}</span>

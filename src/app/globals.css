@@ -39,6 +39,13 @@
   --color-panel-dark: #171717;
   --color-rule-dark: #383535;
   --color-border-dark: #444444;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-code: #24292e;
+  --color-added: #1f8a85;
+  --color-warn: #8a6d00;
+  --color-warn-line: #b08d00;
+  --color-warn-deep: #6b5a00;
 
   --font-serif: var(--font-newsreader), "Newsreader", Georgia, serif;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -56,6 +63,90 @@
   --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.055'/></svg>");
   --grain-dark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.09'/></svg>");
   --header-h: 64px;
+  color-scheme: light;
+}
+
+/* Dark theme of the app (src/lib/theme.ts). The landing page never gets data-theme="dark".
+   Tokens keep their roles: paper is the page, white the raised surfaces (cards, inputs, menus),
+   black and ink the strongest text, so `bg-white`, `text-black/45` and `bg-ink text-white` invert. */
+:root[data-theme="dark"] {
+  --color-ink: #ededee;
+  --color-fg: #e6e6e7;
+  --color-paper: #101113;
+  --color-heading: #f1f1f2;
+  --color-stat: #dadadb;
+  --color-alt-ink: #d2d2d3;
+  --color-text: #c4c4c6;
+  --color-ui: #a9a9ac;
+  --color-body: #9b9b9e;
+  --color-nav: #949497;
+  --color-meta: #86868a;
+  --color-muted: #7c7c80;
+  --color-sub: #6b6b6f;
+  --color-solid: #4c4c51;
+  --color-lead: #404045;
+  --color-tab: #3a3a3f;
+  --color-line: #2e2f33;
+  --color-line-header: #28292d;
+  --color-frame: #2a2b2f;
+  --color-wash: #1a1b1e;
+  --color-blue-deep: #8ab4f8;
+  --color-blue-bright: #4aa6e0;
+  --color-mist: #1a1d24;
+  --color-mist-tile: #242832;
+  --color-mist-shade: #383d48;
+  --color-olive: #9cc26a;
+  --color-danger: #ff6b6b;
+  --color-moved: #a98bf5;
+  --color-white: #17181b;
+  --color-black: #f4f4f5;
+  --color-code: #e1e4e8;
+  --color-added: #4ed3cf;
+  --color-warn: #e3c34d;
+  --color-warn-line: #c9a52a;
+  --color-warn-deep: #f0d35c;
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.035'/></svg>");
+  color-scheme: dark;
+}
+
+/* Sections designed dark in both themes (class "dark", like the sign-in aside) keep the light tokens. */
+:root[data-theme="dark"] .dark {
+  --color-ink: #141518;
+  --color-fg: #171717;
+  --color-paper: #fcfcfc;
+  --color-heading: #181a1b;
+  --color-stat: #2a2a2a;
+  --color-alt-ink: #2f2f2f;
+  --color-text: #3f3f3f;
+  --color-ui: #565656;
+  --color-body: #727272;
+  --color-nav: #777777;
+  --color-meta: #898989;
+  --color-muted: #919191;
+  --color-sub: #a2a2a2;
+  --color-solid: #a8a8a8;
+  --color-lead: #c2c2c2;
+  --color-tab: #cccccc;
+  --color-line: #d4d4d4;
+  --color-line-header: #dedede;
+  --color-frame: #e0e0e0;
+  --color-wash: #f4f4f3;
+  --color-blue-deep: #133264;
+  --color-blue-bright: #147dba;
+  --color-mist: #eaebf1;
+  --color-mist-tile: #dddee4;
+  --color-mist-shade: #c0c0c8;
+  --color-olive: #54702f;
+  --color-danger: #bf000f;
+  --color-moved: #7c4dd8;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-code: #24292e;
+  --color-added: #1f8a85;
+  --color-warn: #8a6d00;
+  --color-warn-line: #b08d00;
+  --color-warn-deep: #6b5a00;
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.055'/></svg>");
   color-scheme: light;
 }
 
@@ -242,8 +333,8 @@ h4 {
 }
 
 @utility rail-x {
-  border-left: 1px dashed rgba(0, 0, 0, 0.08);
-  border-right: 1px dashed rgba(0, 0, 0, 0.08);
+  border-left: 1px dashed color-mix(in srgb, var(--color-black) 8%, transparent);
+  border-right: 1px dashed color-mix(in srgb, var(--color-black) 8%, transparent);
 }
 
 @utility press {
@@ -259,20 +350,20 @@ h4 {
     align-items: center;
     justify-content: center;
     padding: 4px 8px;
-    border: 1px dashed rgba(0, 0, 0, 0.25);
+    border: 1px dashed color-mix(in srgb, var(--color-black) 25%, transparent);
     font: 400 10px/15px var(--font-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.6);
+    color: color-mix(in srgb, var(--color-black) 60%, transparent);
     white-space: nowrap;
   }
   .dark .eyebrow,
   .eyebrow-dark {
-    border-color: rgba(255, 255, 255, 0.25);
-    color: rgba(255, 255, 255, 0.6);
+    border-color: color-mix(in srgb, var(--color-white) 25%, transparent);
+    color: color-mix(in srgb, var(--color-white) 60%, transparent);
   }
   .blue .eyebrow {
-    border-color: rgba(255, 255, 255, 0.25);
+    border-color: color-mix(in srgb, var(--color-white) 25%, transparent);
     color: var(--color-blue-mist);
   }
 
@@ -283,7 +374,7 @@ h4 {
     flex-direction: column;
     align-items: center;
     gap: 16px;
-    color: rgba(0, 0, 0, 0.2);
+    color: color-mix(in srgb, var(--color-black) 20%, transparent);
     user-select: none;
   }
   @media (min-width: 1024px) {
@@ -293,7 +384,7 @@ h4 {
   }
   .dark .side-note,
   .blue .side-note {
-    color: rgba(255, 255, 255, 0.22);
+    color: color-mix(in srgb, var(--color-white) 22%, transparent);
   }
   .side-note-text {
     writing-mode: vertical-rl;
@@ -314,7 +405,7 @@ h4 {
     line-height: 15px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.6);
+    color: color-mix(in srgb, var(--color-black) 60%, transparent);
   }
 
   .h1 {
@@ -322,7 +413,7 @@ h4 {
     font-size: 42px;
     line-height: 1.035;
     letter-spacing: -1.75px;
-    color: #000;
+    color: var(--color-black);
   }
   @media (min-width: 640px) {
     .h1 {
@@ -357,7 +448,7 @@ h4 {
     font-size: 24px;
     line-height: 1.1;
     letter-spacing: -0.24px;
-    color: #000;
+    color: var(--color-black);
   }
   @media (min-width: 1024px) {
     .h3 {
@@ -371,7 +462,7 @@ h4 {
     font-size: 22px;
     line-height: 1.1;
     letter-spacing: -0.01em;
-    color: #000;
+    color: var(--color-black);
   }
 
   .body-copy {
@@ -419,17 +510,17 @@ h4 {
   }
   .btn-primary {
     background: var(--color-ink);
-    color: #fff;
+    color: var(--color-white);
   }
   .btn-primary:hover:not(:disabled) {
-    background: #2a2c31;
+    background: color-mix(in srgb, var(--color-ink) 88%, var(--color-white));
   }
   .btn-secondary {
     background: transparent;
     color: var(--color-ink);
   }
   .btn-secondary:hover:not(:disabled) {
-    background: rgba(20, 21, 24, 0.05);
+    background: color-mix(in srgb, var(--color-ink) 5%, transparent);
   }
   .btn-danger {
     background: transparent;
@@ -437,7 +528,7 @@ h4 {
     border-color: var(--color-danger);
   }
   .btn-danger:hover:not(:disabled) {
-    background: rgba(191, 0, 15, 0.06);
+    background: color-mix(in srgb, var(--color-danger) 6%, transparent);
   }
   .btn-lg {
     min-width: 220px;
@@ -473,20 +564,20 @@ h4 {
   }
   .btn-ghost:hover:not(:disabled) {
     color: var(--color-ink);
-    background: rgba(0, 0, 0, 0.04);
+    background: color-mix(in srgb, var(--color-black) 4%, transparent);
   }
   .dark .btn-secondary {
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.35);
+    color: var(--color-white);
+    border-color: color-mix(in srgb, var(--color-white) 35%, transparent);
   }
   .dark .btn-secondary:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--color-white) 8%, transparent);
   }
   .dark .btn-primary,
   .btn-invert {
-    background: #fff;
+    background: var(--color-white);
     color: var(--color-ink);
-    border-color: #fff;
+    border-color: var(--color-white);
   }
   .dark .btn-primary:hover,
   .btn-invert:hover {
@@ -549,8 +640,8 @@ h4 {
     width: 100%;
     height: 40px;
     padding: 0 12px;
-    background: #fff;
-    border: 1px solid #cfcfcf;
+    background: var(--color-white);
+    border: 1px solid color-mix(in srgb, var(--color-black) 19%, var(--color-white));
     font-size: 14px;
     color: var(--color-fg);
     transition: border-color 150ms;
@@ -585,13 +676,13 @@ h4 {
     line-height: 15px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.6);
+    color: color-mix(in srgb, var(--color-black) 60%, transparent);
   }
 
   .card {
     position: relative;
-    background: #fff;
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    background: var(--color-white);
+    border: 1px solid color-mix(in srgb, var(--color-black) 15%, transparent);
   }
 
   .dashed-box {
@@ -612,14 +703,14 @@ h4 {
     gap: 5px;
     height: 20px;
     padding: 0 6px;
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid color-mix(in srgb, var(--color-black) 15%, transparent);
     font-family: var(--font-mono);
     font-size: 10px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.65);
+    color: color-mix(in srgb, var(--color-black) 65%, transparent);
     white-space: nowrap;
-    background: #fff;
+    background: var(--color-white);
   }
 
   .kbd {
@@ -629,11 +720,11 @@ h4 {
     min-width: 18px;
     height: 18px;
     padding: 0 4px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
+    border: 1px solid color-mix(in srgb, var(--color-black) 20%, transparent);
     font-family: var(--font-mono);
     font-size: 10px;
-    color: rgba(0, 0, 0, 0.6);
-    background: #fff;
+    color: color-mix(in srgb, var(--color-black) 60%, transparent);
+    background: var(--color-white);
   }
 }
 
@@ -710,7 +801,7 @@ h4 {
 .guide-prose h6 {
   font-family: var(--font-serif);
   font-weight: 400;
-  color: #000;
+  color: var(--color-black);
   letter-spacing: -0.02em;
   line-height: 1.12;
   margin: 1.7em 0 0.55em;
@@ -731,12 +822,12 @@ h4 {
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.6);
+  color: color-mix(in srgb, var(--color-black) 60%, transparent);
 }
 .guide-prose a {
   color: var(--color-blue-deep);
   text-decoration: underline;
-  text-decoration-color: rgba(19, 50, 100, 0.35);
+  text-decoration-color: color-mix(in srgb, var(--color-blue-deep) 35%, transparent);
   text-underline-offset: 3px;
 }
 .guide-prose a:hover {
@@ -760,7 +851,7 @@ h4 {
   margin: 0.25em 0;
 }
 .guide-prose li::marker {
-  color: rgba(0, 0, 0, 0.35);
+  color: color-mix(in srgb, var(--color-black) 35%, transparent);
 }
 .guide-prose li > ul,
 .guide-prose li > ol {
@@ -774,8 +865,8 @@ h4 {
   font-family: var(--font-mono);
   font-size: 0.84em;
   padding: 0.1em 0.35em;
-  background: rgba(0, 0, 0, 0.045);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: color-mix(in srgb, var(--color-black) 4.5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-black) 6%, transparent);
   color: var(--color-fg);
 }
 .guide-prose pre code {
@@ -784,7 +875,7 @@ h4 {
   background: none;
 }
 .guide-prose blockquote {
-  border-left: 1px dashed rgba(0, 0, 0, 0.35);
+  border-left: 1px dashed color-mix(in srgb, var(--color-black) 35%, transparent);
   padding: 2px 0 2px 16px;
   color: var(--color-body);
 }
@@ -796,7 +887,8 @@ h4 {
 .guide-prose img {
   max-width: 100%;
   height: auto;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid color-mix(in srgb, var(--color-black) 12%, transparent);
+  /* Stays white in the dark theme: diagrams and screenshots with transparency are drawn for it. */
   background: #fff;
 }
 .guide-prose p > img:only-child {
@@ -808,19 +900,19 @@ h4 {
   width: 100%;
   max-height: 520px;
   background: #000;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid color-mix(in srgb, var(--color-black) 12%, transparent);
 }
 .guide-prose kbd {
   font-family: var(--font-mono);
   font-size: 0.8em;
   padding: 1px 5px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-black) 20%, transparent);
+  background: var(--color-white);
 }
 .guide-prose details {
   border: 1px dashed var(--color-line);
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, var(--color-white) 60%, transparent);
 }
 .guide-prose summary {
   cursor: pointer;
@@ -829,8 +921,8 @@ h4 {
 }
 .guide-prose .md-table-wrap {
   overflow-x: auto;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-black) 15%, transparent);
+  background: var(--color-white);
 }
 .guide-prose table {
   width: 100%;
@@ -845,7 +937,7 @@ h4 {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.6);
+  color: color-mix(in srgb, var(--color-black) 60%, transparent);
   background: var(--color-paper);
   border-bottom: 1px dashed var(--color-line);
   padding: 8px 12px;
@@ -859,8 +951,8 @@ h4 {
   border-top: 0;
 }
 .guide-prose .md-code {
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-black) 15%, transparent);
+  background: var(--color-white);
 }
 .guide-prose .md-code-bar {
   display: flex;
@@ -872,7 +964,7 @@ h4 {
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.5);
+  color: color-mix(in srgb, var(--color-black) 50%, transparent);
   background: var(--color-paper);
 }
 .guide-prose .md-code pre {
@@ -882,12 +974,12 @@ h4 {
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.6;
-  background: #fff !important;
+  background: var(--color-white) !important;
 }
 .guide-prose .md-mermaid {
   padding: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-black) 15%, transparent);
+  background: var(--color-white);
   overflow-x: auto;
 }
 .guide-prose .md-mermaid svg {
@@ -896,7 +988,7 @@ h4 {
   height: auto;
 }
 .guide-prose .md-mermaid-error {
-  border: 1px dashed rgba(191, 0, 15, 0.4);
+  border: 1px dashed color-mix(in srgb, var(--color-danger) 40%, transparent);
   padding: 10px 12px;
   margin-bottom: 1em;
 }
@@ -907,9 +999,9 @@ h4 {
   white-space: pre-wrap;
 }
 .guide-prose .md-alert {
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  border: 1px solid color-mix(in srgb, var(--color-black) 15%, transparent);
   border-left-width: 3px;
-  background: #fff;
+  background: var(--color-white);
   padding: 10px 14px;
   color: var(--color-text);
 }
@@ -939,10 +1031,10 @@ h4 {
   color: var(--color-blue-deep);
 }
 .guide-prose .md-alert-warning {
-  border-left-color: #b08d00;
+  border-left-color: var(--color-warn-line);
 }
 .guide-prose .md-alert-warning .md-alert-title {
-  color: #8a6d00;
+  color: var(--color-warn);
 }
 .guide-prose .md-alert-caution {
   border-left-color: var(--color-danger);
@@ -959,15 +1051,15 @@ h4 {
   font-family: var(--font-mono);
   font-size: 0.82em;
   padding: 1px 5px;
-  border: 1px dashed rgba(19, 50, 100, 0.4);
-  background: rgba(20, 125, 186, 0.06);
+  border: 1px dashed color-mix(in srgb, var(--color-blue-deep) 40%, transparent);
+  background: color-mix(in srgb, var(--color-blue-bright) 6%, transparent);
   color: var(--color-blue-deep);
   text-decoration: none;
   white-space: nowrap;
 }
 .guide-prose .code-ref:hover {
   border-style: solid;
-  background: rgba(20, 125, 186, 0.12);
+  background: color-mix(in srgb, var(--color-blue-bright) 12%, transparent);
 }
 .guide-prose-sm {
   font-size: 13.5px;
@@ -1009,18 +1101,18 @@ h4 {
 .diff-num {
   padding: 0 8px !important;
   text-align: right;
-  color: rgba(0, 0, 0, 0.33);
+  color: color-mix(in srgb, var(--color-black) 33%, transparent);
   user-select: none;
   font-size: 11px;
-  background: rgba(0, 0, 0, 0.012);
-  border-right: 1px solid rgba(0, 0, 0, 0.05);
+  background: color-mix(in srgb, var(--color-black) 1.2%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--color-black) 5%, transparent);
   white-space: nowrap;
 }
 .diff-code {
   position: relative;
   padding: 0 14px 0 22px !important;
   white-space: pre;
-  color: #24292e;
+  color: var(--color-code);
   tab-size: 4;
 }
 .diff-wrap .diff-code {
@@ -1036,7 +1128,7 @@ h4 {
   position: absolute;
   left: 7px;
   top: 0;
-  color: rgba(0, 0, 0, 0.35);
+  color: color-mix(in srgb, var(--color-black) 35%, transparent);
 }
 .row-add {
   background: rgba(78, 211, 207, 0.14);
@@ -1046,13 +1138,13 @@ h4 {
   color: rgba(0, 70, 66, 0.55);
 }
 .row-add .diff-code::before {
-  color: #1f8a85;
+  color: var(--color-added);
 }
 .row-del {
-  background: rgba(191, 0, 15, 0.065);
+  background: color-mix(in srgb, var(--color-danger) 6.5%, transparent);
 }
 .row-del .diff-num {
-  background: rgba(191, 0, 15, 0.12);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
   color: rgba(120, 0, 10, 0.5);
 }
 .row-del .diff-code::before {
@@ -1078,12 +1170,12 @@ h4 {
   text-decoration: underline;
 }
 .row-expanded {
-  background: rgba(0, 0, 0, 0.012);
+  background: color-mix(in srgb, var(--color-black) 1.2%, transparent);
 }
 .row-flash {
   outline: 1px solid var(--color-blue-bright);
   outline-offset: -1px;
-  background-image: linear-gradient(rgba(20, 125, 186, 0.1), rgba(20, 125, 186, 0.1));
+  background-image: linear-gradient(color-mix(in srgb, var(--color-blue-bright) 10%, transparent), color-mix(in srgb, var(--color-blue-bright) 10%, transparent));
 }
 /* Lines new since the guide version a member reviewed or last saw */
 .row-since .diff-code {
@@ -1094,31 +1186,31 @@ h4 {
 }
 /* Interdiff of a section between two versions: rows only in the newer one, only in the older one, or in both */
 .interdiff-table .diff-code[data-marker="+"]::before {
-  color: #1f8a85;
+  color: var(--color-added);
 }
 .interdiff-table .diff-code[data-marker="−"]::before {
   color: var(--color-danger);
 }
 .interdiff-same {
-  color: rgba(0, 0, 0, 0.5);
+  color: color-mix(in srgb, var(--color-black) 50%, transparent);
 }
 .interdiff-same .diff-code {
-  color: rgba(36, 41, 46, 0.6);
+  color: color-mix(in srgb, var(--color-code) 60%, transparent);
 }
 .interdiff-added {
   background: rgba(234, 224, 88, 0.22);
 }
 .interdiff-added .diff-num {
   background: rgba(234, 224, 88, 0.45);
-  color: #6b5a00;
+  color: var(--color-warn-deep);
 }
 .interdiff-removed {
-  background: rgba(0, 0, 0, 0.03);
+  background: color-mix(in srgb, var(--color-black) 3%, transparent);
 }
 .interdiff-removed .diff-code {
-  color: rgba(36, 41, 46, 0.55);
+  color: color-mix(in srgb, var(--color-code) 55%, transparent);
   text-decoration: line-through;
-  text-decoration-color: rgba(0, 0, 0, 0.3);
+  text-decoration-color: color-mix(in srgb, var(--color-black) 30%, transparent);
 }
 .interdiff-version {
   font-family: var(--font-mono);
@@ -1140,7 +1232,7 @@ h4 {
   align-items: center;
   justify-content: center;
   background: var(--color-ink);
-  color: #fff;
+  color: var(--color-white);
   border: 0;
   cursor: pointer;
 }
@@ -1150,8 +1242,8 @@ h4 {
 }
 .diff-gap td {
   background: var(--color-mist);
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
-  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+  border-top: 1px dashed color-mix(in srgb, var(--color-black) 10%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--color-black) 10%, transparent);
   font-family: var(--font-sans);
 }
 .diff-expand {
@@ -1167,26 +1259,127 @@ h4 {
 }
 .diff-expand:hover {
   color: var(--color-ink);
-  border-color: rgba(0, 0, 0, 0.2);
-  background: rgba(255, 255, 255, 0.7);
+  border-color: color-mix(in srgb, var(--color-black) 20%, transparent);
+  background: color-mix(in srgb, var(--color-white) 70%, transparent);
 }
 .diff-hunk-header td {
   padding: 4px 12px !important;
   background: var(--color-mist);
-  color: rgba(0, 0, 0, 0.5);
+  color: color-mix(in srgb, var(--color-black) 50%, transparent);
   font-size: 11px;
 }
 /* Direct cells only: comments can contain small diff tables of their own (suggestions). */
 .diff-thread-row > td {
   background: var(--color-wash);
-  border-top: 1px dashed rgba(0, 0, 0, 0.08);
-  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+  border-top: 1px dashed color-mix(in srgb, var(--color-black) 8%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--color-black) 8%, transparent);
 }
 
 /* Suggested changes in review comments: the changed characters of a replaced or suggested line. */
 .row-del .suggestion-change {
-  background: rgba(191, 0, 15, 0.16);
+  background: color-mix(in srgb, var(--color-danger) 16%, transparent);
 }
 .row-add .suggestion-change {
   background: rgba(78, 211, 207, 0.42);
+}
+
+/* ------------------------------------------------------------------ */
+/* Dark theme details                                                  */
+/* ------------------------------------------------------------------ */
+
+/* Syntax colors: diff tokens carry both colors (DiffFile), markdown code blocks use Shiki's dual themes. */
+.tk {
+  color: var(--tk);
+}
+:root[data-theme="dark"] .tk {
+  color: var(--tk-dark, var(--tk));
+}
+:root[data-theme="dark"] .shiki,
+:root[data-theme="dark"] .shiki span {
+  color: var(--shiki-dark) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+}
+
+/* Mermaid draws each chart once per theme (Mermaid.tsx). */
+.mermaid-dark,
+:root[data-theme="dark"] .mermaid-light {
+  display: none;
+}
+:root[data-theme="dark"] .mermaid-dark {
+  display: block;
+}
+
+/* The logo mark ships as a black and a white image (Logo.tsx). */
+.logo-dark,
+:root[data-theme="dark"] .logo-light {
+  display: none;
+}
+:root[data-theme="dark"] .logo-dark {
+  display: block;
+}
+
+:root[data-theme="dark"] select.input {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'><path fill='none' stroke='%23ededee' stroke-width='1.6' d='M6 9l6 6 6-6'/></svg>");
+}
+:root[data-theme="dark"] .row-add {
+  background: rgba(78, 211, 207, 0.07);
+}
+:root[data-theme="dark"] .row-add .diff-num {
+  background: rgba(78, 211, 207, 0.12);
+  color: rgba(160, 236, 233, 0.6);
+}
+:root[data-theme="dark"] .row-del {
+  background: rgba(255, 107, 107, 0.09);
+}
+:root[data-theme="dark"] .row-del .diff-num {
+  background: rgba(255, 107, 107, 0.15);
+  color: rgba(255, 170, 170, 0.6);
+}
+:root[data-theme="dark"] .row-del .suggestion-change {
+  background: rgba(255, 107, 107, 0.28);
+}
+:root[data-theme="dark"] .row-add .suggestion-change {
+  background: rgba(78, 211, 207, 0.3);
+}
+:root[data-theme="dark"] .diff-move td {
+  background: rgba(169, 139, 245, 0.08);
+  border-top-color: rgba(169, 139, 245, 0.3);
+}
+:root[data-theme="dark"] .row-since .diff-num {
+  background-image: linear-gradient(rgba(234, 224, 88, 0.22), rgba(234, 224, 88, 0.22));
+}
+:root[data-theme="dark"] .interdiff-added {
+  background: rgba(234, 224, 88, 0.1);
+}
+:root[data-theme="dark"] .interdiff-added .diff-num {
+  background: rgba(234, 224, 88, 0.2);
+}
+:root[data-theme="dark"] .row-selected {
+  background-image: linear-gradient(rgba(234, 224, 88, 0.14), rgba(234, 224, 88, 0.14));
+}
+:root[data-theme="dark"] ::selection {
+  background: rgba(37, 255, 249, 0.25);
+}
+
+/* Switching themes (theme-store.ts): a circle grows from the switcher with the new theme. */
+:root.theme-reveal::view-transition-old(root),
+:root.theme-reveal::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+:root.theme-reveal::view-transition-new(root) {
+  z-index: 1;
+}
+/* Without view transitions, colors fade instead. */
+:root.theme-fading,
+:root.theme-fading *,
+:root.theme-fading *::before,
+:root.theme-fading *::after {
+  transition:
+    background-color 320ms var(--ease-io),
+    border-color 320ms var(--ease-io),
+    color 320ms var(--ease-io),
+    fill 320ms var(--ease-io),
+    stroke 320ms var(--ease-io) !important;
 }

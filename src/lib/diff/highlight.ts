@@ -4,6 +4,8 @@ import { bundledLanguages, createHighlighter, type Highlighter } from "shiki";
 export type Tok = [string, number] | [string, number, number];
 
 export const THEME = "github-light";
+/** Markdown code blocks carry both themes; diff tokens map light colors to dark ones (token-colors.ts). */
+export const DARK_THEME = "github-dark";
 
 const EXTENSIONS: Record<string, string> = {
   ts: "typescript",
@@ -114,7 +116,7 @@ let highlighterPromise: Promise<Highlighter> | null = null;
 const loading = new Map<string, Promise<void>>();
 
 async function getHighlighter(): Promise<Highlighter> {
-  highlighterPromise ??= createHighlighter({ themes: [THEME], langs: [] });
+  highlighterPromise ??= createHighlighter({ themes: [THEME, DARK_THEME], langs: [] });
   return highlighterPromise;
 }
 
@@ -181,5 +183,9 @@ export async function highlightToHtml(code: string, lang: string | null): Promis
   const hl = await getHighlighter();
   const resolved = lang && (lang in bundledLanguages ? lang : (EXTENSIONS[lang.toLowerCase()] ?? null));
   const ok = resolved ? await ensureLanguage(hl, resolved) : false;
-  return hl.codeToHtml(code, { lang: ok && resolved ? resolved : "text", theme: THEME });
+  return hl.codeToHtml(code, {
+    lang: ok && resolved ? resolved : "text",
+    themes: { light: THEME, dark: DARK_THEME },
+    defaultColor: "light",
+  });
 }

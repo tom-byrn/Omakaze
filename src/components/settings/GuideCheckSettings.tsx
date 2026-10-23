@@ -82,7 +82,7 @@ export async function GuideCheckSettings({
                   name="guideCheck"
                   value={m.value}
                   defaultChecked={workspace.guideCheck === m.value}
-                  className="mt-1 h-4 w-4 shrink-0 accent-[#141518]"
+                  className="mt-1 h-4 w-4 shrink-0 accent-ink"
                 />
                 <span>
                   <span className="block text-[14px] text-ink">{m.label}</span>

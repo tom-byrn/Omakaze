@@ -78,7 +78,7 @@ export function ReviewPanel({
               {reviewed.has(s.id) ? (
                 <RiCheckboxCircleFill size={16} className={progress?.[i]?.kind === "carried" ? "text-black/35" : "text-ink"} />
               ) : progress?.[i]?.kind === "rereview" ? (
-                <RiErrorWarningLine size={16} className="text-[#b08d00]" />
+                <RiErrorWarningLine size={16} className="text-warn-line" />
               ) : (
                 <RiCheckboxBlankCircleLine size={16} className="text-black/30" />
               )}
@@ -150,7 +150,7 @@ function ProgressNote({ progress }: { progress?: SectionProgress }) {
     return <span className="font-mono text-[10px] tracking-[0.08em] whitespace-nowrap text-black/45 uppercase">Reviewed in v{progress.version}, unchanged</span>;
   }
   if (progress?.kind === "rereview") {
-    return <span className="font-mono text-[10px] tracking-[0.08em] whitespace-nowrap text-[#8a6d00] uppercase">Changed since v{progress.version}</span>;
+    return <span className="font-mono text-[10px] tracking-[0.08em] whitespace-nowrap text-warn uppercase">Changed since v{progress.version}</span>;
   }
   return null;
 }
