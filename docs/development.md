@@ -338,6 +338,21 @@ The app under test always runs with the e2e database, the e2e `APP_SECRET`, `GIT
 
 Released migrations are applied to existing installations on start, so do not edit them; add a new migration instead.
 
+## Releasing
+
+Versions follow [Semantic Versioning](https://semver.org/). To release `x.y.z`:
+
+1. Set `version` in `package.json` and the MCP server version in `src/lib/mcp/server.ts` to `x.y.z`.
+2. In `CHANGELOG.md`, rename **Unreleased** to `x.y.z — <date>` and add a new empty **Unreleased** section above it.
+3. Merge to `main`, then tag the merge commit and push the tag:
+
+   ```sh
+   git tag -a vx.y.z -m "Omakaze x.y.z"
+   git push origin vx.y.z
+   ```
+
+The tag runs `.github/workflows/release.yml`, which publishes `ghcr.io/tom-byrn/omakaze:x.y.z` and `:x.y`. Create a GitHub release for the tag with the changelog section as its notes.
+
 ## Conventions
 
 - Match the style of the surrounding code. TypeScript runs in strict mode; import from `src` with the `@/` alias.

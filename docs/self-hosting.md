@@ -49,7 +49,7 @@ Notes:
 | `1.2.3` and `1.2` | Git tags such as `v1.2.3` |
 | `sha-<short commit>` | Every build of the workflow |
 
-To run a published image instead of building one, replace `build: .` with `image: ghcr.io/tom-byrn/omakaze:latest` (or a version tag) in `docker-compose.yml`.
+To run a published image instead of building one, replace `build: .` with `image: ghcr.io/tom-byrn/omakaze:0.1.0` in `docker-compose.yml`. Pin a version (`0.1.0`, or `0.1` for its patch releases) so upgrades happen when you choose them; `latest` follows `main` and can include unreleased changes.
 
 ## Running without Docker
 
