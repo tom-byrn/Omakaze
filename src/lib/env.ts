@@ -57,6 +57,8 @@ const schema = z.object({
   WEBHOOKS_ALLOW_PRIVATE_NETWORK: bool(false),
 
   // Storage
+  /** Let upload_asset(url) download from loopback and private network addresses (e.g. screenshots served from your machine). */
+  ASSETS_ALLOW_PRIVATE_NETWORK: bool(false),
   STORAGE_DRIVER: z.enum(["database", "filesystem"]).default("database"),
   STORAGE_DIR: z.string().default("./data/uploads"),
   MAX_UPLOAD_MB: z.coerce.number().default(50),

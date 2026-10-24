@@ -202,13 +202,24 @@ export function installUrl(app: GitHubAppConfig, state: string): string {
 /** Webhook events the app subscribes to. Apps created before an event was added lack it (see /admin). */
 export const APP_EVENTS = ["pull_request", "pull_request_review", "pull_request_review_comment", "pull_request_review_thread"];
 
+/** Whether GitHub can reach `url`. GitHub rejects manifests whose webhook URL is localhost or a private address. */
+function isPubliclyReachable(url: string): boolean {
+  const host = new URL(url).hostname.replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host === "::1") return false;
+  return !/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.)/.test(host);
+}
+
 /** Manifest used by the setup page to create a GitHub App in one step. */
 export function buildAppManifest(name: string) {
   const url = env().APP_URL;
+  // Without a reachable webhook URL the app is created without a webhook or events; add them on GitHub later.
+  const webhook = isPubliclyReachable(url)
+    ? { hook_attributes: { url: `${url}/api/github/webhook`, active: true }, default_events: [...APP_EVENTS] }
+    : {};
   return {
     name,
     url,
-    hook_attributes: { url: `${url}/api/github/webhook`, active: true },
+    ...webhook,
     redirect_url: `${url}/api/github/manifest`,
     callback_urls: [`${url}/api/auth/github/callback`],
     setup_url: `${url}/api/github/setup`,
@@ -225,9 +236,8 @@ export function buildAppManifest(name: string) {
       // whose user token comes from this app.
       checks: "write",
       statuses: "write",
-      // Lets "Sign in with GitHub" read the user's verified email address.
-      email_addresses: "read",
+      // GitHub rejects email_addresses in a manifest ("Default permission records resource is not
+      // included in the list"), so it's added in the app's settings instead; /admin points this out.
     },
-    default_events: [...APP_EVENTS],
   };
 }
