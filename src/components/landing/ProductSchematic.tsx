@@ -724,10 +724,13 @@ export function ProductSchematic() {
                 <span
                   className={`absolute inset-x-0 top-0 h-[2px] ${done ? "bg-ink" : "bg-transparent"}`}
                 />
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <span className={`dot h-[5px] w-[5px] shrink-0 ${on ? "bg-signal" : done ? "bg-ink" : "bg-black/20"}`} />
-                  <span className={`truncate font-serif text-[13px] ${on ? "text-white" : "text-black"}`}>{s.title}</span>
+                <span
+                  className={`flex items-center gap-1 font-mono text-[9px] tracking-[0.08em] uppercase ${on ? "text-white/60" : "text-black/45"}`}
+                >
+                  <span className={`dot h-[5px] w-[5px] ${on ? "bg-signal" : done ? "bg-ink" : "bg-black/20"}`} />
+                  {s.n}
                 </span>
+                <span className={`truncate font-serif text-[13px] ${on ? "text-white" : "text-black"}`}>{s.title}</span>
               </button>
             );
           })}
