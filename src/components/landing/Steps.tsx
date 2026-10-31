@@ -141,7 +141,7 @@ export function Steps() {
               <span className="flex items-center gap-2">
                 <span className={clsx("dot h-[5px] w-[5px]", active === i ? "bg-signal" : "bg-[rgba(206,206,206,0.5)]")} />
                 <span className={clsx("text-[12px] tracking-[0.025em] uppercase", active === i ? "text-white" : "text-[rgba(206,206,206,0.7)]")}>
-                  {String(i + 1).padStart(2, "0")} · {s.label}
+                  {s.label}
                 </span>
               </span>
               <span className="relative mt-3 block h-px bg-rule-dark">
