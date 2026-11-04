@@ -21,7 +21,10 @@ function useNearViewport<T extends Element>(eager: boolean) {
   const [near, setNear] = useState(eager);
   useEffect(() => {
     if (near || !ref.current) return;
+    // Inside a scroll container (the guide's scroll view) the margin applies to that container.
+    const root = ref.current.closest("[data-scroll-root]");
     const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setNear(true), {
+      root,
       rootMargin: "800px 0px",
     });
     io.observe(ref.current);
@@ -77,6 +80,7 @@ export function SectionDiffs({
   onResolve,
   showResolved,
   shareToken,
+  lazy = false,
 }: {
   guideId: string;
   files: { path: string; additions: number; deletions: number }[];
@@ -96,6 +100,8 @@ export function SectionDiffs({
   showResolved?: boolean;
   /** A share link's token, sent with file requests in the read-only view. */
   shareToken?: string;
+  /** Load every file as it nears the viewport, as in the scroll view where all sections are on one page. */
+  lazy?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -106,7 +112,7 @@ export function SectionDiffs({
           path={f.path}
           additions={f.additions}
           deletions={f.deletions}
-          eager={mode === "section" || i < 4}
+          eager={!lazy && (mode === "section" || i < 4)}
           refs={refs.filter((r) => r.path === f.path)}
           mode={mode}
           threads={threadsByPath.get(f.path)}

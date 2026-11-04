@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  RiArrowLeftLine,
-  RiArrowRightLine,
-  RiCheckDoubleLine,
-  RiCheckboxCircleFill,
-  RiCheckboxCircleLine,
-  RiExternalLinkLine,
-  RiFileList3Line,
-  RiTextWrap,
-} from "@remixicon/react";
+import { RiArrowLeftLine, RiArrowRightLine, RiCheckDoubleLine, RiCheckboxCircleFill, RiCheckboxCircleLine, RiExternalLinkLine } from "@remixicon/react";
 import clsx from "clsx";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +15,7 @@ import { useStoredBoolean } from "./useStoredBoolean";
 import { ReviewPanel } from "./ReviewPanel";
 import { InterdiffPanel, MARK_COLOR, ProgressCard, SectionNotice, SinceLastVisitBanner, sectionProgress, stepMark, type SectionProgress, type StepMark } from "./ReviewChanges";
 import { SectionDiffs } from "./SectionDiffs";
+import { ViewMenu } from "./ViewMenu";
 import { bodyWithoutSuggestions, hasSuggestion } from "@/lib/github/suggestions";
 import { withShareToken } from "@/lib/share/url";
 import { groupThreads, type FocusTarget, type ReviewComment, type ThreadState } from "./types";
@@ -111,8 +103,13 @@ export function GuideViewer(props: ViewerProps) {
   const lastStep = ro ? sections.length : reviewStep;
   const toStep = (s: ViewerProps["initialStep"]) => (s === "review" ? lastStep : s === "files" ? -1 : Math.min(Math.max(0, s), lastStep));
   const [step, setStep] = useState<number>(toStep(props.initialStep));
-  const [focus, setFocus] = useState<FocusTarget | null>(null);
+  // `step` is the step whose diffs get the focus; the scroll view shows them all at once.
+  const [focus, setFocus] = useState<(FocusTarget & { step: number }) | null>(null);
   const [wrap, setWrap] = useStoredBoolean("omk:wrap", true);
+  // Scroll view: every step on one page, one after another, instead of one step at a time.
+  const [scrollView, setScrollView] = useStoredBoolean("omk:scroll-view", false);
+  // "All files" is a page of its own in both views.
+  const scrolling = scrollView && step !== -1;
   const [reviewed, setReviewed] = useState<Set<string>>(
     () => new Set(sections.filter((s) => s.reviewedBy.includes(me.id)).map((s) => s.id)),
   );
@@ -123,6 +120,17 @@ export function GuideViewer(props: ViewerProps) {
   const [toast, setToast] = useState<{ text: string; href?: string; error?: boolean } | null>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  // Scroll view: the scrolling page, its rows by step, and the step of the row last clicked.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef(new Map<number, HTMLElement>());
+  const clickedStep = useRef<number | null>(null);
+  const spyPausedUntil = useRef(0);
+  const stepRef = useRef(step);
+
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
 
   // Keep the URL in sync without a server round trip.
   useEffect(() => {
@@ -132,9 +140,76 @@ export function GuideViewer(props: ViewerProps) {
     else if (step === 0) url.searchParams.delete("section");
     else url.searchParams.set("section", String(step));
     window.history.replaceState(window.history.state, "", url.toString());
+    if (scrolling) return;
     leftRef.current?.scrollTo({ top: 0 });
     rightRef.current?.scrollTo({ top: 0 });
-  }, [step, reviewStep]);
+  }, [step, reviewStep, scrolling]);
+
+  // Keep the active tab visible in the stepper.
+  useEffect(() => {
+    const bar = tabsRef.current;
+    const tab = bar?.querySelector<HTMLElement>('[aria-current="step"]');
+    if (!bar || !tab) return;
+    const left = tab.offsetLeft;
+    const right = left + tab.offsetWidth;
+    if (left < bar.scrollLeft) bar.scrollTo({ left, behavior: "smooth" });
+    else if (right > bar.scrollLeft + bar.clientWidth) bar.scrollTo({ left: right - bar.clientWidth, behavior: "smooth" });
+  }, [step]);
+
+  /** Scroll view: bring a step's row to the top of the page. */
+  const scrollToStep = useCallback((s: number, smooth: boolean) => {
+    const box = scrollRef.current;
+    const row = rowRefs.current.get(s);
+    if (!box || !row) return;
+    const top = row.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+    // The scroll spy waits for this scroll to end, so the step stays the one asked for.
+    spyPausedUntil.current = Date.now() + (smooth ? 1500 : 150);
+    box.addEventListener("scrollend", () => (spyPausedUntil.current = 0), { once: true });
+    box.scrollTo({ top, behavior: smooth ? "smooth" : "instant" });
+  }, []);
+
+  /** Go to a step: show it in the section view, scroll to it in the scroll view. */
+  const goTo = useCallback(
+    (s: number) => {
+      setStep(s);
+      // Coming from "All files", the rows are not rendered yet; the effect below scrolls once they are.
+      if (scrollView && s !== -1 && stepRef.current !== -1) scrollToStep(s, true);
+    },
+    [scrollView, scrollToStep],
+  );
+
+  // Entering the scroll view (or coming back to it from "All files") starts at the current step.
+  useEffect(() => {
+    if (scrolling) scrollToStep(stepRef.current, false);
+  }, [scrolling, scrollToStep]);
+
+  // Scroll view: an explanation sticks to the top of the page next to its code. One taller than the
+  // page scrolls with it until its end is in view and sticks there, so all of it can be read.
+  const rowCount = sections.length;
+  useEffect(() => {
+    const box = scrollRef.current;
+    if (!scrolling || !box) return;
+    const panes = [...box.querySelectorAll<HTMLElement>("[data-sticky-pane]")];
+    const place = () => {
+      for (const pane of panes) pane.style.top = `${Math.min(0, box.clientHeight - pane.offsetHeight)}px`;
+    };
+    const obs = new ResizeObserver(place);
+    obs.observe(box);
+    for (const pane of panes) obs.observe(pane);
+    return () => obs.disconnect();
+  }, [scrolling, rowCount]);
+
+  // Scroll view: the current step is the last row whose top has passed a line a third of the way down.
+  const onScroll = useCallback(() => {
+    const box = scrollRef.current;
+    if (!box || Date.now() < spyPausedUntil.current) return;
+    const line = box.getBoundingClientRect().top + box.clientHeight / 3;
+    let current = 0;
+    for (const [s, row] of rowRefs.current) if (row.getBoundingClientRect().top <= line) current = Math.max(current, s);
+    // At the very end, the last row is current even when it is too short to reach the line.
+    if (box.scrollTop > 0 && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) current = Math.max(...rowRefs.current.keys());
+    setStep(current);
+  }, []);
 
   const comments = useSWR<{ comments: ReviewComment[]; threads?: ThreadState[] | null }>(
     ro && !ro.comments ? null : withShareToken(`/api/guides/${guide.id}/comments`, ro?.shareToken),
@@ -165,8 +240,7 @@ export function GuideViewer(props: ViewerProps) {
   }, []);
 
   const onComment = useCallback(
-    async (input: { path: string; line: number; side: "LEFT" | "RIGHT"; startLine?: number | null; body: string }) => {
-      const sectionId = step >= 1 && step <= sections.length ? sections[step - 1].id : null;
+    async (input: { path: string; line: number; side: "LEFT" | "RIGHT"; startLine?: number | null; body: string }, sectionId: string | null) => {
       const res = await fetch(`/api/guides/${guide.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -188,7 +262,7 @@ export function GuideViewer(props: ViewerProps) {
       }
       return null;
     },
-    [guide.id, step, sections, comments, flash],
+    [guide.id, comments, flash],
   );
 
   const onReply = useCallback(
@@ -271,17 +345,22 @@ export function GuideViewer(props: ViewerProps) {
   useEffect(() => {
     const handler = (e: Event) => {
       const t = (e as CustomEvent<CodeTarget>).detail;
-      const current = step >= 1 && step <= sections.length ? sections[step - 1] : null;
-      const inCurrent = current?.files.some((f) => f.path === t.path);
-      if (!inCurrent && step !== -1) {
+      // In the scroll view a link belongs to the row it was clicked in, which may not be the current step.
+      const from = scrolling ? (clickedStep.current ?? step) : step;
+      clickedStep.current = null;
+      const fromSection = from >= 1 && from <= sections.length ? sections[from - 1] : null;
+      let target = from;
+      if (!fromSection?.files.some((f) => f.path === t.path) && from !== -1) {
         const idx = sections.findIndex((s) => s.files.some((f) => f.path === t.path));
-        setStep(idx >= 0 ? idx + 1 : -1);
+        target = idx >= 0 ? idx + 1 : -1;
       }
-      setFocus({ ...t, nonce: Date.now() });
+      // The scroll view needs no scroll to the row: the focused diff scrolls itself into view.
+      if (target !== step) setStep(target);
+      setFocus({ ...t, step: target, nonce: Date.now() });
     };
     window.addEventListener("guide:goto", handler);
     return () => window.removeEventListener("guide:goto", handler);
-  }, [step, sections]);
+  }, [step, sections, scrolling]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -289,32 +368,264 @@ export function GuideViewer(props: ViewerProps) {
       const el = e.target as HTMLElement;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "ArrowRight" || e.key === "]") setStep((s) => Math.min(lastStep, Math.max(0, s + 1)));
-      if (e.key === "ArrowLeft" || e.key === "[") setStep((s) => Math.max(0, s - 1));
+      if (e.key === "ArrowRight" || e.key === "]") goTo(Math.min(lastStep, Math.max(0, step + 1)));
+      if (e.key === "ArrowLeft" || e.key === "[") goTo(Math.max(0, step - 1));
       if (e.key === "r" && !ro && step >= 1 && step <= sections.length) void toggleReviewed(sections[step - 1].id);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, lastStep, sections]);
+  }, [step, lastStep, sections, goTo]);
 
-  const current = step >= 1 && step <= sections.length ? sections[step - 1] : null;
   const reviewedCount = sections.filter((s) => reviewed.has(s.id)).length;
   const progress = sections.map((s) => sectionProgress(s, reviewed, carried));
   const carriedCount = progress.filter((p) => p.kind === "carried").length;
   const rereviewCount = progress.filter((p) => p.kind === "rereview").length;
-  const currentProgress = current ? progress[step - 1] : null;
   // The interdiff next to the code: against the version the viewer reviewed, else the one of their last visit.
-  const currentChange =
-    currentProgress?.kind === "rereview"
-      ? currentProgress.change
-      : current?.visitChange?.status === "changed" && currentProgress?.kind !== "carried"
-        ? current.visitChange
-        : null;
+  const changeAt = (s: number) => {
+    const section = s >= 1 && s <= sections.length ? sections[s - 1] : null;
+    const p = section ? progress[s - 1] : null;
+    if (!section || !p) return null;
+    if (p.kind === "rereview") return p.change;
+    return section.visitChange?.status === "changed" && p.kind !== "carried" ? section.visitChange : null;
+  };
+  const changesId = (s: number) => (scrolling ? `section-changes-${s}` : "section-changes");
+  const showChanges = (s: number) => document.getElementById(changesId(s))?.scrollIntoView({ behavior: "smooth", block: "start" });
   const firstVisitChange = sections.findIndex((s) => s.visitChange);
-  const showChanges = () => document.getElementById("section-changes")?.scrollIntoView({ behavior: "smooth", block: "start" });
   const blobBase = `${props.repo.htmlUrl}/blob/${guide.headSha}`;
   const generating = guide.status === "generating";
+  // The steps of the scroll view, in order.
+  const rows = [0, ...sections.map((_, i) => i + 1), ...(ro ? [] : [reviewStep])];
+
+  const status =
+    generating || guide.status === "failed" ? (
+      <GenerationStatus
+        guideId={guide.id}
+        status={guide.status}
+        error={guide.error}
+        sectionCount={sections.length}
+        agentPrompt={props.agentPrompt}
+        onChange={() => router.refresh()}
+        shareToken={ro?.shareToken}
+      />
+    ) : null;
+
+  /** The explanation of a step (the left pane). */
+  function renderLeft(s: number) {
+    if (s === -1) {
+      return <FilesLeft files={files} sections={sections} onPick={(path) => setFocus({ path, start: null, end: null, side: "new", step: -1, nonce: Date.now() })} />;
+    }
+    if (s === 0) {
+      return (
+        <div className="animate-reveal">
+          <span className="eyebrow">Guided PR · v{guide.version}</span>
+          <h1 className="mt-6 font-serif text-[36px] leading-[1.02] tracking-[-0.035em] text-black lg:text-[44px]">{guide.title}</h1>
+          <p className="mt-4 font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase">
+            {guide.author ? `${guide.author} · ` : ""}via {VIA_LABEL[guide.createdVia] ?? guide.createdVia} · {timeAgo(guide.createdAt)} · {sections.length} sections ·{" "}
+            {files.length} files
+          </p>
+          {guide.hasSummary ? <div className="mt-8">{guide.summary}</div> : null}
+          <div className="mt-10 border-t border-dashed border-line pt-6">
+            <p className="mono-label">Sections</p>
+            <ol className="mt-3">
+              {sections.map((sec, i) => (
+                <li key={sec.id}>
+                  <button
+                    type="button"
+                    onClick={() => goTo(i + 1)}
+                    className="group flex w-full items-baseline gap-3 border-t border-dashed border-line py-3 text-left first:border-t-0"
+                  >
+                    <span className="font-mono text-[11px] text-black/45">{String(i + 1).padStart(2, "0")}</span>
+                    <span className={clsx("flex-1 font-serif text-[20px] leading-[1.15] tracking-[-0.015em] group-hover:underline group-hover:underline-offset-4", sec.generated ? "text-black/55" : "text-black")}>
+                      {sec.title}
+                    </span>
+                    <OverviewMark mark={stepMark(progress[i], sec.visitChange)} progress={progress[i]} />
+                    <span className="font-mono text-[10px] whitespace-nowrap text-black/45 uppercase">
+                      {sec.files.length} file{sec.files.length === 1 ? "" : "s"}
+                    </span>
+                    {reviewed.has(sec.id) ? (
+                      <RiCheckboxCircleFill size={15} className={clsx("self-center", carried.has(sec.id) ? "text-black/35" : "text-ink")} />
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ol>
+            {sections.length > 0 ? (
+              <button type="button" className="btn btn-primary btn-md mt-6" onClick={() => goTo(1)}>
+                Start with section 01 <RiArrowRightLine size={15} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+    if (s === reviewStep) {
+      return (
+        <ReviewPanel
+          guideId={guide.id}
+          sections={sections}
+          reviewed={reviewed}
+          progress={progress}
+          me={me}
+          prUrl={props.pull.htmlUrl}
+          onGoto={goTo}
+          onDone={(text, href) => flash(text, { href })}
+        />
+      );
+    }
+    const current = sections[s - 1];
+    if (!current) return null;
+    const currentProgress = progress[s - 1];
+    return (
+      <div className="animate-reveal" key={current.id}>
+        <span className="eyebrow">
+          Section {String(s).padStart(2, "0")} / {String(sections.length).padStart(2, "0")}
+        </span>
+        <h2 className="mt-6 font-serif text-[32px] leading-[1.04] tracking-[-0.03em] text-black lg:text-[38px]">{current.title}</h2>
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase">
+          <span>
+            {current.files.length} file{current.files.length === 1 ? "" : "s"}
+          </span>
+          <span>
+            <span className="text-added">+{current.additions}</span> <span className="text-danger">−{current.deletions}</span>
+          </span>
+          {current.reviewedBy.filter((u) => u !== me.id).length > 0 ? (
+            <span className="flex items-center gap-1.5">
+              Reviewed by
+              {current.reviewedBy
+                .filter((u) => u !== me.id)
+                .map((u) => {
+                  const from = current.carriedFrom?.[u];
+                  return (
+                    <span
+                      key={u}
+                      className="flex items-center gap-0.5"
+                      title={from === undefined ? members[u]?.name : `${members[u]?.name} (reviewed in v${from}, unchanged)`}
+                    >
+                      <Avatar src={members[u]?.avatarUrl} name={members[u]?.name} size={16} />
+                      {from !== undefined ? <span className="text-black/40">v{from}</span> : null}
+                    </span>
+                  );
+                })}
+            </span>
+          ) : null}
+        </div>
+        {currentProgress ? (
+          <SectionNotice progress={currentProgress} visit={current.visitChange} version={guide.version} onShowChanges={() => showChanges(s)} />
+        ) : null}
+        <div className="mt-8">{current.body}</div>
+        <div className="mt-12 flex flex-wrap items-center gap-2 border-t border-dashed border-line pt-6">
+          {ro ? (
+            s < lastStep ? (
+              <button type="button" className="btn btn-primary btn-md" onClick={() => goTo(Math.min(lastStep, s + 1))}>
+                Continue to section {String(s + 1).padStart(2, "0")} <RiArrowRightLine size={15} />
+              </button>
+            ) : null
+          ) : (
+            <button
+              type="button"
+              className={clsx("btn btn-md", reviewed.has(current.id) ? "btn-secondary" : "btn-primary")}
+              onClick={async () => {
+                const wasReviewed = reviewed.has(current.id);
+                await toggleReviewed(current.id);
+                if (!wasReviewed) goTo(Math.min(reviewStep, s + 1));
+              }}
+            >
+              {reviewed.has(current.id) ? (
+                <>
+                  <RiCheckboxCircleFill size={15} /> Reviewed
+                </>
+              ) : (
+                <>
+                  <RiCheckboxCircleLine size={15} /> Mark reviewed and continue
+                </>
+              )}
+            </button>
+          )}
+          <div className="ml-auto flex gap-1">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => goTo(Math.max(0, s - 1))} aria-label="Previous section">
+              <RiArrowLeftLine size={15} />
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => goTo(Math.min(lastStep, s + 1))} aria-label="Next section">
+              <RiArrowRightLine size={15} />
+            </button>
+          </div>
+        </div>
+        <p className="mt-4 font-mono text-[10px] tracking-[0.08em] text-black/40 uppercase">
+          <span className="kbd">←</span> <span className="kbd">→</span> navigate
+          {ro ? null : (
+            <>
+              {" "}
+              · <span className="kbd">R</span> mark reviewed
+            </>
+          )}
+        </p>
+      </div>
+    );
+  }
+
+  /** The code of a step (the right pane). */
+  function renderRight(s: number) {
+    if (s === 0) {
+      return (
+        <OverviewRight
+          files={files}
+          sections={sections}
+          coverage={props.coverage}
+          onPick={(i) => goTo(i + 1)}
+          progress={sections.length > 0 && !ro ? <ProgressCard progress={progress} /> : null}
+        />
+      );
+    }
+    if (s === reviewStep) {
+      return (
+        <ConversationRight
+          comments={commentList}
+          threads={threadStates}
+          showResolved={showResolved}
+          onShowResolved={() => setShowResolved(true)}
+          loading={!comments.data}
+          prUrl={props.pull.htmlUrl}
+        />
+      );
+    }
+    const current = s >= 1 ? sections[s - 1] : null;
+    const change = s === -1 ? null : changeAt(s);
+    const sectionId = current?.id ?? null;
+    return (
+      <>
+        {change ? (
+          <div className="mb-4">
+            <InterdiffPanel
+              id={changesId(s)}
+              change={change}
+              version={guide.version}
+              title={progress[s - 1]?.kind === "rereview" ? `Changed since you reviewed v${change.version}` : `Changed since your last visit · v${change.version}`}
+            />
+          </div>
+        ) : null}
+        <SectionDiffs
+          guideId={guide.id}
+          files={s === -1 ? files : (current?.files ?? [])}
+          refs={s === -1 ? [] : (current?.refs ?? [])}
+          mode={s === -1 ? "all" : "section"}
+          threadsByPath={threadsByPath}
+          // The section view has one set of diffs; in the scroll view a file can be in several rows.
+          focus={!scrolling || focus?.step === s ? focus : null}
+          blobBase={blobBase}
+          wrap={wrap}
+          onComment={ro ? undefined : (input) => onComment(input, sectionId)}
+          onReply={ro ? undefined : onReply}
+          onDelete={ro ? undefined : onDelete}
+          onResolve={threadStates && !ro ? onResolve : undefined}
+          showResolved={showResolved && !ro}
+          shareToken={ro?.shareToken}
+          newSince={change}
+          lazy={scrolling}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -326,13 +637,13 @@ export function GuideViewer(props: ViewerProps) {
           newSections={sections.filter((s) => s.visitChange?.status === "new").length}
           changedSections={sections.filter((s) => s.visitChange?.status === "changed").length}
           newComments={commentList.filter((c) => c.isNew).length}
-          onShow={firstVisitChange >= 0 ? () => setStep(firstVisitChange + 1) : undefined}
+          onShow={firstVisitChange >= 0 ? () => goTo(firstVisitChange + 1) : undefined}
         />
       ) : null}
       {/* Stepper */}
       <nav className="flex items-stretch border-b border-solid border-black/15 bg-paper" aria-label="Guide sections">
-        <div className="flex min-w-0 flex-1 overflow-x-auto">
-          <StepTab label="Overview" index={null} active={step === 0} done={false} onClick={() => setStep(0)} />
+        <div ref={tabsRef} className="relative flex min-w-0 flex-1 overflow-x-auto">
+          <StepTab label="Overview" index={null} active={step === 0} done={false} onClick={() => goTo(0)} />
           {sections.map((s, i) => (
             <StepTab
               key={s.id}
@@ -342,7 +653,7 @@ export function GuideViewer(props: ViewerProps) {
               done={reviewed.has(s.id)}
               mark={stepMark(progress[i], s.visitChange)}
               muted={s.generated}
-              onClick={() => setStep(i + 1)}
+              onClick={() => goTo(i + 1)}
             />
           ))}
           {generating ? (
@@ -350,7 +661,7 @@ export function GuideViewer(props: ViewerProps) {
               <span className="dot animate-pulse-dot bg-blue-bright" /> Writing…
             </div>
           ) : ro ? null : (
-            <StepTab label="Finish review" index={null} active={step === reviewStep} done={false} onClick={() => setStep(reviewStep)} />
+            <StepTab label="Finish review" index={null} active={step === reviewStep} done={false} onClick={() => goTo(reviewStep)} />
           )}
         </div>
         <div className="flex flex-none items-center gap-1 border-l border-dashed border-line px-3">
@@ -365,254 +676,73 @@ export function GuideViewer(props: ViewerProps) {
           {rereviewCount > 0 ? (
             <span className="hidden font-mono text-[10px] tracking-[0.08em] text-warn uppercase xl:inline">· {rereviewCount} to re-review</span>
           ) : null}
-          <button
-            type="button"
-            className={clsx("btn btn-ghost btn-xs ml-2", step === -1 && "bg-black/[0.06] text-ink")}
-            onClick={() => setStep(step === -1 ? 0 : -1)}
-            title="Show every changed file"
-          >
-            <RiFileList3Line size={14} /> All files
-          </button>
-          {resolvedCount > 0 && !ro ? (
-            <button
-              type="button"
-              className={clsx("btn btn-ghost btn-xs", showResolved && "bg-black/[0.06] text-ink")}
-              onClick={() => setShowResolved(!showResolved)}
-              title={`${resolvedCount} resolved conversation${resolvedCount === 1 ? "" : "s"} on this pull request`}
-              aria-pressed={showResolved}
-            >
-              <RiCheckDoubleLine size={14} /> <span className="hidden sm:inline">Show resolved</span>
-              <span className="font-mono text-[10px] text-black/50">{resolvedCount}</span>
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={clsx("btn btn-ghost btn-xs", wrap && "text-ink")}
-            onClick={() => setWrap(!wrap)}
-            title="Wrap long lines"
-            aria-pressed={wrap}
-          >
-            <RiTextWrap size={14} /> Wrap
-          </button>
+          <div className="ml-2">
+            <ViewMenu
+              scrollView={scrollView}
+              onScrollView={(v) => {
+                setScrollView(v);
+                // Picking a layout on "All files" goes back to the guide.
+                if (step === -1) setStep(0);
+              }}
+              allFiles={step === -1}
+              onAllFiles={() => goTo(step === -1 ? 0 : -1)}
+              wrap={wrap}
+              onWrap={() => setWrap(!wrap)}
+              resolved={resolvedCount > 0 && !ro ? { count: resolvedCount, shown: showResolved, onToggle: () => setShowResolved(!showResolved) } : null}
+            />
+          </div>
         </div>
       </nav>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(380px,42%)_minmax(0,1fr)]">
-        {/* Left: explanation */}
-        <div ref={leftRef} className="min-h-0 overflow-y-auto border-r border-dashed border-line bg-paper grain">
-          <div className="mx-auto max-w-[680px] px-6 py-8 lg:px-10">
-            {generating || guide.status === "failed" ? (
-              <GenerationStatus
-                guideId={guide.id}
-                status={guide.status}
-                error={guide.error}
-                sectionCount={sections.length}
-                agentPrompt={props.agentPrompt}
-                onChange={() => router.refresh()}
-                shareToken={ro?.shareToken}
-              />
-            ) : null}
-
-            {step === -1 ? (
-              <FilesLeft files={files} sections={sections} onPick={(path) => setFocus({ path, start: null, end: null, side: "new", nonce: Date.now() })} />
-            ) : step === 0 ? (
-              <div className="animate-reveal">
-                <span className="eyebrow">Guided PR · v{guide.version}</span>
-                <h1 className="mt-6 font-serif text-[36px] leading-[1.02] tracking-[-0.035em] text-black lg:text-[44px]">{guide.title}</h1>
-                <p className="mt-4 font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase">
-                  {guide.author ? `${guide.author} · ` : ""}via {VIA_LABEL[guide.createdVia] ?? guide.createdVia} · {timeAgo(guide.createdAt)} · {sections.length} sections ·{" "}
-                  {files.length} files
-                </p>
-                {guide.hasSummary ? <div className="mt-8">{guide.summary}</div> : null}
-                <div className="mt-10 border-t border-dashed border-line pt-6">
-                  <p className="mono-label">Sections</p>
-                  <ol className="mt-3">
-                    {sections.map((s, i) => (
-                      <li key={s.id}>
-                        <button
-                          type="button"
-                          onClick={() => setStep(i + 1)}
-                          className="group flex w-full items-baseline gap-3 border-t border-dashed border-line py-3 text-left first:border-t-0"
-                        >
-                          <span className="font-mono text-[11px] text-black/45">{String(i + 1).padStart(2, "0")}</span>
-                          <span className={clsx("flex-1 font-serif text-[20px] leading-[1.15] tracking-[-0.015em] group-hover:underline group-hover:underline-offset-4", s.generated ? "text-black/55" : "text-black")}>
-                            {s.title}
-                          </span>
-                          <OverviewMark mark={stepMark(progress[i], s.visitChange)} progress={progress[i]} />
-                          <span className="font-mono text-[10px] whitespace-nowrap text-black/45 uppercase">
-                            {s.files.length} file{s.files.length === 1 ? "" : "s"}
-                          </span>
-                          {reviewed.has(s.id) ? (
-                            <RiCheckboxCircleFill size={15} className={clsx("self-center", carried.has(s.id) ? "text-black/35" : "text-ink")} />
-                          ) : null}
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                  {sections.length > 0 ? (
-                    <button type="button" className="btn btn-primary btn-md mt-6" onClick={() => setStep(1)}>
-                      Start with section 01 <RiArrowRightLine size={15} />
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ) : step === reviewStep ? (
-              <ReviewPanel
-                guideId={guide.id}
-                sections={sections}
-                reviewed={reviewed}
-                progress={progress}
-                me={me}
-                prUrl={props.pull.htmlUrl}
-                onGoto={setStep}
-                onDone={(text, href) => flash(text, { href })}
-              />
-            ) : current ? (
-              <div className="animate-reveal" key={current.id}>
-                <span className="eyebrow">
-                  Section {String(step).padStart(2, "0")} / {String(sections.length).padStart(2, "0")}
-                </span>
-                <h2 className="mt-6 font-serif text-[32px] leading-[1.04] tracking-[-0.03em] text-black lg:text-[38px]">{current.title}</h2>
-                <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase">
-                  <span>
-                    {current.files.length} file{current.files.length === 1 ? "" : "s"}
-                  </span>
-                  <span>
-                    <span className="text-added">+{current.additions}</span> <span className="text-danger">−{current.deletions}</span>
-                  </span>
-                  {current.reviewedBy.filter((u) => u !== me.id).length > 0 ? (
-                    <span className="flex items-center gap-1.5">
-                      Reviewed by
-                      {current.reviewedBy
-                        .filter((u) => u !== me.id)
-                        .map((u) => {
-                          const from = current.carriedFrom?.[u];
-                          return (
-                            <span
-                              key={u}
-                              className="flex items-center gap-0.5"
-                              title={from === undefined ? members[u]?.name : `${members[u]?.name} (reviewed in v${from}, unchanged)`}
-                            >
-                              <Avatar src={members[u]?.avatarUrl} name={members[u]?.name} size={16} />
-                              {from !== undefined ? <span className="text-black/40">v{from}</span> : null}
-                            </span>
-                          );
-                        })}
-                    </span>
-                  ) : null}
-                </div>
-                {currentProgress ? (
-                  <SectionNotice progress={currentProgress} visit={current.visitChange} version={guide.version} onShowChanges={showChanges} />
-                ) : null}
-                <div className="mt-8">{current.body}</div>
-                <div className="mt-12 flex flex-wrap items-center gap-2 border-t border-dashed border-line pt-6">
-                  {ro ? (
-                    step < lastStep ? (
-                      <button type="button" className="btn btn-primary btn-md" onClick={() => setStep((s) => Math.min(lastStep, s + 1))}>
-                        Continue to section {String(step + 1).padStart(2, "0")} <RiArrowRightLine size={15} />
-                      </button>
-                    ) : null
-                  ) : (
-                    <button
-                      type="button"
-                      className={clsx("btn btn-md", reviewed.has(current.id) ? "btn-secondary" : "btn-primary")}
-                      onClick={async () => {
-                        const wasReviewed = reviewed.has(current.id);
-                        await toggleReviewed(current.id);
-                        if (!wasReviewed) setStep((s) => Math.min(reviewStep, s + 1));
-                      }}
-                    >
-                      {reviewed.has(current.id) ? (
-                        <>
-                          <RiCheckboxCircleFill size={15} /> Reviewed
-                        </>
-                      ) : (
-                        <>
-                          <RiCheckboxCircleLine size={15} /> Mark reviewed and continue
-                        </>
-                      )}
-                    </button>
-                  )}
-                  <div className="ml-auto flex gap-1">
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep((s) => Math.max(0, s - 1))} aria-label="Previous section">
-                      <RiArrowLeftLine size={15} />
-                    </button>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep((s) => Math.min(lastStep, s + 1))} aria-label="Next section">
-                      <RiArrowRightLine size={15} />
-                    </button>
+      {scrolling ? (
+        // Scroll view: one row per step, its explanation sticky next to its code.
+        <div ref={scrollRef} data-scroll-root onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto bg-wash">
+          {rows.map((s) => (
+            <section
+              key={s}
+              ref={(el) => {
+                if (el) rowRefs.current.set(s, el);
+                return () => {
+                  rowRefs.current.delete(s);
+                };
+              }}
+              data-step={s}
+              aria-label={s === 0 ? "Overview" : s === reviewStep ? "Finish review" : sections[s - 1]?.title}
+              onClickCapture={() => {
+                clickedStep.current = s;
+              }}
+              className="grid grid-cols-1 border-b border-black/15 last:border-b-0 lg:grid-cols-[minmax(380px,42%)_minmax(0,1fr)]"
+            >
+              <div className="border-r border-dashed border-line bg-paper grain">
+                <div data-sticky-pane className="lg:sticky">
+                  <div className="mx-auto max-w-[680px] px-6 py-8 lg:px-10">
+                    {s === 0 ? status : null}
+                    {renderLeft(s)}
                   </div>
                 </div>
-                <p className="mt-4 font-mono text-[10px] tracking-[0.08em] text-black/40 uppercase">
-                  <span className="kbd">←</span> <span className="kbd">→</span> navigate
-                  {ro ? null : (
-                    <>
-                      {" "}
-                      · <span className="kbd">R</span> mark reviewed
-                    </>
-                  )}
-                </p>
               </div>
-            ) : null}
-          </div>
+              <div className="min-w-0">
+                <div className="px-4 py-6 lg:px-6">{renderRight(s)}</div>
+              </div>
+            </section>
+          ))}
         </div>
+      ) : (
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(380px,42%)_minmax(0,1fr)]">
+          {/* Left: explanation */}
+          <div ref={leftRef} className="min-h-0 overflow-y-auto border-r border-dashed border-line bg-paper grain">
+            <div className="mx-auto max-w-[680px] px-6 py-8 lg:px-10">
+              {status}
+              {renderLeft(step)}
+            </div>
+          </div>
 
-        {/* Right: code */}
-        <div ref={rightRef} className="min-h-0 overflow-y-auto bg-wash">
-          <div className="px-4 py-6 lg:px-6">
-            {step === 0 ? (
-              <OverviewRight
-                files={files}
-                sections={sections}
-                coverage={props.coverage}
-                onPick={(i) => setStep(i + 1)}
-                progress={sections.length > 0 && !ro ? <ProgressCard progress={progress} /> : null}
-              />
-            ) : step === reviewStep ? (
-              <ConversationRight
-                comments={commentList}
-                threads={threadStates}
-                showResolved={showResolved}
-                onShowResolved={() => setShowResolved(true)}
-                loading={!comments.data}
-                prUrl={props.pull.htmlUrl}
-              />
-            ) : (
-              <>
-                {currentChange && step !== -1 ? (
-                  <div className="mb-4">
-                    <InterdiffPanel
-                      change={currentChange}
-                      version={guide.version}
-                      title={
-                        currentProgress?.kind === "rereview"
-                          ? `Changed since you reviewed v${currentChange.version}`
-                          : `Changed since your last visit · v${currentChange.version}`
-                      }
-                    />
-                  </div>
-                ) : null}
-                <SectionDiffs
-                  guideId={guide.id}
-                  files={step === -1 ? files : (current?.files ?? [])}
-                  refs={step === -1 ? [] : (current?.refs ?? [])}
-                  mode={step === -1 ? "all" : "section"}
-                  threadsByPath={threadsByPath}
-                  focus={focus}
-                  blobBase={blobBase}
-                  wrap={wrap}
-                  onComment={ro ? undefined : onComment}
-                  onReply={ro ? undefined : onReply}
-                  onDelete={ro ? undefined : onDelete}
-                  onResolve={threadStates && !ro ? onResolve : undefined}
-                  showResolved={showResolved && !ro}
-                  shareToken={ro?.shareToken}
-                  newSince={currentChange && step !== -1 ? currentChange : null}
-                />
-              </>
-            )}
+          {/* Right: code */}
+          <div ref={rightRef} className="min-h-0 overflow-y-auto bg-wash">
+            <div className="px-4 py-6 lg:px-6">{renderRight(step)}</div>
           </div>
         </div>
-      </div>
+      )}
 
       {toast ? (
         <div

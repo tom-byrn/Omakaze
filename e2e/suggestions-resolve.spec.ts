@@ -1,7 +1,7 @@
 import { createHmac, hkdfSync } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { guideId, sql } from "./db";
-import { DEMO_CONNECTION, DEMO_PRS, DEMO_REPO, DEMO_SHAS, DEMO_USERS, demoPaths, E2E, expect, mockGitHub, test } from "./fixtures";
+import { DEMO_CONNECTION, DEMO_PRS, DEMO_REPO, DEMO_SHAS, DEMO_USERS, demoPaths, E2E, expect, mockGitHub, test, viewOption } from "./fixtures";
 import { caption, pause, shot, videoName } from "./media";
 
 const PROMO = "src/lib/promo.ts";
@@ -19,8 +19,17 @@ function promoFile(page: Page) {
   return page.locator(`.diff-file[data-path="${PROMO}"]`);
 }
 
-function toolbarToggle(page: Page) {
-  return page.getByRole("navigation", { name: "Guide sections" }).getByRole("button", { name: /Show resolved/ });
+/** Check the "Show resolved" view option: the number of resolved conversations, and whether it is on. */
+async function expectResolvedOption(page: Page, count: number, on?: boolean) {
+  const option = await viewOption(page, "Show resolved");
+  await expect(option).toContainText(String(count));
+  if (on !== undefined) await expect(option).toHaveAttribute("aria-checked", String(on));
+  await page.keyboard.press("Escape");
+}
+
+async function toggleShowResolved(page: Page) {
+  await (await viewOption(page, "Show resolved")).click();
+  await page.keyboard.press("Escape");
 }
 
 /** The secret of repository webhooks, derived from APP_SECRET as in src/lib/crypto.ts. */
@@ -65,8 +74,8 @@ test.describe("Suggested changes and conversations", () => {
     await expect(question).toHaveAttribute("data-thread", "resolved");
     await expect(question).toContainText("alexmorgan");
     await expect(question.getByRole("button", { name: "Show" })).toBeVisible();
-    await expect(toolbarToggle(page)).toContainText("3");
-    await caption(page, "Resolved conversations are collapsed; the toolbar counts them", "Resolved");
+    await expectResolvedOption(page, 3);
+    await caption(page, "Resolved conversations are collapsed; the view options count them", "Resolved");
     await pause(page, 1500);
 
     // Comment on two lines and insert a suggestion with their text.
@@ -134,7 +143,7 @@ test.describe("Suggested changes and conversations", () => {
     await expect(page.getByRole("status")).toContainText("Conversation resolved on GitHub");
     await expect(sam).toHaveAttribute("data-thread", "resolved");
     await expect(sam.getByRole("button", { name: "Show" })).toBeVisible();
-    await expect(toolbarToggle(page)).toContainText("4");
+    await expectResolvedOption(page, 4);
     const [resolve] = await graphqlCalls("resolveReviewThread");
     expect((resolve.body as GraphqlBody).variables).toEqual({ threadId: SAM_THREAD });
     expect(resolve.user).toBe("alexmorgan");
@@ -147,8 +156,8 @@ test.describe("Suggested changes and conversations", () => {
 
     // Show resolved conversations, then unresolve Sam's again.
     await caption(page, "Show resolved conversations, and unresolve one", "Show resolved");
-    await toolbarToggle(page).click();
-    await expect(toolbarToggle(page)).toHaveAttribute("aria-pressed", "true");
+    await toggleShowResolved(page);
+    await expectResolvedOption(page, 4, true);
     await expect(sam).toContainText("Resolved by alexmorgan");
     await expect(question).toContainText("Is the unique index on lower(code) part of this pull request?");
     await sam.scrollIntoViewIfNeeded();
@@ -157,11 +166,11 @@ test.describe("Suggested changes and conversations", () => {
     await sam.getByRole("button", { name: "Unresolve conversation" }).click();
     await expect(page.getByRole("status")).toContainText("Conversation unresolved on GitHub");
     await expect(sam).toHaveAttribute("data-thread", "open");
-    await expect(toolbarToggle(page)).toContainText("3");
+    await expectResolvedOption(page, 3);
     const [unresolve] = await graphqlCalls("unresolveReviewThread");
     expect((unresolve.body as GraphqlBody).variables).toEqual({ threadId: SAM_THREAD });
     expect(((await mockGitHub.state()).extra.reviewThreads as Record<string, unknown>)["2002001"]).toBeNull();
-    await toolbarToggle(page).click();
+    await toggleShowResolved(page);
     await expect(question).toHaveAttribute("data-thread", "resolved");
     await pause(page);
 

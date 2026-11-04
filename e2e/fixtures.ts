@@ -12,7 +12,7 @@
  * Every test starts signed in through a saved session (no sign-in form), so specs stay fast and
  * don't hit the sign-in rate limit. With MEDIA_DIR set, the test's video is saved there.
  */
-import { test as base, expect, type BrowserContext, type Page } from "@playwright/test";
+import { test as base, expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { DEMO_PASSWORD, DEMO_USERS, type DemoUserKey } from "../scripts/demo-data";
 import { E2E } from "./config";
 import { DEMO_OVERLAY } from "./demo-overlay";
@@ -70,4 +70,16 @@ export async function signIn(page: Page, user: DemoUserKey, password = DEMO_PASS
   await page.getByLabel("Email").fill(DEMO_USERS[user].email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+}
+
+/**
+ * The guide viewer's view options (layout, all files, resolved conversations, wrapping) sit behind a
+ * gear in the stepper. Opens that menu when it is closed and returns the item with this label.
+ * Toggles leave the menu open; press Escape to close it.
+ */
+export async function viewOption(page: Page, label: string): Promise<Locator> {
+  const menu = page.getByRole("menu", { name: "View options" });
+  if (!(await menu.isVisible())) await page.locator('summary[aria-label="View options"]').click();
+  await expect(menu).toBeVisible();
+  return menu.locator('[role^="menuitem"]').filter({ hasText: label });
 }

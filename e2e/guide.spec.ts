@@ -1,4 +1,4 @@
-import { DEMO_PRS, demoPaths, expect, test } from "./fixtures";
+import { DEMO_PRS, demoPaths, expect, test, viewOption } from "./fixtures";
 import { caption, pause, shot } from "./media";
 
 test.describe("Guide viewer", () => {
@@ -51,7 +51,7 @@ test.describe("Guide viewer", () => {
 
   test("shows every changed file", async ({ page }) => {
     await page.goto(demoPaths.pull(DEMO_PRS.main));
-    await page.getByRole("button", { name: "All files" }).click();
+    await (await viewOption(page, "All files")).click();
     await expect(page.getByRole("heading", { name: "Every change in the pull request." })).toBeVisible();
     await expect(page).toHaveURL(/section=files/);
     await shot(page, "guide-all-files");
