@@ -120,8 +120,7 @@ export function Steps() {
   return (
     <div className="grid grid-cols-1 border border-border-dark lg:grid-cols-2">
       <div className="p-6 md:p-10">
-        <span className="eyebrow eyebrow-dark">How it works</span>
-        <h2 className="mt-6 font-serif text-[36px] leading-none tracking-[-1.44px] text-white sm:text-[44px] sm:tracking-[-0.025em]">
+        <h2 className="font-serif text-[36px] leading-none tracking-[-1.44px] text-white sm:text-[44px] sm:tracking-[-0.025em]">
           Four steps.
           <br />
           One review.
