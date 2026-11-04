@@ -162,6 +162,10 @@ A generation job is queued when all of these are true:
 
 At most one job per repository, pull request and head commit is queued or running at a time. Review webhooks (`pull_request_review`, `pull_request_review_comment`) do not start generation.
 
+### AI code reviewers
+
+By default an automatic guide waits for AI code reviewers such as Claude Code Review, Greptile, CodeRabbit and GitHub Copilot before it is written, up to 15 minutes, and every guide the built-in AI writes adds a one-line verdict on each of their findings to the section that covers it. A pull request that gets new commits while its guide waits gets a guide for the new head commit instead. See [ai-reviewers.md](ai-reviewers.md).
+
 ### Polling
 
 When `POLL_INTERVAL_SECONDS` is greater than 0, the worker syncs every repository that has automatic guides turned on once per interval: all open pull requests (up to 300) and the 50 most recently closed ones. It then applies the rules above to open pull requests updated in the last three days. Polling is the fallback when GitHub cannot deliver webhooks; see [self-hosting.md](self-hosting.md#webhooks-and-polling).

@@ -37,7 +37,7 @@ The settings come from `buildAppManifest` in `src/lib/github/app.ts`:
 | Visibility | Private (`public: false`) |
 | Repository permissions | Contents: read, Metadata: read, Pull requests: read and write, Issues: read and write, Checks: read and write, Commit statuses: read and write |
 | Account permissions | Email addresses: read |
-| Events | Pull request, Pull request review, Pull request review comment, Pull request review thread |
+| Events | Pull request, Pull request review, Pull request review comment, Pull request review thread, Check run, Status |
 
 What the permissions are used for:
 
@@ -47,13 +47,13 @@ What the permissions are used for:
 | Metadata: read | Repository information; GitHub requires it for every app |
 | Pull requests: read and write | Pull requests, changed files, review comments, replies and reviews, and resolving review threads (GraphQL) |
 | Issues: read and write | The summary comment in the pull request conversation (`issues/<number>/comments`) |
-| Checks: read and write | The [guide check](#guide-check) as a check run named "Omakaze guide", for app installations |
+| Checks: read and write | The [guide check](#guide-check) as a check run named "Omakaze guide", for app installations, and reading the check runs of [AI code reviewers](ai-reviewers.md) |
 | Commit statuses: read and write | The guide check as a commit status, for [linked-account connections](#linked-github-account) whose credential is a user token of this app (GitHub limits those tokens to the app's permissions) |
 | Email addresses: read | The verified email addresses of users who sign in with GitHub: the address of a new account, confirmation for email-restricted invites, and `AUTH_ALLOWED_EMAIL_DOMAINS` |
 
 Without the email permission (for example in an app created before it was added to the manifest), only the public email of a user's GitHub profile is used. `/admin` points this out with a link to the app's permission settings on GitHub, where it can be added.
 
-Omakaze acts on the `pull_request`, `pull_request_review`, `pull_request_review_comment` and `pull_request_review_thread` events, and on `installation` events, which GitHub sends to every app. Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
+Omakaze acts on the `pull_request`, `pull_request_review`, `pull_request_review_comment`, `pull_request_review_thread`, `check_run` and `status` events, and on `installation` events, which GitHub sends to every app. Other deliveries are recorded as ignored. See [Webhooks](#webhooks).
 
 ### Apps created before an event was added
 
@@ -183,6 +183,7 @@ A repository is reconnected when:
 - `pull_request` updates the cached pull request. The actions `opened`, `reopened`, `synchronize` and `ready_for_review` also check whether a guide should be generated automatically (see [ai.md](ai.md#automation)). `review_requested`, `review_request_removed`, `assigned` and `unassigned` update the cached requested reviewers, requested teams and assignees that the **Needs my review**, **Mine** and **Assigned** filters use. These actions are part of the `pull_request` event, so existing app installations and repository webhooks receive them without changes.
 - `pull_request_review`, `pull_request_review_comment` and `pull_request_review_thread` (a conversation resolved or unresolved) update the cached pull request and drop its cached review comments and review threads, so the next request reads them from GitHub.
 - A reply in a review conversation (`pull_request_review_comment` with the action `created`) emails the members who wrote in the conversation, and a submitted review (`pull_request_review` with the action `submitted`) is posted to the workspace's Slack or JSON webhook when it has one. A comment or review posted through Omakaze and its webhook count as one event. See [configuration.md](configuration.md#notifications).
+- `pull_request_review`, `check_run` and `status` wake an automatic guide that is [waiting for AI code reviewers](ai-reviewers.md#how-the-wait-works) on the pull request or its head commit. Without a waiting guide, `check_run` and `status` deliveries are recorded as ignored.
 - `installation` handles `deleted`, `suspend` and `unsuspend` as described above.
 - Other events and actions are recorded as ignored.
 

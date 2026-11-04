@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { githubConnections, repositories } from "@/db/schema";
+import { nudgeAiReviewWait } from "@/lib/ai-reviewers/service";
 import { maybeAutoGenerate } from "@/lib/automation";
 import { safeEqual } from "@/lib/crypto";
 import { notifyFromWebhook, type NotifyWebhookPayload } from "@/lib/notifications/hooks";
@@ -23,6 +24,10 @@ type Payload = PeopleEvent & {
   installation?: { id: number };
   repository?: { id: number; full_name: string };
   pull_request?: GhPull;
+  /** check_run events */
+  check_run?: { head_sha: string; name: string; pull_requests?: { number: number }[] };
+  /** status events */
+  sha?: string;
 };
 
 /** Handle one webhook event. Returns "processed" or "ignored". */
@@ -77,8 +82,22 @@ export async function handleWebhook(event: string, payload: Payload): Promise<"p
         invalidateReviewComments(repo.id, pr.number);
         invalidateReviewThreads(repo.id, pr.number);
         await notifyFromWebhook(event, payload as NotifyWebhookPayload, repo.id);
+        // An AI code reviewer may have finished: a guide waiting for it looks now.
+        if (event === "pull_request_review") await nudgeAiReviewWait(repo.id, { prNumber: pr.number });
       }
       return "processed";
+    }
+    case "check_run":
+    case "status": {
+      // Check runs and commit statuses of AI code reviewers (e.g. the Claude Code Review workflow)
+      // tell a guide that waits for them when they start and finish.
+      const sha = event === "check_run" ? payload.check_run?.head_sha : payload.sha;
+      const repoId = payload.repository?.id;
+      if (!sha || !repoId) return "ignored";
+      const repos = await db.select({ id: repositories.id }).from(repositories).where(eq(repositories.githubId, repoId));
+      let nudged = 0;
+      for (const repo of repos) nudged += await nudgeAiReviewWait(repo.id, { headSha: sha });
+      return nudged > 0 ? "processed" : "ignored";
     }
     default:
       return "ignored";

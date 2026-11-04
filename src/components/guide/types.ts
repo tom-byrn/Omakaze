@@ -18,6 +18,10 @@ export type ReviewComment = {
   threadId?: string | null;
   /** For a comment with a suggestion: the lines it replaces, when GitHub's hunk has them. */
   commentedLines?: string[] | null;
+  /** Name of the AI code reviewer that posted it (Claude Code Review, Greptile, …), or null. */
+  aiReviewer?: string | null;
+  /** For AI reviewers' comments: the guide section that shows the commented line. */
+  sectionId?: string | null;
 };
 
 /** Resolution state of a review thread on GitHub. */

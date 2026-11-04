@@ -16,6 +16,7 @@ import {
   type Role,
 } from "@/db/schema";
 import { logActivity } from "@/lib/activity";
+import { AI_REVIEWER_PRESETS, MAX_CUSTOM_REVIEWERS, MAX_WAIT_MINUTES, splitList, type AiReviewerConfig } from "@/lib/ai-reviewers/config";
 import { PROVIDERS, providerInfo, resolveAiConfig } from "@/lib/ai/config";
 import { listModels, ModelListError, type ModelOption } from "@/lib/ai/models";
 import { testAiConfig } from "@/lib/ai/providers";
@@ -31,6 +32,7 @@ import {
   lookupRepo,
   reattachRepositories,
 } from "@/lib/github/connections";
+import { APP_EVENTS } from "@/lib/github/app";
 import { gh, GitHubError } from "@/lib/github/client";
 import { refreshGuideChecks } from "@/lib/github/guide-check";
 import { repoWebhookSecret } from "@/lib/crypto";
@@ -328,7 +330,7 @@ export async function createRepoWebhookAction(slug: string, repositoryId: string
       body: {
         name: "web",
         active: true,
-        events: ["pull_request", "pull_request_review", "pull_request_review_comment", "pull_request_review_thread"],
+        events: [...APP_EVENTS],
         config: { url: `${env().APP_URL}/api/github/webhook`, content_type: "json", secret: repoWebhookSecret(), insecure_ssl: "0" },
       },
     });
@@ -443,6 +445,61 @@ export async function saveAutomationAction(slug: string, _prev: FormState, form:
     };
     await db.update(workspaces).set(values).where(eq(workspaces.id, ws.id));
     await logActivity({ workspaceId: ws.id, type: "settings.updated", actorUserId: user.id, data: { section: "automation", ...values } });
+    return done(ws, "/settings/automation", "Saved.");
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/* AI code reviewers --------------------------------------------------- */
+
+const customReviewerSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  logins: z.string().max(500),
+  checks: z.string().max(500),
+});
+
+/** Which AI code reviewers automatic guides wait for, and for how long (src/lib/ai-reviewers). */
+export async function saveAiReviewersAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
+  try {
+    const { user, ws } = await ctx(slug, "admin");
+    const minutes = Number(form.get("aiReviewerWaitMinutes"));
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > MAX_WAIT_MINUTES) {
+      return { error: `Wait between 1 and ${MAX_WAIT_MINUTES} minutes.` };
+    }
+    let rawCustom: unknown = [];
+    try {
+      rawCustom = JSON.parse(String(form.get("customReviewers") ?? "[]"));
+    } catch {
+      return { error: "Could not read the reviewers you added." };
+    }
+    const parsed = z.array(customReviewerSchema).max(MAX_CUSTOM_REVIEWERS).safeParse(rawCustom);
+    if (!parsed.success) return { error: `Give each reviewer a name (at most ${MAX_CUSTOM_REVIEWERS} of your own).` };
+    const custom: AiReviewerConfig[] = [];
+    for (const [i, r] of parsed.data.entries()) {
+      const logins = splitList(r.logins);
+      const checks = splitList(r.checks);
+      if (logins.length === 0 && checks.length === 0) return { error: `“${r.name}” needs a GitHub login or a check name.` };
+      custom.push({ key: `custom-${i + 1}`, name: r.name, logins, checks, enabled: true });
+    }
+    const presets = AI_REVIEWER_PRESETS.map((p) => ({ ...p, enabled: form.get(`preset:${p.key}`) === "on" }));
+    const values = {
+      waitForAiReviewers: form.get("waitForAiReviewers") === "on",
+      aiReviewerWaitMinutes: minutes,
+      aiReviewers: [...presets, ...custom],
+    };
+    await db.update(workspaces).set(values).where(eq(workspaces.id, ws.id));
+    await logActivity({
+      workspaceId: ws.id,
+      type: "settings.updated",
+      actorUserId: user.id,
+      data: {
+        section: "ai-reviewers",
+        waitForAiReviewers: values.waitForAiReviewers,
+        aiReviewerWaitMinutes: minutes,
+        reviewers: values.aiReviewers.filter((r) => r.enabled).map((r) => r.name),
+      },
+    });
     return done(ws, "/settings/automation", "Saved.");
   } catch (err) {
     return fail(err);

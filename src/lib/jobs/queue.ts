@@ -85,6 +85,38 @@ export async function failJob(job: Job, error: string): Promise<void> {
     .where(eq(jobs.id, job.id));
 }
 
+/**
+ * Thrown by a handler that is waiting for something outside Omakaze (such as AI code reviewers):
+ * the job runs again at `runAt` and the attempt doesn't count.
+ */
+export class RescheduleJob extends Error {
+  constructor(
+    public runAt: Date,
+    reason = "waiting",
+  ) {
+    super(reason);
+    this.name = "RescheduleJob";
+  }
+}
+
+export async function rescheduleJob(job: Job, runAt: Date): Promise<void> {
+  await db
+    .update(jobs)
+    .set({ status: "queued", lockedAt: null, attempts: Math.max(0, job.attempts - 1), runAt })
+    .where(eq(jobs.id, job.id));
+}
+
+/** Run queued jobs that match now instead of at their scheduled time (e.g. after a webhook). Returns how many. */
+export async function runQueuedJobsNow(type: JobType, match: Record<string, string>): Promise<number> {
+  const conditions = Object.entries(match).map(([k, v]) => sql`${jobs.payload}->>${k} = ${v}`);
+  const rows = await db
+    .update(jobs)
+    .set({ runAt: new Date() })
+    .where(and(eq(jobs.type, type), eq(jobs.status, "queued"), ...conditions))
+    .returning({ id: jobs.id });
+  return rows.length;
+}
+
 /** Requeue jobs whose worker died mid-run. */
 export async function recoverStuckJobs(olderThanMinutes = 20): Promise<void> {
   await db

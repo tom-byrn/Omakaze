@@ -212,6 +212,7 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
           error: guide.error,
           summary: <Markdown source={guide.summary} />,
           hasSummary: guide.summary.trim().length > 0,
+          aiReviews: guide.aiReviews,
         }}
         sections={data.sections.map((s) => ({
           id: s.id,

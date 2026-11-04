@@ -2,7 +2,7 @@ import { hostname } from "node:os";
 import { env } from "@/lib/env";
 import { failStaleGuides } from "@/lib/guides/service";
 import { onJobGaveUp, PermanentJobError, runJob } from "./handlers";
-import { claimJob, completeJob, enqueueJob, failJob, pruneOldJobs, recoverStuckJobs } from "./queue";
+import { claimJob, completeJob, enqueueJob, failJob, pruneOldJobs, recoverStuckJobs, RescheduleJob, rescheduleJob } from "./queue";
 
 const WORKER_ID = `${hostname()}:${process.pid}`;
 const CONCURRENCY = Number(process.env.WORKER_CONCURRENCY ?? 3);
@@ -28,6 +28,10 @@ async function loop(slot: number) {
       await runJob(job);
       await completeJob(job.id);
     } catch (err) {
+      if (err instanceof RescheduleJob) {
+        await rescheduleJob(job, err.runAt).catch((e) => console.error("[worker] reschedule failed", e instanceof Error ? e.message : e));
+        continue;
+      }
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[worker] job ${job.id} (${job.type}) failed:`, message);
       const permanent = err instanceof PermanentJobError;

@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { timeAgo } from "@/lib/format";
 import { bodyWithoutSuggestions, hasSuggestion, insertSuggestion } from "@/lib/github/suggestions";
+import { AiReviewerTag } from "./AiReviews";
 import { CommentMarkdown, SuggestionPreview } from "./Suggestion";
 import type { ReviewComment, Thread } from "./types";
 
@@ -21,6 +22,7 @@ function CommentBody({ c, onDelete, readOnly }: { c: ReviewComment; onDelete?: (
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-[12px]">
           <span className="font-medium text-ink">{c.user?.login ?? "unknown"}</span>
+          {c.aiReviewer ? <AiReviewerTag name={c.aiReviewer} /> : null}
           <span className="text-muted">{timeAgo(c.createdAt)}</span>
           {c.isNew ? <span className="tag border-blue-bright/40 text-blue-bright">New</span> : null}
           {c.mine && onDelete ? (
