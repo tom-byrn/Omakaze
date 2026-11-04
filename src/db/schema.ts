@@ -14,6 +14,8 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { newId } from "@/lib/ids";
+import type { AiReviewerConfig } from "@/lib/ai-reviewers/config";
+import type { GuideAiReviews } from "@/lib/ai-reviewers/signals";
 import type { DiffFile } from "@/lib/diff/types";
 import type { SectionRef } from "@/lib/guides/refs";
 import type { RepoTemplate, ResolvedTemplate, TemplateOutline } from "@/lib/guides/templates";
@@ -155,6 +157,12 @@ export const workspaces = pgTable(
     postPrComment: boolean("post_pr_comment").default(false).notNull(),
     /** Skip draft PRs for automatic generation. */
     skipDrafts: boolean("skip_drafts").default(true).notNull(),
+    /** Automatic guides wait for AI code reviewers (Claude Code Review, Greptile, …) and include their findings. */
+    waitForAiReviewers: boolean("wait_for_ai_reviewers").default(true).notNull(),
+    /** Longest wait for AI code reviewers, in minutes. */
+    aiReviewerWaitMinutes: integer("ai_reviewer_wait_minutes").default(15).notNull(),
+    /** Turned-off presets and the workspace's own reviewers; null = every preset (src/lib/ai-reviewers/config.ts). */
+    aiReviewers: jsonb("ai_reviewers").$type<AiReviewerConfig[]>(),
     aiProvider: text("ai_provider").$type<AiProvider>(),
     aiModel: text("ai_model"),
     aiBaseUrl: text("ai_base_url"),
@@ -403,6 +411,8 @@ export const guides = pgTable(
     template: jsonb("template").$type<ResolvedTemplate>(),
     /** Which AI configuration wrote a built-in AI guide ("chatgpt" = the creator's ChatGPT plan); null otherwise or unknown. */
     aiSource: text("ai_source").$type<GuideAiSource>(),
+    /** AI code reviewers the guide waited for and was written with; null when none were read. */
+    aiReviews: jsonb("ai_reviews").$type<GuideAiReviews>(),
     /** Changed lines in the snapshot and how many the author's own sections covered, recorded when the guide is published. */
     changedLines: integer("changed_lines"),
     coveredLines: integer("covered_lines"),

@@ -977,10 +977,69 @@ h4 {
   background: var(--color-white) !important;
 }
 .guide-prose .md-mermaid {
-  padding: 16px;
+  position: relative;
   border: 1px solid color-mix(in srgb, var(--color-black) 15%, transparent);
   background: var(--color-white);
+  transition: border-color 150ms var(--ease-snap);
+}
+.guide-prose .md-mermaid-scroll {
+  padding: 16px;
   overflow-x: auto;
+}
+/* A click anywhere on a drawn diagram opens the full view (Mermaid.tsx, MermaidDialog.tsx). */
+.guide-prose .md-mermaid-ready {
+  cursor: zoom-in;
+}
+.guide-prose .md-mermaid-ready:hover {
+  border-color: color-mix(in srgb, var(--color-black) 35%, transparent);
+}
+.guide-prose .md-mermaid-expand {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--color-black) 15%, transparent);
+  background: var(--color-white);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ui);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms var(--ease-snap), color 150ms var(--ease-snap), border-color 150ms var(--ease-snap);
+}
+.guide-prose .md-mermaid:hover .md-mermaid-expand,
+.guide-prose .md-mermaid-expand:focus-visible {
+  opacity: 1;
+}
+.guide-prose .md-mermaid-expand:hover {
+  color: var(--color-ink);
+  border-color: color-mix(in srgb, var(--color-black) 40%, transparent);
+}
+/* Touch screens have no hover: keep the button in view. */
+@media (hover: none) {
+  .guide-prose .md-mermaid-expand {
+    opacity: 1;
+  }
+}
+@media print {
+  .guide-prose .md-mermaid-expand {
+    display: none;
+  }
+}
+/* The full view focuses its scroll area on open, so the arrow keys pan; the dialog itself is the cue. */
+.mermaid-dialog-scroll:focus-visible {
+  outline: none;
+}
+.mermaid-zoom svg {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
 }
 .guide-prose .md-mermaid svg {
   display: block;

@@ -120,8 +120,7 @@ export function Steps() {
   return (
     <div className="grid grid-cols-1 border border-border-dark lg:grid-cols-2">
       <div className="p-6 md:p-10">
-        <span className="eyebrow eyebrow-dark">How it works</span>
-        <h2 className="mt-6 font-serif text-[36px] leading-none tracking-[-1.44px] text-white sm:text-[44px] sm:tracking-[-0.025em]">
+        <h2 className="font-serif text-[36px] leading-none tracking-[-1.44px] text-white sm:text-[44px] sm:tracking-[-0.025em]">
           Four steps.
           <br />
           One review.
@@ -163,7 +162,15 @@ export function Steps() {
                 )}
               >
                 <span className="overflow-hidden">
-                  <span className="mt-3 block max-w-[480px] text-[16px] leading-[26px] tracking-[-0.4px] text-[#a0a0a0]">{s.body}</span>
+                  {/* Every body sits in the same grid cell so the open step is as tall as the longest
+                      body, and the section keeps its size as the steps change. */}
+                  <span className="mt-3 grid max-w-[480px] text-[16px] leading-[26px] tracking-[-0.4px] text-[#a0a0a0]">
+                    {STEPS.map((other, j) => (
+                      <span key={other.label} className={clsx("[grid-area:1/1]", j !== i && "invisible")} aria-hidden={j !== i}>
+                        {other.body}
+                      </span>
+                    ))}
+                  </span>
                 </span>
               </span>
             </button>

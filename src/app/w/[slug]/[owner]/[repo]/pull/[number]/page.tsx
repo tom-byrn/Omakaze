@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DiffStat, PrStateTag, prStateOf } from "@/components/app/Badges";
 import { GenerateButton } from "@/components/app/GenerateButton";
-import { ExportMenu } from "@/components/guide/ExportMenu";
 import { GuideCheckStatus } from "@/components/guide/GuideCheckStatus";
 import { GuideViewer } from "@/components/guide/GuideViewer";
 import { VersionSelect } from "@/components/guide/VersionSelect";
@@ -117,13 +116,6 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
             </Link>
           ) : null}
           {guide ? (
-            <ExportMenu
-              version={guide.version}
-              markdownHref={`/api/guides/${guide.id}/export?format=md`}
-              printHref={`/w/${slug}/${repo.fullName}/pull/${pull.number}/print?v=${guide.version}&autoprint=1`}
-            />
-          ) : null}
-          {guide ? (
             <GenerateButton
               slug={slug}
               repositoryId={repo.id}
@@ -220,6 +212,7 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
           error: guide.error,
           summary: <Markdown source={guide.summary} />,
           hasSummary: guide.summary.trim().length > 0,
+          aiReviews: guide.aiReviews,
         }}
         sections={data.sections.map((s) => ({
           id: s.id,

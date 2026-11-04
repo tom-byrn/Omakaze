@@ -67,7 +67,11 @@ sequenceDiagram
   W->>DB: claim job (FOR UPDATE SKIP LOCKED)
   W->>GH: read pull request, changed files, merge base
   W->>DB: store diff snapshot, create guide version (generating)
-  W->>AI: write the guide (one or several requests)
+  loop until AI code reviewers are done, or the wait runs out
+    W->>GH: check runs, statuses, reviews and comments of the head commit
+    W->>DB: reschedule the job (a review or check webhook wakes it sooner)
+  end
+  W->>AI: write the guide with the reviewers' findings (one or several requests)
   W->>DB: add sections, "Other changes", mark ready
   W->>DB: queue post_pr_comment job
   W->>GH: create or update the summary comment

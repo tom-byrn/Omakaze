@@ -10,6 +10,8 @@ import type { SectionChange } from "@/lib/guides/carryover";
 import type { SectionRef } from "@/lib/guides/refs";
 import { timeAgo } from "@/lib/format";
 import type { CodeTarget } from "@/components/markdown/CodeRefLink";
+import type { GuideAiReviews } from "@/lib/ai-reviewers/signals";
+import { aiFindings, AiReviewsCard, SectionFindings, type AiFindingView } from "./AiReviews";
 import { GenerationStatus } from "./GenerationStatus";
 import { useStoredBoolean } from "./useStoredBoolean";
 import { ReviewPanel } from "./ReviewPanel";
@@ -60,6 +62,8 @@ export type ViewerProps = {
     error: string | null;
     summary: React.ReactNode;
     hasSummary: boolean;
+    /** AI code reviewers the guide waited for and was written with (src/lib/ai-reviewers). */
+    aiReviews?: GuideAiReviews | null;
   };
   sections: ViewerSection[];
   files: ViewerFile[];
@@ -290,6 +294,12 @@ export function GuideViewer(props: ViewerProps) {
       revalidateOnFocus: true,
     },
   );
+  // A guide that was being written is ready: read the comments again, since AI reviewers often
+  // comment while an automatic guide waits for them.
+  const { mutate: refreshComments } = comments;
+  useEffect(() => {
+    if (guide.status === "ready") void refreshComments();
+  }, [guide.status, refreshComments]);
   const since = props.lastVisitAt ? Date.parse(props.lastVisitAt) : null;
   // Comments by others since the viewer's last visit are marked as new.
   const commentList = useMemo(
@@ -303,6 +313,19 @@ export function GuideViewer(props: ViewerProps) {
   );
   const threadsByPath = useMemo(() => groupThreads(commentList, threadStates), [commentList, threadStates]);
   const resolvedCount = comments.data?.threads?.filter((t) => t.isResolved).length ?? 0;
+  // Findings of AI code reviewers on lines of the diff, with the section that shows each one.
+  const findings = useMemo(() => aiFindings(commentList, sections), [commentList, sections]);
+  const showFinding = useCallback(
+    (f: AiFindingView) => {
+      const target = f.sectionIndex || -1;
+      if (f.line === null) return goTo(target);
+      // As with diff links, the focused diff scrolls itself into view in the scroll view.
+      pin.current = null;
+      setStep(target);
+      setFocus({ path: f.path, start: f.startLine ?? f.line, end: f.line, side: f.side === "LEFT" ? "old" : "new", step: target, nonce: Date.now() });
+    },
+    [goTo],
+  );
   const [showResolved, setShowResolved] = useStoredBoolean("omk:show-resolved", false);
 
   const flash = useCallback((text: string, opts: { href?: string; error?: boolean } = {}) => {
@@ -426,6 +449,7 @@ export function GuideViewer(props: ViewerProps) {
         target = idx >= 0 ? idx + 1 : -1;
       }
       // The scroll view needs no scroll to the row: the focused diff scrolls itself into view.
+      pin.current = null;
       if (target !== step) setStep(target);
       setFocus({ ...t, step: target, nonce: Date.now() });
     };
@@ -478,6 +502,7 @@ export function GuideViewer(props: ViewerProps) {
         agentPrompt={props.agentPrompt}
         onChange={() => router.refresh()}
         shareToken={ro?.shareToken}
+        aiReviews={guide.aiReviews ?? null}
       />
     ) : null;
 
@@ -496,6 +521,7 @@ export function GuideViewer(props: ViewerProps) {
             {files.length} files
           </p>
           {guide.hasSummary ? <div className="mt-8">{guide.summary}</div> : null}
+          {generating ? null : <AiReviewsCard reviews={guide.aiReviews ?? null} findings={findings} onShow={showFinding} />}
           <div className="mt-10 border-t border-dashed border-line pt-6">
             <p className="mono-label">Sections</p>
             <ol className="mt-3">
@@ -584,6 +610,7 @@ export function GuideViewer(props: ViewerProps) {
         {currentProgress ? (
           <SectionNotice progress={currentProgress} visit={current.visitChange} version={guide.version} onShowChanges={() => showChanges(s)} />
         ) : null}
+        <SectionFindings findings={findings.filter((f) => f.sectionId === current.id)} onShow={showFinding} />
         <div className="mt-8">{current.body}</div>
         <div className="mt-12 flex flex-wrap items-center gap-2 border-t border-dashed border-line pt-6">
           {ro ? (
@@ -728,7 +755,7 @@ export function GuideViewer(props: ViewerProps) {
         ))}
         {generating ? (
           <div className="flex items-center gap-2 border-l border-dashed border-line px-4 font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase">
-            <span className="dot animate-pulse-dot bg-blue-bright" /> Writing…
+            <span className="dot animate-pulse-dot bg-blue-bright" /> {guide.aiReviews?.phase === "waiting" ? "Waiting for AI reviews…" : "Writing…"}
           </div>
         ) : ro ? null : (
           <StepTab label="Finish review" index={null} active={step === reviewStep} done={false} onClick={() => goTo(reviewStep)} />

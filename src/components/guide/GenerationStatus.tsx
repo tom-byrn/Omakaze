@@ -3,13 +3,16 @@
 import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import { CopyButton } from "@/components/ui/CopyButton";
+import type { GuideAiReviews } from "@/lib/ai-reviewers/signals";
 import { withShareToken } from "@/lib/share/url";
+import { AiReviewerStatusList } from "./AiReviews";
 
 type Status = {
   status: "draft" | "generating" | "ready" | "failed";
   sections: number;
   error: string | null;
   events: { at: string; message: string; level?: string }[];
+  aiReviews?: GuideAiReviews | null;
 };
 
 export function GenerationStatus({
@@ -20,6 +23,7 @@ export function GenerationStatus({
   agentPrompt,
   onChange,
   shareToken,
+  aiReviews,
 }: {
   guideId: string;
   status: "draft" | "generating" | "ready" | "failed";
@@ -29,8 +33,10 @@ export function GenerationStatus({
   onChange: () => void;
   /** Polls through a share link in the read-only view. */
   shareToken?: string;
+  /** AI code reviewers an automatic guide waits for (src/lib/ai-reviewers). */
+  aiReviews?: GuideAiReviews | null;
 }) {
-  const { data } = useSWR<Status>(
+  const { data, mutate } = useSWR<Status>(
     status === "generating" ? withShareToken(`/api/guides/${guideId}/status`, shareToken) : null,
     (url: string) => fetch(url).then((r) => r.json()),
     { refreshInterval: 2000 },
@@ -59,14 +65,33 @@ export function GenerationStatus({
   }
 
   const events = data?.events ?? [];
+  const reviews = data ? (data.aiReviews ?? null) : (aiReviews ?? null);
+  const waiting = reviews?.phase === "waiting";
   return (
     <div className="mb-8 border border-black/15 bg-white">
       <div className="flex items-center gap-2 border-b border-dashed border-line px-4 py-3">
         <span className="dot animate-pulse-dot bg-blue-bright" />
         <p className="mono-label">
-          Writing this guide · {data?.sections ?? sectionCount} section{(data?.sections ?? sectionCount) === 1 ? "" : "s"} so far
+          {waiting
+            ? "Waiting for AI code reviewers"
+            : `Writing this guide · ${data?.sections ?? sectionCount} section${(data?.sections ?? sectionCount) === 1 ? "" : "s"} so far`}
         </p>
       </div>
+      {waiting && reviews ? (
+        <div className="border-b border-dashed border-line">
+          <AiReviewerStatusList
+            reviews={reviews}
+            onSkip={
+              shareToken
+                ? undefined
+                : async () => {
+                    await fetch(`/api/guides/${guideId}/ai-reviews`, { method: "POST" }).catch(() => null);
+                    await mutate();
+                  }
+            }
+          />
+        </div>
+      ) : null}
       <ol className="max-h-48 overflow-auto px-4 py-3 font-mono text-[11px] leading-[18px] text-ui">
         {events.length === 0 ? <li>Waiting for the first update…</li> : null}
         {events.map((e, i) => (

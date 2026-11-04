@@ -50,6 +50,8 @@ function describeType(r: Row): string {
       return `published guide v${String(d.version ?? "")} for ${pr} (${String(d.sections ?? 0)} sections)`;
     case "guide.failed":
       return `could not generate a guide for ${pr}: ${String(d.error ?? "")}`;
+    case "guide.ai_reviews_skipped":
+      return `skipped waiting for AI code reviewers on ${pr}`;
     case "comment.posted":
       if (d.conversation) return `commented on ${pr}`;
       return `${d.reply ? "replied on" : "commented on"} ${String(d.path ?? "")}${d.line ? `:${String(d.line)}` : ""} in ${pr}`;
