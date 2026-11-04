@@ -196,9 +196,9 @@ export default async function PullPage(props: PageProps<"/w/[slug]/[owner]/[repo
 
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col overflow-hidden">
-      {bar}
       <GuideViewer
         key={guide.id}
+        header={bar}
         guide={{
           id: guide.id,
           title: guide.title,
