@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { RiExpandDiagonalLine } from "@remixicon/react";
+import { useEffect, useId, useMemo, useState } from "react";
+import { MermaidDialog } from "./MermaidDialog";
 
 type MermaidApi = typeof import("mermaid").default;
 
@@ -87,10 +89,18 @@ function renderBoth(id: string, chart: string): Promise<{ light: string; dark: s
   return job;
 }
 
+/** Copies of the charts with their ids renamed, so the full view doesn't clash with the inline ones. */
+function fullViewCopies(id: string, svg: { light: string; dark: string }) {
+  const prefix = `mmd-${id}`;
+  return { light: svg.light.replaceAll(prefix, `${prefix}-full`), dark: svg.dark.replaceAll(prefix, `${prefix}-full`) };
+}
+
 export function Mermaid({ chart }: { chart: string }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   const [svg, setSvg] = useState<{ light: string; dark: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const full = useMemo(() => (open && svg ? fullViewCopies(id, svg) : null), [open, svg, id]);
   useEffect(() => {
     let cancelled = false;
     renderBoth(id, chart)
@@ -109,15 +119,40 @@ export function Mermaid({ chart }: { chart: string }) {
     );
   }
   return (
-    <figure className="md-mermaid" aria-label="Diagram">
-      {svg ? (
-        <>
-          <div className="mermaid-light" dangerouslySetInnerHTML={{ __html: svg.light }} />
-          <div className="mermaid-dark" dangerouslySetInnerHTML={{ __html: svg.dark }} />
-        </>
-      ) : (
-        <div className="h-24 animate-pulse bg-black/[0.03]" />
+    <figure
+      className={svg ? "md-mermaid md-mermaid-ready" : "md-mermaid"}
+      aria-label="Diagram"
+      // Anywhere on the diagram opens the full view, unless the reader was selecting its text.
+      // (Clicks inside the full view bubble here through the portal; they aren't on the figure.)
+      onClick={(e) => {
+        if (svg && e.currentTarget.contains(e.target as Node) && !window.getSelection()?.toString()) setOpen(true);
+      }}
+    >
+      <div className="md-mermaid-scroll">
+        {svg ? (
+          <>
+            <div className="mermaid-light" dangerouslySetInnerHTML={{ __html: svg.light }} />
+            <div className="mermaid-dark" dangerouslySetInnerHTML={{ __html: svg.dark }} />
+          </>
+        ) : (
+          <div className="h-24 animate-pulse bg-black/[0.03]" />
+        )}
+      </div>
+      {svg && (
+        <button
+          type="button"
+          className="md-mermaid-expand"
+          aria-label="Open diagram in full view"
+          aria-haspopup="dialog"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(true);
+          }}
+        >
+          <RiExpandDiagonalLine size={13} aria-hidden /> Expand
+        </button>
       )}
+      {full && <MermaidDialog svg={full} onClose={() => setOpen(false)} />}
     </figure>
   );
 }
