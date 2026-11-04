@@ -1,4 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { reviewerForLogin } from "@/lib/ai-reviewers/config";
+import { workspaceAiReviewers } from "@/lib/ai-reviewers/service";
 import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
@@ -759,7 +761,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
     {
       title: "List review comments",
       description:
-        "Read the review conversations on a pull request (including comments posted from Omakaze): each thread's thread_id and resolved state, the commented lines, the guide section that shows them, and every comment with its comment_id and author. Comments marked (you) are the user's own.",
+        "Read the review conversations on a pull request (including comments posted from Omakaze): each thread's thread_id and resolved state, the commented lines, the guide section that shows them, and every comment with its comment_id and author. Comments marked (you) are the user's own; comments by AI code reviewers (Claude Code Review, Greptile, CodeRabbit, Copilot, …) are marked with the reviewer's name. When writing a guide, add a one-line verdict on each finding (does it hold) to the section that covers its line; do not reword the comment, readers see it next to the code.",
       inputSchema: {
         pr: prArg,
         state: z.enum(["open", "resolved", "all"]).optional().describe('Which conversations to show. Default "all".'),
@@ -768,7 +770,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
     },
     wrap(async ({ pr, state }) => {
       const { ctx, number, guide, label } = await reviewTarget(pr);
-      const [list, mine, account, threads, locate] = await Promise.all([
+      const [list, mine, account, threads, locate, aiReviewers] = await Promise.all([
         listReviewComments(ctx, number, true),
         ownCommentIds(ctx.repo.id, number, principal.user.id),
         getGitHubAccount(principal.user.id),
@@ -778,6 +780,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
           (err: unknown) => ({ data: null, error: err instanceof Error ? err.message : String(err) }),
         ),
         sectionLocator(guide).catch(() => () => null),
+        workspaceAiReviewers(ctx.repo.workspaceId).catch(() => []),
       ]);
       const index = threadIndex(threads.data ?? []);
       const login = account?.login ?? null;
@@ -791,6 +794,7 @@ export function createMcpServer(principal: ApiPrincipal, client: { name?: string
             login,
             isMine: (c) => mine.has(c.id) || (login !== null && c.user?.login.toLowerCase() === login.toLowerCase()),
             sectionOf: (root) => commentSection(locate, root),
+            aiReviewerOf: (c) => reviewerForLogin(aiReviewers, c.user?.login)?.name ?? null,
           },
         ),
       );

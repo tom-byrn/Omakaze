@@ -85,6 +85,13 @@
       "when": 1792450344959,
       "tag": "0011_review_insights",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793805034527,
+      "tag": "0012_ai_reviewers",
+      "breakpoints": true
     }
   ]
 }

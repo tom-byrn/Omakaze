@@ -15,6 +15,7 @@ export type ActivityType =
   | "guide.ready"
   | "guide.failed"
   | "guide.deleted"
+  | "guide.ai_reviews_skipped"
   | "comment.posted"
   | "review.submitted"
   | "thread.resolved"

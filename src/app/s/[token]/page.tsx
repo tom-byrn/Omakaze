@@ -130,6 +130,7 @@ export default async function SharedGuidePage(props: PageProps<"/s/[token]">) {
           error: null,
           summary: md(guide.summary),
           hasSummary: guide.summary.trim().length > 0,
+          aiReviews: guide.aiReviews,
         }}
         sections={data.sections.map((s) => ({
           id: s.id,

@@ -1,6 +1,7 @@
 import { eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { guides, jobs, repositories, workspaces } from "@/db/schema";
+import { prepareAiReviews, waitsForAiReviewers } from "@/lib/ai-reviewers/service";
 import { resolveAiConfigFor } from "@/lib/ai/chatgpt";
 import { resolveAiConfig } from "@/lib/ai/config";
 import { generateGuideWithAi } from "@/lib/ai/generate";
@@ -12,7 +13,7 @@ import { syncRepositoryPulls } from "@/lib/github/pulls";
 import { postGuideSummaryComment } from "@/lib/github/summary-comment";
 import { appendGuideEvent, clearSections, failGuide, getGuide, startGuide } from "@/lib/guides/service";
 import { runNotificationJob } from "@/lib/notifications/jobs";
-import type { Job } from "./queue";
+import { RescheduleJob, type Job } from "./queue";
 
 /** Errors that should not be retried. */
 export class PermanentJobError extends Error {}
@@ -49,22 +50,34 @@ async function generateGuide(job: Job) {
   }
   const guide = await getGuide(guideId);
   if (!guide || guide.status !== "generating") return;
+  const ws = await workspaceForRepo(guide.repositoryId);
+  // A guide someone started can use their own ChatGPT plan; automated ones use the workspace provider.
+  const cfg = ws ? await resolveAiConfigFor(ws, guide.createdByUserId) : null;
+  if (!ws || !cfg) {
+    await failGuide(guide.id, "No AI provider is configured. Add one in Settings → AI.");
+    return;
+  }
+  // AI code reviewers (Claude Code Review, Greptile, …): automatic guides wait for them (the job is
+  // rescheduled until they are done), and every guide is written with the findings that are in.
+  const automated = guide.createdVia === "webhook" || guide.createdVia === "poll";
+  let findings: Awaited<ReturnType<typeof prepareAiReviews>> = [];
+  try {
+    findings = await prepareAiReviews(job, guide, ws, await getRepoContext(guide.repositoryId), { wait: automated && waitsForAiReviewers(ws) });
+  } catch (err) {
+    if (err instanceof RescheduleJob) throw err;
+    // The reviews are an extra; a guide is still written without them.
+    console.warn("[generate] reading AI reviews failed:", err instanceof Error ? err.message : err);
+    await appendGuideEvent(guide.id, "Could not read AI code reviews; writing the guide without them", "warn");
+  }
   // A retry (or a job recovered after a crash) starts over.
   const removed = await clearSections(guide.id);
   if (removed > 0) {
     await appendGuideEvent(guide.id, `Starting over: removed ${removed} section(s) from the previous attempt`, "warn");
   }
-  const ws = await workspaceForRepo(guide.repositoryId);
-  // A guide someone started can use their own ChatGPT plan; automated ones use the workspace provider.
-  const cfg = ws ? await resolveAiConfigFor(ws, guide.createdByUserId) : null;
-  if (!cfg) {
-    await failGuide(guide.id, "No AI provider is configured. Add one in Settings → AI.");
-    return;
-  }
   // Which configuration writes the guide, e.g. a member's ChatGPT plan (shown in insights).
   await db.update(guides).set({ aiSource: cfg.source }).where(eq(guides.id, guide.id));
   try {
-    await generateGuideWithAi(guide, cfg);
+    await generateGuideWithAi(guide, cfg, { findings });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const retryable = err instanceof AiError ? err.retryable : false;

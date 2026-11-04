@@ -4,6 +4,10 @@ All notable changes to Omakaze are recorded in this file. The format is based on
 
 ## Unreleased
 
+### Added
+
+- AI code reviewers: automatic guides wait for Claude Code Review, Greptile, CodeRabbit, GitHub Copilot and reviewers a workspace adds (a name, bot logins and check names) before they are written, and the built-in AI adds a one-line verdict on each of their findings to the section that covers it, without rewording the comment. Reviewers are noticed through their check runs, commit statuses, reviews and review requests on the head commit; the wait ends when they are done or after **Wait at most** (15 minutes by default), and **Skip waiting** writes the guide right away. Settings in **Settings → Automation → AI code reviewers** (on by default). The guide overview lists every finding with its section, sections list the findings on their lines, the reviewers' comments are labeled in the diff, and `list_review_comments` names the reviewer. New commits pushed while a guide waits replace the waiting version. The GitHub App manifest and repository webhooks subscribe to `check_run` and `status`, which wake a waiting guide. See [docs/ai-reviewers.md](docs/ai-reviewers.md).
+
 ## 0.1.0 — 2026-10-23
 
 Initial release.

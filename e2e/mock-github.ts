@@ -17,6 +17,7 @@ import { pathToFileURL } from "node:url";
 import { parsePatch } from "../src/lib/diff/parse";
 import {
   buildDemo,
+  DEMO_AI_BOTS,
   DEMO_CONNECTION,
   DEMO_GITHUB_PEOPLE,
   DEMO_REPO,
@@ -134,7 +135,7 @@ export function ghUser(login: string): GhUserJson {
     id: person?.id ?? 91_999_999,
     avatar_url: githubAvatar(login),
     html_url: `${GITHUB}/${login}`,
-    type: login.endsWith("-bot") ? "Bot" : "User",
+    type: login.endsWith("-bot") || login.endsWith("[bot]") ? "Bot" : "User",
     name: person?.name ?? login,
   };
 }
@@ -143,6 +144,7 @@ export function ghUser(login: string): GhUserJson {
 export const TOKENS: Record<string, string> = {
   [DEMO_CONNECTION.token]: DEMO_CONNECTION.login,
   ...Object.fromEntries(Object.values(DEMO_USERS).map((u) => [u.github.token, u.github.login])),
+  ...Object.fromEntries(Object.values(DEMO_AI_BOTS).map((b) => [b.token, b.login])),
 };
 
 const notFound = (message = "Not Found"): MockReply => ({

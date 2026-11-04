@@ -2,7 +2,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { pullRequests, repositories, workspaces } from "@/db/schema";
 import { resolveAiConfig } from "@/lib/ai/config";
-import { getLatestGuide, isStaleGuide } from "@/lib/guides/service";
+import { deleteGuide, getLatestGuide, isStaleGuide } from "@/lib/guides/service";
 import { enqueueJob } from "@/lib/jobs/queue";
 
 type PullLike = { number: number; headSha: string; draft: boolean; state: "open" | "closed" };
@@ -32,8 +32,14 @@ export async function maybeAutoGenerate(
   const latest = await getLatestGuide(repositoryId, pull.number);
   if (latest) {
     if (latest.headSha === pull.headSha) return "skipped";
-    if (latest.status === "generating" && !isStaleGuide(latest)) return "skipped";
-    if (!info.ws.regenerateOnPush) return "skipped";
+    if (latest.status === "generating" && latest.aiReviews?.phase === "waiting") {
+      // New commits while the guide still waits for AI code reviewers: the reviewers review the new
+      // head, so the waiting version (it has no sections yet) is replaced by one for that commit.
+      await deleteGuide(latest.id);
+    } else {
+      if (latest.status === "generating" && !isStaleGuide(latest)) return "skipped";
+      if (!info.ws.regenerateOnPush) return "skipped";
+    }
   }
   const job = await enqueueJob(
     "generate_guide",

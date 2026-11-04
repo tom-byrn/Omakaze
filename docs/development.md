@@ -75,6 +75,7 @@ src/
   db/                     Drizzle schema, client and migration runner
   lib/
     ai/                   AI providers and the generation pipeline
+    ai-reviewers/         AI code reviewers (Claude Code Review, Greptile, …): states, the wait, findings
     auth/                 sessions, users, sign-in methods
     diff/                 patch parsing, text rendering for models, file views, highlighting
     github/               API client, GitHub App, connections, pull requests, reviews, webhooks, summary comments
@@ -121,6 +122,7 @@ Tests live in `tests/*.test.ts` and run with Vitest in a Node environment. `vite
 - the MCP review tools: `get_diff` line numbers mapped to GitHub review comment positions, the guide section of a commented line, and the conversation list of `list_review_comments` (`src/lib/mcp/review.ts`);
 - share links: tokens and their hashes, expiry, who can create and revoke links, which guide versions and uploads a link opens, share URLs, and the access check of the routes the shared view calls (`src/lib/share`);
 - notifications: who hears about a published guide, a comment or a review, which reviewed sections changed, preferences, grouping into one email and its subject, the HTML and text email, Slack Block Kit messages, the JSON webhook body, webhook URL checks and unsubscribe links (`src/lib/notifications`);
+- AI code reviewers: presets and login and check matching, each reviewer's state from check runs, statuses, reviews and review requests, when automatic generation stops waiting, and the findings given to the model (`src/lib/ai-reviewers`);
 - insights: ranges and UTC day and week buckets, guide sources, medians and review speed per bucket, completion and coverage bins, what members see, CSV escaping and chart scales (`src/lib/insights`).
 
 Add tests for logic in `src/lib` and other code that can run without a database. Flows through the browser are covered by the end-to-end tests below; Vitest only picks up `tests/`.
@@ -302,6 +304,10 @@ To run the suite without a GitHub connection, set `E2E_GITHUB=none`; specs that 
 | `mockNotify.clearMail()`, `clearHooks()`, `reset()` | Forget what was received |
 
 Emails wait for their grouping delay in the job queue; `e2e/notifications.spec.ts` sends them right away by moving the queued `send_notification_email` jobs' `run_at` to now. Set `E2E_SMTP=none` to run without SMTP, for the parts of the settings that explain why email is off.
+
+### Mock AI provider and AI code reviewers
+
+`e2e/mock-ai.ts` is an OpenAI-compatible Chat Completions server that streams a canned guide for #131 and records the prompts it receives (`mockAiRequests(url)`). `e2e/ai-reviewers.spec.ts` starts it on `E2E_PORT` + 500 and points the demo workspace at it as an Ollama provider. The AI code reviewer bots `claude[bot]` and `greptile-apps[bot]` post check runs, statuses, reviews and comments through the mock GitHub API with the tokens in `DEMO_AI_BOTS` (`scripts/demo-data/index.ts`), and the spec sends the matching webhooks.
 
 ### Settings
 
