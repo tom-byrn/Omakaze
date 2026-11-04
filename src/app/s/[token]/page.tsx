@@ -57,6 +57,53 @@ export default async function SharedGuidePage(props: PageProps<"/s/[token]">) {
   const initialStep = sectionParam === "files" ? ("files" as const) : Number(sectionParam) || 0;
   const ref = `${repo.fullName}#${pull.number}`;
 
+  const bar = (
+    <div className="flex-none border-b border-solid border-black/15 bg-paper">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 lg:px-6">
+        {/* Full width on phones, so the title isn't squeezed next to the version. */}
+        <div className="min-w-0 flex-1 basis-full md:basis-0">
+          <div className="flex items-center gap-2 font-mono text-[11px] tracking-[0.04em] text-meta">
+            <span>{repo.fullName}</span>
+            <span>/</span>
+            <span>#{pull.number}</span>
+            <PrStateTag state={prStateOf(pull)} />
+            <span className="tag">Read-only</span>
+          </div>
+          <h1 className="mt-1 truncate font-serif text-[22px] leading-tight tracking-[-0.02em] text-black" title={pull.title}>
+            {pull.title}
+          </h1>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
+            <span className="inline-flex items-center gap-1 font-mono text-[11px]">
+              <RiGitBranchLine size={12} /> {pull.headRef} → {pull.baseRef}
+            </span>
+            <DiffStat additions={pull.additions} deletions={pull.deletions} />
+            {pull.changedFiles !== null ? <span>{pull.changedFiles} files</span> : null}
+            <span>updated {timeAgo(pull.githubUpdatedAt)}</span>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {link.guideId === null && versions.length > 1 ? (
+            <VersionSelect versions={versions.map((v) => ({ version: v.version, status: v.status, headSha: shortSha(v.headSha) }))} current={guide.version} />
+          ) : (
+            <span className="tag font-mono">
+              v{guide.version} · {shortSha(guide.headSha)}
+              {link.guideId === null ? " · latest" : ""}
+            </span>
+          )}
+          <a href={pull.htmlUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+            GitHub <RiExternalLinkLine size={13} />
+          </a>
+        </div>
+      </div>
+      {guide.headSha !== pull.headSha ? (
+        <div className="flex flex-wrap items-center gap-3 border-t border-dashed border-line bg-highlight/15 px-4 py-2 text-[12px] text-ink lg:px-6">
+          <span className="dot bg-highlight" />
+          This guide covers {shortSha(guide.headSha)}. The pull request now points to {shortSha(pull.headSha)}.
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="flex h-screen flex-col overflow-hidden" data-shared-guide>
       <header className="flex h-16 flex-none items-center gap-4 border-b border-dashed border-line-header bg-paper/97 px-4 lg:px-6">
@@ -71,51 +118,8 @@ export default async function SharedGuidePage(props: PageProps<"/s/[token]">) {
           {link.expiresAt ? `Link expires ${formatDate(link.expiresAt)}` : "Shared link"}
         </span>
       </header>
-      <div className="flex-none border-b border-solid border-black/15 bg-paper">
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 lg:px-6">
-          {/* Full width on phones, so the title isn't squeezed next to the version. */}
-          <div className="min-w-0 flex-1 basis-full md:basis-0">
-            <div className="flex items-center gap-2 font-mono text-[11px] tracking-[0.04em] text-meta">
-              <span>{repo.fullName}</span>
-              <span>/</span>
-              <span>#{pull.number}</span>
-              <PrStateTag state={prStateOf(pull)} />
-              <span className="tag">Read-only</span>
-            </div>
-            <h1 className="mt-1 truncate font-serif text-[22px] leading-tight tracking-[-0.02em] text-black" title={pull.title}>
-              {pull.title}
-            </h1>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
-              <span className="inline-flex items-center gap-1 font-mono text-[11px]">
-                <RiGitBranchLine size={12} /> {pull.headRef} → {pull.baseRef}
-              </span>
-              <DiffStat additions={pull.additions} deletions={pull.deletions} />
-              {pull.changedFiles !== null ? <span>{pull.changedFiles} files</span> : null}
-              <span>updated {timeAgo(pull.githubUpdatedAt)}</span>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {link.guideId === null && versions.length > 1 ? (
-              <VersionSelect versions={versions.map((v) => ({ version: v.version, status: v.status, headSha: shortSha(v.headSha) }))} current={guide.version} />
-            ) : (
-              <span className="tag font-mono">
-                v{guide.version} · {shortSha(guide.headSha)}
-                {link.guideId === null ? " · latest" : ""}
-              </span>
-            )}
-            <a href={pull.htmlUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-              GitHub <RiExternalLinkLine size={13} />
-            </a>
-          </div>
-        </div>
-        {guide.headSha !== pull.headSha ? (
-          <div className="flex flex-wrap items-center gap-3 border-t border-dashed border-line bg-highlight/15 px-4 py-2 text-[12px] text-ink lg:px-6">
-            <span className="dot bg-highlight" />
-            This guide covers {shortSha(guide.headSha)}. The pull request now points to {shortSha(pull.headSha)}.
-          </div>
-        ) : null}
-      </div>
       <GuideViewer
+        header={bar}
         key={guide.id}
         guide={{
           id: guide.id,

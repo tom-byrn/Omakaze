@@ -77,6 +77,8 @@ export type ViewerProps = {
   sinceVisit?: { at: string; baselineVersion: number; versions: number[] } | null;
   /** Read-only view of a share link (src/lib/share): no review marks, composer, resolving or "Finish review". */
   readOnly?: { shareToken: string; comments: boolean } | null;
+  /** The bar above the guide (pull request, version, actions). It scrolls away in the scroll view. */
+  header?: React.ReactNode;
 };
 
 async function getJson<T>(url: string): Promise<T> {
@@ -123,9 +125,12 @@ export function GuideViewer(props: ViewerProps) {
   const tabsRef = useRef<HTMLDivElement>(null);
   // Scroll view: the scrolling page, its rows by step, and the step of the row last clicked.
   const scrollRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef(new Map<number, HTMLElement>());
   const clickedStep = useRef<number | null>(null);
-  const spyPausedUntil = useRef(0);
+  // After a jump, the row it went to stays in place (diffs above it load and grow) until the reader
+  // scrolls; the scroll spy is off meanwhile. `animating` while a smooth scroll is on its way.
+  const pin = useRef<{ step: number; animating: boolean } | null>(null);
   const stepRef = useRef(step);
 
   useEffect(() => {
@@ -156,17 +161,47 @@ export function GuideViewer(props: ViewerProps) {
     else if (right > bar.scrollLeft + bar.clientWidth) bar.scrollTo({ left: right - bar.clientWidth, behavior: "smooth" });
   }, [step]);
 
-  /** Scroll view: bring a step's row to the top of the page. */
-  const scrollToStep = useCallback((s: number, smooth: boolean) => {
+  /** Scroll view: where the page is scrolled to when a step's row is at the top. */
+  const rowTop = useCallback((s: number) => {
     const box = scrollRef.current;
     const row = rowRefs.current.get(s);
-    if (!box || !row) return;
-    const top = row.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
-    // The scroll spy waits for this scroll to end, so the step stays the one asked for.
-    spyPausedUntil.current = Date.now() + (smooth ? 1500 : 150);
-    box.addEventListener("scrollend", () => (spyPausedUntil.current = 0), { once: true });
-    box.scrollTo({ top, behavior: smooth ? "smooth" : "instant" });
+    if (!box || !row) return null;
+    // The overview starts at the very top, with the header; other rows start below the sticky stepper.
+    const nav = navRef.current?.offsetHeight ?? 0;
+    return s === 0 ? 0 : row.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - nav;
   }, []);
+
+  /** Scroll view: put the pinned row back at the top after the page above it changed height. */
+  const realign = useCallback(() => {
+    const box = scrollRef.current;
+    const p = pin.current;
+    if (!box || !p || p.animating) return;
+    const top = rowTop(p.step);
+    if (top !== null && Math.abs(box.scrollTop - top) > 1) box.scrollTop = top;
+  }, [rowTop]);
+
+  /** Scroll view: bring a step's row to the top of the page and keep it there. */
+  const scrollToStep = useCallback(
+    (s: number, smooth: boolean) => {
+      const box = scrollRef.current;
+      const top = rowTop(s);
+      if (!box || top === null) return;
+      const p = { step: s, animating: smooth };
+      pin.current = p;
+      if (smooth) {
+        // No scrollend fires when there is nothing to scroll, hence the timeout.
+        const arrived = () => {
+          if (pin.current !== p || !p.animating) return;
+          p.animating = false;
+          realign();
+        };
+        box.addEventListener("scrollend", arrived, { once: true });
+        setTimeout(arrived, 1500);
+      }
+      box.scrollTo({ top, behavior: smooth ? "smooth" : "instant" });
+    },
+    [rowTop, realign],
+  );
 
   /** Go to a step: show it in the section view, scroll to it in the scroll view. */
   const goTo = useCallback(
@@ -183,33 +218,69 @@ export function GuideViewer(props: ViewerProps) {
     if (scrolling) scrollToStep(stepRef.current, false);
   }, [scrolling, scrollToStep]);
 
-  // Scroll view: an explanation sticks to the top of the page next to its code. One taller than the
-  // page scrolls with it until its end is in view and sticks there, so all of it can be read.
+  // Scroll view: an explanation sticks below the stepper next to its code. One taller than the space
+  // left scrolls with the page until its end is in view and sticks there, so all of it can be read.
+  // Sticky file headers and scrolled-to files (--sticky-top) also keep clear of the stepper. Not with
+  // scroll-padding: Chrome would then scroll up to "reveal" any focused control inside the stepper.
   const rowCount = sections.length;
   useEffect(() => {
     const box = scrollRef.current;
-    if (!scrolling || !box) return;
+    const nav = navRef.current;
+    if (!scrolling || !box || !nav) return;
     const panes = [...box.querySelectorAll<HTMLElement>("[data-sticky-pane]")];
     const place = () => {
-      for (const pane of panes) pane.style.top = `${Math.min(0, box.clientHeight - pane.offsetHeight)}px`;
+      const navH = nav.offsetHeight;
+      box.style.setProperty("--sticky-top", `${navH}px`);
+      for (const pane of panes) pane.style.top = `${navH + Math.min(0, box.clientHeight - navH - pane.offsetHeight)}px`;
     };
-    const obs = new ResizeObserver(place);
+    const obs = new ResizeObserver(() => {
+      place();
+      realign();
+    });
     obs.observe(box);
+    obs.observe(nav);
     for (const pane of panes) obs.observe(pane);
+    for (const row of rowRefs.current.values()) obs.observe(row);
     return () => obs.disconnect();
-  }, [scrolling, rowCount]);
+  }, [scrolling, rowCount, realign]);
 
-  // Scroll view: the current step is the last row whose top has passed a line a third of the way down.
+  // Scroll view: the current step is the last row whose top has passed a line a third of the way down
+  // the part of the page below the stepper.
   const onScroll = useCallback(() => {
     const box = scrollRef.current;
-    if (!box || Date.now() < spyPausedUntil.current) return;
-    const line = box.getBoundingClientRect().top + box.clientHeight / 3;
+    if (!box || pin.current) return;
+    const nav = navRef.current?.offsetHeight ?? 0;
+    const line = box.getBoundingClientRect().top + nav + (box.clientHeight - nav) / 3;
     let current = 0;
     for (const [s, row] of rowRefs.current) if (row.getBoundingClientRect().top <= line) current = Math.max(current, s);
     // At the very end, the last row is current even when it is too short to reach the line.
     if (box.scrollTop > 0 && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) current = Math.max(...rowRefs.current.keys());
     setStep(current);
   }, []);
+
+  // Scroll view: the reader scrolling releases the pinned row and the scroll spy takes over again.
+  useEffect(() => {
+    const box = scrollRef.current;
+    if (!scrolling || !box) return;
+    const release = () => {
+      if (!pin.current) return;
+      pin.current = null;
+      onScroll();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) release();
+    };
+    box.addEventListener("wheel", release, { passive: true });
+    box.addEventListener("touchstart", release, { passive: true });
+    box.addEventListener("pointerdown", release);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      box.removeEventListener("wheel", release);
+      box.removeEventListener("touchstart", release);
+      box.removeEventListener("pointerdown", release);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [scrolling, onScroll]);
 
   const comments = useSWR<{ comments: ReviewComment[]; threads?: ThreadState[] | null }>(
     ro && !ro.comments ? null : withShareToken(`/api/guides/${guide.id}/comments`, ro?.shareToken),
@@ -627,76 +698,84 @@ export function GuideViewer(props: ViewerProps) {
     );
   }
 
+  const banner = props.sinceVisit ? (
+    <SinceLastVisitBanner
+      at={props.sinceVisit.at}
+      baselineVersion={props.sinceVisit.baselineVersion}
+      versions={props.sinceVisit.versions}
+      newSections={sections.filter((s) => s.visitChange?.status === "new").length}
+      changedSections={sections.filter((s) => s.visitChange?.status === "changed").length}
+      newComments={commentList.filter((c) => c.isNew).length}
+      onShow={firstVisitChange >= 0 ? () => goTo(firstVisitChange + 1) : undefined}
+    />
+  ) : null;
+
+  const stepper = (
+    <nav className="flex items-stretch border-b border-solid border-black/15 bg-paper" aria-label="Guide sections">
+      <div ref={tabsRef} className="relative flex min-w-0 flex-1 overflow-x-auto">
+        <StepTab label="Overview" index={null} active={step === 0} done={false} onClick={() => goTo(0)} />
+        {sections.map((s, i) => (
+          <StepTab
+            key={s.id}
+            label={s.title}
+            index={i + 1}
+            active={step === i + 1}
+            done={reviewed.has(s.id)}
+            mark={stepMark(progress[i], s.visitChange)}
+            muted={s.generated}
+            onClick={() => goTo(i + 1)}
+          />
+        ))}
+        {generating ? (
+          <div className="flex items-center gap-2 border-l border-dashed border-line px-4 font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase">
+            <span className="dot animate-pulse-dot bg-blue-bright" /> Writing…
+          </div>
+        ) : ro ? null : (
+          <StepTab label="Finish review" index={null} active={step === reviewStep} done={false} onClick={() => goTo(reviewStep)} />
+        )}
+      </div>
+      <div className="flex flex-none items-center gap-1 border-l border-dashed border-line px-3">
+        {ro ? null : (
+          <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">
+            {reviewedCount}/{sections.length} reviewed
+          </span>
+        )}
+        {carriedCount > 0 ? (
+          <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">· {carriedCount} carried</span>
+        ) : null}
+        {rereviewCount > 0 ? (
+          <span className="hidden font-mono text-[10px] tracking-[0.08em] text-warn uppercase xl:inline">· {rereviewCount} to re-review</span>
+        ) : null}
+        <div className="ml-2">
+          <ViewMenu
+            scrollView={scrollView}
+            onScrollView={(v) => {
+              setScrollView(v);
+              // Picking a layout on "All files" goes back to the guide.
+              if (step === -1) setStep(0);
+            }}
+            allFiles={step === -1}
+            onAllFiles={() => goTo(step === -1 ? 0 : -1)}
+            wrap={wrap}
+            onWrap={() => setWrap(!wrap)}
+            resolved={resolvedCount > 0 && !ro ? { count: resolvedCount, shown: showResolved, onToggle: () => setShowResolved(!showResolved) } : null}
+          />
+        </div>
+      </div>
+    </nav>
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {props.sinceVisit ? (
-        <SinceLastVisitBanner
-          at={props.sinceVisit.at}
-          baselineVersion={props.sinceVisit.baselineVersion}
-          versions={props.sinceVisit.versions}
-          newSections={sections.filter((s) => s.visitChange?.status === "new").length}
-          changedSections={sections.filter((s) => s.visitChange?.status === "changed").length}
-          newComments={commentList.filter((c) => c.isNew).length}
-          onShow={firstVisitChange >= 0 ? () => goTo(firstVisitChange + 1) : undefined}
-        />
-      ) : null}
-      {/* Stepper */}
-      <nav className="flex items-stretch border-b border-solid border-black/15 bg-paper" aria-label="Guide sections">
-        <div ref={tabsRef} className="relative flex min-w-0 flex-1 overflow-x-auto">
-          <StepTab label="Overview" index={null} active={step === 0} done={false} onClick={() => goTo(0)} />
-          {sections.map((s, i) => (
-            <StepTab
-              key={s.id}
-              label={s.title}
-              index={i + 1}
-              active={step === i + 1}
-              done={reviewed.has(s.id)}
-              mark={stepMark(progress[i], s.visitChange)}
-              muted={s.generated}
-              onClick={() => goTo(i + 1)}
-            />
-          ))}
-          {generating ? (
-            <div className="flex items-center gap-2 border-l border-dashed border-line px-4 font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase">
-              <span className="dot animate-pulse-dot bg-blue-bright" /> Writing…
-            </div>
-          ) : ro ? null : (
-            <StepTab label="Finish review" index={null} active={step === reviewStep} done={false} onClick={() => goTo(reviewStep)} />
-          )}
-        </div>
-        <div className="flex flex-none items-center gap-1 border-l border-dashed border-line px-3">
-          {ro ? null : (
-            <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">
-              {reviewedCount}/{sections.length} reviewed
-            </span>
-          )}
-          {carriedCount > 0 ? (
-            <span className="hidden font-mono text-[10px] tracking-[0.08em] text-black/50 uppercase xl:inline">· {carriedCount} carried</span>
-          ) : null}
-          {rereviewCount > 0 ? (
-            <span className="hidden font-mono text-[10px] tracking-[0.08em] text-warn uppercase xl:inline">· {rereviewCount} to re-review</span>
-          ) : null}
-          <div className="ml-2">
-            <ViewMenu
-              scrollView={scrollView}
-              onScrollView={(v) => {
-                setScrollView(v);
-                // Picking a layout on "All files" goes back to the guide.
-                if (step === -1) setStep(0);
-              }}
-              allFiles={step === -1}
-              onAllFiles={() => goTo(step === -1 ? 0 : -1)}
-              wrap={wrap}
-              onWrap={() => setWrap(!wrap)}
-              resolved={resolvedCount > 0 && !ro ? { count: resolvedCount, shown: showResolved, onToggle: () => setShowResolved(!showResolved) } : null}
-            />
-          </div>
-        </div>
-      </nav>
-
       {scrolling ? (
-        // Scroll view: one row per step, its explanation sticky next to its code.
+        // Scroll view: the header scrolls away, the stepper stays at the top, and each step is a row
+        // with its explanation sticky next to its code.
         <div ref={scrollRef} data-scroll-root onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto bg-wash">
+          {props.header}
+          {banner}
+          <div ref={navRef} className="sticky top-0 z-30">
+            {stepper}
+          </div>
           {rows.map((s) => (
             <section
               key={s}
@@ -728,20 +807,25 @@ export function GuideViewer(props: ViewerProps) {
           ))}
         </div>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(380px,42%)_minmax(0,1fr)]">
-          {/* Left: explanation */}
-          <div ref={leftRef} className="min-h-0 overflow-y-auto border-r border-dashed border-line bg-paper grain">
-            <div className="mx-auto max-w-[680px] px-6 py-8 lg:px-10">
-              {status}
-              {renderLeft(step)}
+        <>
+          {props.header}
+          {banner}
+          {stepper}
+          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(380px,42%)_minmax(0,1fr)]">
+            {/* Left: explanation */}
+            <div ref={leftRef} className="min-h-0 overflow-y-auto border-r border-dashed border-line bg-paper grain">
+              <div className="mx-auto max-w-[680px] px-6 py-8 lg:px-10">
+                {status}
+                {renderLeft(step)}
+              </div>
+            </div>
+
+            {/* Right: code */}
+            <div ref={rightRef} className="min-h-0 overflow-y-auto bg-wash">
+              <div className="px-4 py-6 lg:px-6">{renderRight(step)}</div>
             </div>
           </div>
-
-          {/* Right: code */}
-          <div ref={rightRef} className="min-h-0 overflow-y-auto bg-wash">
-            <div className="px-4 py-6 lg:px-6">{renderRight(step)}</div>
-          </div>
-        </div>
+        </>
       )}
 
       {toast ? (

@@ -38,13 +38,18 @@ test.describe("Guide scroll view", () => {
 
     // Scrolling moves through the sections; the stepper and the URL follow.
     const tabs = page.getByRole("navigation", { name: "Guide sections" });
-    await caption(page, "Scroll down: the explanation stays next to its code", "Scroll view");
+    const header = page.getByRole("button", { name: "Copy agent prompt" });
+    await expect(header).toBeInViewport();
+    await caption(page, "Scroll down: the header scrolls away, the explanation stays next to its code", "Scroll view");
     await expect(async () => {
       await scrollCode(page, 480);
       await expect(page).toHaveURL(/section=1/, { timeout: 500 });
     }).toPass();
     await expect(tabs.getByRole("button", { name: /Promo codes table/ })).toHaveAttribute("aria-current", "step");
     await expect(page.getByRole("heading", { level: 2, name: "Promo codes table" })).toBeInViewport();
+    // The pull request's header has scrolled away; the stepper stays at the top.
+    await expect(header).not.toBeInViewport();
+    await expect(tabs).toBeInViewport();
     await pause(page, 600);
     await expect(async () => {
       await scrollCode(page, 480);

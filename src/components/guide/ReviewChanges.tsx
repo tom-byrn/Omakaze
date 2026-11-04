@@ -270,7 +270,7 @@ export function InterdiffPanel({
   const added = change.files.reduce((n, f) => n + f.added, 0);
   const removed = change.files.reduce((n, f) => n + f.removed, 0);
   return (
-    <section id={id} aria-label="What changed" className="scroll-mt-4 border border-warn-line/40 bg-white">
+    <section id={id} aria-label="What changed" className="scroll-mt-[calc(var(--sticky-top,0px)+1rem)] border border-warn-line/40 bg-white">
       <header className="flex items-center gap-2 border-b border-dashed border-warn-line/30 bg-highlight/15 px-3 py-2">
         <button type="button" onClick={() => setOpen((o) => !o)} className="text-black/45 hover:text-ink" aria-label={open ? "Collapse changes" : "Expand changes"}>
           {open ? <RiArrowUpSLine size={16} /> : <RiArrowDownSLine size={16} />}
