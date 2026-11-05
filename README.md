@@ -76,6 +76,7 @@ Omakaze is an open-source, self-hostable web app that turns GitHub pull requests
 - **Optional built-in AI generation.** Anthropic, OpenAI, Google, OpenRouter, local models with Ollama or LM Studio, or any OpenAI-compatible server such as vLLM or LiteLLM. Not needed if you write guides with your own agent over MCP.
 - **REST API.** List pull requests (all of them, or the ones that need the token user's review), read guides (as JSON or Markdown) and create them, and start AI generation.
 - **Automation.** Generate a guide when a pull request opens, create a new version when commits are pushed, skip drafts, and post a summary comment on the pull request.
+- **Claude Code in GitHub Actions.** A ready-made workflow has Claude Code write the guide for every pull request on your Claude Pro or Max subscription, without an API key. It can only use the guide tools, so it never posts to GitHub or changes the repository.
 - **AI code reviewers.** Automatic guides wait for Claude Code Review, Greptile, CodeRabbit, GitHub Copilot or your own review bots to finish, then add a one-line verdict on each finding to the section that covers it (the full comment stays next to the code). The overview lists the findings, and their comments are labeled in the diff.
 - **Workspaces.** Members with owner, admin and member roles, invite links (optionally limited to one confirmed email address) and an activity log.
 - **GitHub access.** A GitHub App installation (the app can be created from the admin page in one step), a personal access token, or a member's linked GitHub account. GitHub Enterprise Server is supported.
@@ -164,6 +165,8 @@ To have it answer the review comments, improve the guide where it was unclear an
 Address the review comments on <PR URL> using the Omakaze MCP.
 ```
 
+To have Claude Code write a guide for every pull request on your Claude subscription (no API key), add the workflow from **Settings → API tokens & MCP → Automate with Claude Code** to the repository. See [docs/claude-github-action.md](docs/claude-github-action.md).
+
 **Settings → API tokens & MCP** also shows a setup prompt that asks an agent to add the server itself. The tools, reference syntax and authentication details are in [docs/mcp.md](docs/mcp.md).
 
 ## Built-in AI
@@ -178,6 +181,7 @@ Built-in generation is optional: agents connected over MCP use their own model. 
 | [GitHub App](docs/github-app.md) | Creating and installing the GitHub App, other ways to connect GitHub, sign-in with GitHub, token permissions |
 | [Configuration](docs/configuration.md) | Every environment variable, workspace settings and roles |
 | [MCP server](docs/mcp.md) | Authentication, client setup, tool reference, diff references, example session |
+| [Claude Code in GitHub Actions](docs/claude-github-action.md) | Guides for every pull request on a Claude subscription, written by Claude Code over MCP |
 | [REST API](docs/api.md) | `/api/v1` endpoints and a GitHub Actions example |
 | [AI generation](docs/ai.md) | Providers, the generation pipeline, automation, cost and privacy |
 | [AI code reviewers](docs/ai-reviewers.md) | Waiting for Claude Code Review, Greptile, CodeRabbit and Copilot, and using their findings in guides |

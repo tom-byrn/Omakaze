@@ -315,7 +315,7 @@ Notes:
 
 - Each run creates a new guide version. The built-in automation in **Settings → Automation** does the same without a workflow and skips commits that already have a guide; see [ai.md](ai.md#automation).
 - Workflows triggered by pull requests from forks do not receive repository secrets, so the request fails for those.
-- The workspace needs an AI provider (**Settings → AI provider** or the `AI_*` variables); otherwise the API returns 409.
+- The workspace needs an AI provider (**Settings → AI provider** or the `AI_*` variables); otherwise the API returns 409. To have the guide written by Claude Code on a Claude subscription instead, without a provider, use the workflow in [claude-github-action.md](claude-github-action.md).
 
 ## Other routes
 

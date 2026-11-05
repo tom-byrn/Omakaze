@@ -22,3 +22,81 @@ export function setupPrompt(appUrl: string): string {
 
 Docs: https://github.com/tom-byrn/omakaze/blob/main/docs/mcp.md`;
 }
+
+/**
+ * MCP tools the Claude Code workflow may call: reading the pull request and writing the guide.
+ * The review tools (replies, line comments, resolving, reviews, PR comments) and upload_asset are
+ * left out, so text in a pull request cannot make the workflow post to GitHub or fetch URLs.
+ */
+export const CLAUDE_WORKFLOW_TOOLS = [
+  "whoami",
+  "get_pull_request",
+  "get_diff",
+  "read_file",
+  "list_review_comments",
+  "create_guide",
+  "start_guide",
+  "add_section",
+  "update_section",
+  "delete_section",
+  "reorder_sections",
+  "update_guide",
+  "get_guide",
+  "check_coverage",
+  "finish_guide",
+] as const;
+
+/**
+ * GitHub Actions workflow in which Claude Code, signed in with a Claude subscription
+ * (CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`), writes a guide for every pull request
+ * through this instance's MCP server. See docs/claude-github-action.md.
+ */
+export function claudeWorkflow(appUrl: string): string {
+  const allowed = CLAUDE_WORKFLOW_TOOLS.map((t) => `mcp__omakaze__${t}`).join(",");
+  return `name: Omakaze guide (Claude)
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+concurrency:
+  group: omakaze-guide-\${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  omakaze-guide:
+    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Configure the Omakaze MCP server
+        env:
+          OMAKAZE_TOKEN: \${{ secrets.OMAKAZE_TOKEN }}
+        run: |
+          jq -n --arg url "${appUrl}/api/mcp" --arg auth "Bearer $OMAKAZE_TOKEN" \\
+            '{mcpServers: {omakaze: {type: "http", url: $url, headers: {Authorization: $auth}}}}' \\
+            > "$RUNNER_TEMP/omakaze-mcp.json"
+
+      - name: Write the guide with Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: \${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: \${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Create a guided PR for \${{ github.event.pull_request.html_url }} using the Omakaze MCP.
+            Use head_sha \${{ github.event.pull_request.head.sha }}. Only write the guide: do not
+            post comments or reviews, and do not change any files in this repository.
+          claude_args: |
+            --mcp-config \${{ runner.temp }}/omakaze-mcp.json
+            --allowedTools ${allowed}
+            --disallowedTools Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch
+`;
+}
