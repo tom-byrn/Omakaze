@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { violatesConstraint } from "@/db/errors";
 import { decrypt, encrypt, hashPassword, signPayload, verifyPassword, verifyPayload } from "@/lib/crypto";
@@ -9,7 +10,7 @@ import { formatInterval } from "@/lib/format";
 import { formatRefLines, parseRefLines } from "@/lib/guides/ref-lines";
 import { isStaleGuide, STALE_GUIDE_MINUTES } from "@/lib/guides/service";
 import { clientIp, safeNext } from "@/lib/http";
-import { agentPrompt } from "@/lib/prompts";
+import { agentPrompt, CLAUDE_WORKFLOW_TOOLS, claudeWorkflow } from "@/lib/prompts";
 import { isPublicAddress } from "@/lib/storage/remote";
 import { slugify } from "@/lib/workspaces";
 
@@ -117,6 +118,29 @@ describe("misc", () => {
 
   it("builds the agent prompt", () => {
     expect(agentPrompt("https://github.com/a/b/pull/1")).toBe("Create a guided PR for https://github.com/a/b/pull/1 using the Omakaze MCP.");
+  });
+});
+
+describe("claudeWorkflow", () => {
+  const yaml = claudeWorkflow("https://omakaze.example.com");
+
+  it("points Claude Code at the instance's MCP server with a subscription token", () => {
+    expect(yaml).toContain('--arg url "https://omakaze.example.com/api/mcp"');
+    expect(yaml).toContain("claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}");
+    expect(yaml).not.toContain("anthropic_api_key");
+    expect(yaml).toContain("Create a guided PR for ${{ github.event.pull_request.html_url }} using the Omakaze MCP.");
+    expect(yaml).not.toMatch(/\t/);
+  });
+
+  it("only allows MCP tools that exist and that do not post to GitHub", () => {
+    const source = readFileSync("src/lib/mcp/server.ts", "utf8");
+    const registered = [...source.matchAll(/registerTool\(\s*"([a-z_]+)"/g)].map((m) => m[1]);
+    for (const tool of CLAUDE_WORKFLOW_TOOLS) expect(registered, tool).toContain(tool);
+    for (const tool of ["reply_to_review_comment", "post_review_comment", "resolve_review_thread", "submit_review", "post_pr_comment", "upload_asset"]) {
+      expect(registered).toContain(tool);
+      expect(yaml).not.toContain(`mcp__omakaze__${tool}`);
+    }
+    expect(yaml).toContain(`--allowedTools ${CLAUDE_WORKFLOW_TOOLS.map((t) => `mcp__omakaze__${t}`).join(",")}`);
   });
 });
 
