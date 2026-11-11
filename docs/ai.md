@@ -31,7 +31,7 @@ A workspace uses its own provider if one is set, and the instance default otherw
 1. **Workspace.** Admins pick a provider in **Settings → AI provider** (nothing is selected until they do), then set the API key, base URL and model. The key is encrypted at rest and never shown again. **Load models** (also triggered by focusing the model field) asks the provider for its model list with the entered key, or the saved key for the same provider, and offers the models as suggestions; any model name can still be typed. It uses `GET <base URL>/models` (`/v1/models` for Anthropic); OpenAI's embedding, audio and image models and Gemini models without text generation are left out. OpenRouter, Ollama, LM Studio and OpenAI-compatible lists load without a key. **Test connection** sends a small request with the entered values. **Remove provider** clears the provider, model, base URL and key, but not the [guide template](#guide-templates) and its writing instructions.
 2. **Instance.** `AI_PROVIDER`, `AI_MODEL`, `AI_API_KEY` and `AI_BASE_URL` set a default for every workspace without its own provider. See [configuration.md](configuration.md#ai-defaults).
 
-Members can also use [their own ChatGPT plan](#chatgpt-plans) for guides they start, if the workspace allows it.
+Members can also use [their own ChatGPT plan](#chatgpt-plans) for guides they start, if the workspace allows it. To write guides on a Claude subscription instead of an API key, run Claude Code in GitHub Actions: see [claude-github-action.md](claude-github-action.md).
 
 A configuration is usable when it has a model (given or the provider's default) and, for providers that require one, an API key. If a workspace selects a provider, the instance default is not used for that workspace. **Settings → AI provider** shows which configuration is in effect.
 
@@ -161,6 +161,10 @@ A generation job is queued when all of these are true:
 5. The pull request has no guide yet, or its latest guide was written for a different head commit, is not being generated (an [abandoned](#abandoned-guides) guide does not count), and **Create a new version when commits are pushed** is on.
 
 At most one job per repository, pull request and head commit is queued or running at a time. Review webhooks (`pull_request_review`, `pull_request_review_comment`) do not start generation.
+
+### AI code reviewers
+
+By default an automatic guide waits for AI code reviewers such as Claude Code Review, Greptile, CodeRabbit and GitHub Copilot before it is written, up to 15 minutes, and every guide the built-in AI writes adds a one-line verdict on each of their findings to the section that covers it. A pull request that gets new commits while its guide waits gets a guide for the new head commit instead. See [ai-reviewers.md](ai-reviewers.md).
 
 ### Polling
 

@@ -98,7 +98,16 @@ export const DEMO_GITHUB_PEOPLE: Record<string, { id: number; name: string; colo
   "devon-ko": { id: 91_000_004, name: "Devon Ko", color: "#7c3aed" },
   "priya-s": { id: 91_000_005, name: "Priya Shah", color: "#be185d" },
   "storefront-bot": { id: 91_000_100, name: "Storefront Bot", color: "#52525b" },
+  // AI code reviewers (src/lib/ai-reviewers); they post through the mock GitHub API with the tokens in DEMO_AI_BOTS.
+  "claude[bot]": { id: 91_000_201, name: "Claude", color: "#c2410c" },
+  "greptile-apps[bot]": { id: 91_000_202, name: "Greptile", color: "#15803d" },
 };
+
+/** AI code reviewer bots and the tokens the mock GitHub API accepts for them. */
+export const DEMO_AI_BOTS = {
+  claude: { login: "claude[bot]", token: "ghs_demoClaudeBot000000000000000000000001", check: "claude-review" },
+  greptile: { login: "greptile-apps[bot]", token: "ghs_demoGreptileBot00000000000000000000002", check: "Greptile Review" },
+} as const;
 
 /** Pull request numbers, by role in the demo. */
 export const DEMO_PRS = {

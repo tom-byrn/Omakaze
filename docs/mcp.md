@@ -142,6 +142,8 @@ claude mcp add --transport http omakaze <APP_URL>/api/mcp \
 
 Other clients: add a remote MCP server named `omakaze` that uses HTTP (Streamable HTTP) with the URL `<APP_URL>/api/mcp`, and either let the client handle OAuth or configure the `Authorization` header.
 
+To run Claude Code in GitHub Actions on a Claude subscription and have it write a guide for every pull request, see [claude-github-action.md](claude-github-action.md).
+
 ## Prompts
 
 **Setup prompt.** Shown on the landing page and in **Settings → API tokens & MCP**. Paste it into an agent to have it add the server:

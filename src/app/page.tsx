@@ -126,8 +126,7 @@ export default async function LandingPage() {
         <div className="relative mx-auto grid max-w-[1560px] grid-cols-1 gap-10 px-6 py-16 md:px-[72px] md:py-24 lg:grid-cols-2 lg:gap-0">
           <SideNote note="why" side="right" />
           <div className="lg:pr-16">
-            <span className="eyebrow">Why</span>
-            <h2 className="h2 mt-6">
+            <h2 className="h2">
               A walkthrough instead
               <br />
               of a wall of diff.
@@ -158,8 +157,7 @@ export default async function LandingPage() {
       <section id="features" className="scroll-mt-16 border-b border-dashed border-line">
         <div className="relative mx-auto max-w-[1560px] px-6 py-16 md:px-[72px] md:py-24">
           <SideNote note="features" side="right" />
-          <span className="eyebrow">Features</span>
-          <h2 className="h2 mt-6 max-w-[620px]">What reviewers get.</h2>
+          <h2 className="h2 max-w-[620px]">What reviewers get.</h2>
           <div className="mt-12 grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
             {FEATURES.map((f) => (
               <div key={f.title} className="relative flex min-h-[230px] flex-col justify-between gap-8 border border-black/15 bg-white px-8 pt-8 pb-6 grain">
@@ -176,8 +174,7 @@ export default async function LandingPage() {
         <div className="relative mx-auto grid max-w-[1560px] grid-cols-1 gap-12 px-6 py-16 md:px-[72px] md:py-[110px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <SideNote note="agents" side="left" className="top-[110px]" />
           <div>
-            <span className="eyebrow">Agents</span>
-            <h2 className="mt-6 font-serif text-[36px] leading-none tracking-[-1.44px] text-white sm:text-[44px] sm:tracking-[-0.025em]">
+            <h2 className="font-serif text-[36px] leading-none tracking-[-1.44px] text-white sm:text-[44px] sm:tracking-[-0.025em]">
               Your agent writes
               <br />
               the guide.
@@ -218,8 +215,7 @@ export default async function LandingPage() {
         <div className="relative mx-auto grid max-w-[1560px] grid-cols-1 gap-10 px-6 py-16 md:px-[72px] md:py-24 lg:grid-cols-2">
           <SideNote note="selfHost" side="right" />
           <div>
-            <span className="eyebrow">Self-host</span>
-            <h2 className="h2 mt-6">
+            <h2 className="h2">
               Your code stays
               <br />
               on your servers.

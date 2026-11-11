@@ -210,6 +210,8 @@ export function formatReviewThreads(
     isMine: (c: GhReviewComment) => boolean;
     login: string | null;
     sectionOf: (root: GhReviewComment) => { id: string; position: number; title: string } | null;
+    /** Name of the AI code reviewer (Claude Code Review, Greptile, …) that posted a comment, or null. */
+    aiReviewerOf?: (c: GhReviewComment) => string | null;
     now?: number;
   },
 ): string {
@@ -246,7 +248,8 @@ export function formatReviewThreads(
     const section = opts.sectionOf(v.root);
     if (section) out.push(`Guide section ${section.position} "${section.title}" (section_id ${section.id})`);
     for (const c of [v.root, ...v.replies]) {
-      out.push(`- comment_id ${c.id} · ${c.user?.login ?? "unknown"}${opts.isMine(c) ? " (you)" : ""} · ${ago(c.created_at, now)}`);
+      const ai = opts.aiReviewerOf?.(c);
+      out.push(`- comment_id ${c.id} · ${c.user?.login ?? "unknown"}${opts.isMine(c) ? " (you)" : ""}${ai ? ` (AI reviewer: ${ai})` : ""} · ${ago(c.created_at, now)}`);
       out.push(indent(c.body));
     }
   }

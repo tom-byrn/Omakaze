@@ -1,5 +1,5 @@
 {
-  "id": "e06df4af-af04-4204-8378-ff5ea513bd1a",
+  "id": "633b7690-895a-4298-8b41-970672bf91cd",
   "prevId": "225ba020-48ee-4a1a-b049-f41faf98653b",
   "version": "7",
   "dialect": "postgresql",
@@ -1703,6 +1703,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "ai_reviews": {
+          "name": "ai_reviews",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "changed_lines": {
           "name": "changed_lines",
           "type": "integer",
@@ -2551,13 +2557,6 @@
           "notNull": true,
           "default": "'minutes'"
         },
-        "push": {
-          "name": "push",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -3318,108 +3317,6 @@
           "tableTo": "repositories",
           "columnsFrom": [
             "repository_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.push_devices": {
-      "name": "push_devices",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token": {
-          "name": "token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "platform": {
-          "name": "platform",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "device_name": {
-          "name": "device_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_seen_at": {
-          "name": "last_seen_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "push_devices_token_unique": {
-          "name": "push_devices_token_unique",
-          "columns": [
-            {
-              "expression": "token",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "push_devices_user_idx": {
-          "name": "push_devices_user_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "push_devices_user_id_users_id_fk": {
-          "name": "push_devices_user_id_users_id_fk",
-          "tableFrom": "push_devices",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
           ],
           "columnsTo": [
             "id"
@@ -4240,6 +4137,26 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "wait_for_ai_reviewers": {
+          "name": "wait_for_ai_reviewers",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "ai_reviewer_wait_minutes": {
+          "name": "ai_reviewer_wait_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 15
+        },
+        "ai_reviewers": {
+          "name": "ai_reviewers",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "ai_provider": {
           "name": "ai_provider",

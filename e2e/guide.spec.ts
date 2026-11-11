@@ -1,4 +1,4 @@
-import { DEMO_PRS, demoPaths, expect, test } from "./fixtures";
+import { DEMO_PRS, demoPaths, expect, test, viewOption } from "./fixtures";
 import { caption, pause, shot } from "./media";
 
 test.describe("Guide viewer", () => {
@@ -33,6 +33,18 @@ test.describe("Guide viewer", () => {
     await expect(page).toHaveURL(/section=2/);
     await shot(page, "guide-section-mermaid");
     await pause(page);
+
+    // A click on a diagram opens it full-window; the arrow keys stay inside it, Esc closes it.
+    await page.locator("figure.md-mermaid").first().click();
+    const fullView = page.getByRole("dialog", { name: "Diagram" });
+    await expect(fullView.locator(".mermaid-light svg")).toBeVisible();
+    await shot(page, "guide-mermaid-full-view");
+    await fullView.getByRole("button", { name: "Zoom in" }).click();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByText("Section 02 / 06")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(fullView).toBeHidden();
+
     await page.keyboard.press("]");
     await expect(page.getByText("Section 03 / 06")).toBeVisible();
     await expect(page.getByRole("button", { name: /Moved from/ }).first()).toBeVisible();
@@ -51,7 +63,7 @@ test.describe("Guide viewer", () => {
 
   test("shows every changed file", async ({ page }) => {
     await page.goto(demoPaths.pull(DEMO_PRS.main));
-    await page.getByRole("button", { name: "All files" }).click();
+    await (await viewOption(page, "All files")).click();
     await expect(page.getByRole("heading", { name: "Every change in the pull request." })).toBeVisible();
     await expect(page).toHaveURL(/section=files/);
     await shot(page, "guide-all-files");

@@ -17,6 +17,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/stat
         title: guide.title,
         error: guide.error,
         events: guide.events.slice(-30),
+        aiReviews: guide.aiReviews,
         updatedAt: guide.updatedAt,
       },
       share ? { headers: SHARE_RESPONSE_HEADERS } : undefined,

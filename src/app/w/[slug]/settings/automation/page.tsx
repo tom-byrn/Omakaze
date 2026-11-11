@@ -1,13 +1,15 @@
 import Link from "next/link";
+import { AiReviewersForm } from "@/components/settings/AiReviewersForm";
 import { GuideCheckSettings } from "@/components/settings/GuideCheckSettings";
 import { Panel } from "@/components/settings/Panel";
 import { ActionForm } from "@/components/ui/ActionForm";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { resolveAiReviewers } from "@/lib/ai-reviewers/config";
 import { resolveAiConfig } from "@/lib/ai/config";
 import { env } from "@/lib/env";
 import { formatInterval } from "@/lib/format";
 import { requireWorkspace, roleAtLeast } from "@/lib/workspaces";
-import { saveAutomationAction, saveGuideCheckAction } from "../actions";
+import { saveAiReviewersAction, saveAutomationAction, saveGuideCheckAction } from "../actions";
 
 export const metadata = { title: "Automation" };
 
@@ -90,6 +92,24 @@ export default async function AutomationPage(props: PageProps<"/w/[slug]/setting
             </div>
           ) : null}
         </ActionForm>
+      </Panel>
+      <Panel
+        title="AI code reviewers"
+        description={
+          <>
+            Claude Code Review, Greptile, CodeRabbit, GitHub Copilot and other bots that review pull requests on GitHub. Omakaze notices them
+            by their check runs, commit statuses and review requests, labels their comments, and gives their findings to the AI that writes
+            the guide, which adds a one-line verdict on each finding to the section that covers it.
+          </>
+        }
+      >
+        <AiReviewersForm
+          action={saveAiReviewersAction.bind(null, slug)}
+          reviewers={resolveAiReviewers(workspace.aiReviewers)}
+          wait={workspace.waitForAiReviewers}
+          minutes={workspace.aiReviewerWaitMinutes}
+          admin={admin}
+        />
       </Panel>
       <GuideCheckSettings workspace={workspace} admin={admin} action={saveGuideCheckAction.bind(null, slug)} />
     </div>

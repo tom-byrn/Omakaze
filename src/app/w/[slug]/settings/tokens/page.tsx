@@ -12,7 +12,7 @@ import { apiTokens, oauthClients, users } from "@/db/schema";
 import { getGitHubAccount } from "@/lib/auth/users";
 import { env } from "@/lib/env";
 import { formatDate, timeAgo } from "@/lib/format";
-import { setupPrompt } from "@/lib/prompts";
+import { claudeWorkflow, setupPrompt } from "@/lib/prompts";
 import { requireWorkspace, roleAtLeast } from "@/lib/workspaces";
 import { createTokenAction, revokeTokenAction, saveAgentApprovalsAction } from "../actions";
 
@@ -82,6 +82,40 @@ export default async function TokensPage(props: PageProps<"/w/[slug]/settings/to
               <CopyButton text={setupPrompt(appUrl)} label="Copy setup prompt" className="btn btn-primary btn-sm" />
             </div>
           </div>
+        </div>
+      </Panel>
+
+      <Panel
+        title="Automate with Claude Code"
+        description="Write a guide for every pull request on your Claude subscription, without an Anthropic API key. Claude Code runs in GitHub Actions and writes the guide through the MCP server, as the member whose token it uses."
+      >
+        <ol className="mb-4 flex list-decimal flex-col gap-1.5 pl-5 text-[13px] leading-[20px] text-body">
+          <li>
+            Run <code className="font-mono text-ink">claude setup-token</code> on your computer (Claude Pro or Max) and store
+            the token as the repository secret <code className="font-mono text-ink">CLAUDE_CODE_OAUTH_TOKEN</code>.
+          </li>
+          <li>
+            Create an API token below and store it as the repository secret{" "}
+            <code className="font-mono text-ink">OMAKAZE_TOKEN</code>.
+          </li>
+          <li>
+            Add this workflow as <code className="font-mono text-ink">.github/workflows/omakaze-guide.yml</code>. This
+            instance must be reachable from GitHub&apos;s runners.
+          </li>
+        </ol>
+        <pre className="max-h-72 overflow-auto border border-dashed border-line bg-paper p-3 font-mono text-[12px] leading-[18px] text-ui">
+          {claudeWorkflow(appUrl)}
+        </pre>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <CopyButton text={claudeWorkflow(appUrl)} label="Copy workflow" className="btn btn-primary btn-sm" />
+          <a
+            href="https://github.com/tom-byrn/omakaze/blob/main/docs/claude-github-action.md"
+            className="link text-[13px]"
+            target="_blank"
+            rel="noreferrer"
+          >
+            How it works
+          </a>
         </div>
       </Panel>
 

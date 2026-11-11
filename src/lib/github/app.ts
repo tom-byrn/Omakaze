@@ -200,7 +200,15 @@ export function installUrl(app: GitHubAppConfig, state: string): string {
 }
 
 /** Webhook events the app subscribes to. Apps created before an event was added lack it (see /admin). */
-export const APP_EVENTS = ["pull_request", "pull_request_review", "pull_request_review_comment", "pull_request_review_thread"];
+export const APP_EVENTS = [
+  "pull_request",
+  "pull_request_review",
+  "pull_request_review_comment",
+  "pull_request_review_thread",
+  // AI code reviewers report progress with check runs and commit statuses (src/lib/ai-reviewers).
+  "check_run",
+  "status",
+];
 
 /** Manifest used by the setup page to create a GitHub App in one step. */
 export function buildAppManifest(name: string) {

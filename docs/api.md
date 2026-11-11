@@ -138,7 +138,7 @@ Returns 404 when the pull request has no guide or the requested version does not
 
 #### Markdown export
 
-With `format=md`, the response is the guide as one Markdown file (`Content-Type: text/markdown`, with a `Content-Disposition` file name such as `acme-web-pr412-v2.md`). It is the same file as **Export → Markdown** in the guide viewer.
+With `format=md`, the response is the guide as one Markdown file (`Content-Type: text/markdown`, with a `Content-Disposition` file name such as `acme-web-pr412-v2.md`).
 
 ```sh
 curl -sS -OJ "$OMAKAZE_URL/api/v1/guides?pr=acme/web%23412&version=2&format=md" \
@@ -159,7 +159,7 @@ Markdown in the summary and the sections is copied as written, including Mermaid
 - relative URLs of links and images become absolute, resolved against the guide's URL as in the browser. Uploaded files keep their URLs under `/api/assets/`, which require signing in as a member; with `embed_images=true`, uploaded images of the workspace (up to 25 MB in total) are embedded instead. Videos and PDFs stay links;
 - `diff:` links point to the lines on GitHub at the guide's head commit, or at the merge base for `old:` lines.
 
-To get a PDF, open the guide's print layout in a browser (**Export → PDF (print)**, at `/w/<workspace>/<owner>/<repo>/pull/<number>/print?v=<version>`) and choose **Save as PDF** in the print dialog. The API has no PDF format.
+To get a PDF, open the guide's print layout in a browser (`/w/<workspace>/<owner>/<repo>/pull/<number>/print?v=<version>`) and choose **Save as PDF** in the print dialog. The API has no PDF format.
 
 ### POST /api/v1/guides
 
@@ -315,7 +315,7 @@ Notes:
 
 - Each run creates a new guide version. The built-in automation in **Settings → Automation** does the same without a workflow and skips commits that already have a guide; see [ai.md](ai.md#automation).
 - Workflows triggered by pull requests from forks do not receive repository secrets, so the request fails for those.
-- The workspace needs an AI provider (**Settings → AI provider** or the `AI_*` variables); otherwise the API returns 409.
+- The workspace needs an AI provider (**Settings → AI provider** or the `AI_*` variables); otherwise the API returns 409. To have the guide written by Claude Code on a Claude subscription instead, without a provider, use the workflow in [claude-github-action.md](claude-github-action.md).
 
 ## Other routes
 

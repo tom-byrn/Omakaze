@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { reviewerForLogin } from "@/lib/ai-reviewers/config";
+import { workspaceAiReviewers } from "@/lib/ai-reviewers/service";
+import { getSections, loadParsedFiles, type Guide } from "@/lib/guides/service";
+import { sectionForLine, toDiffSide } from "@/lib/mcp/review";
 import { ConnectionError, getRepoContext } from "@/lib/github/connections";
 import { createReviewComment, deleteReviewComment, listReviewComments, ownCommentIds, replyToReviewComment } from "@/lib/github/review";
 import { getGitHubAccount } from "@/lib/auth/users";
@@ -12,7 +16,7 @@ import { commentedLines, hasSuggestion } from "@/lib/github/suggestions";
 import { findReviewThread, listReviewThreads, threadIndex, type ReviewThread } from "@/lib/github/threads";
 
 /** A review comment as the viewer uses it (src/components/guide/types.ts). */
-function viewerComment(c: GhReviewComment, opts: { mine: boolean; threadId: string | null }) {
+function viewerComment(c: GhReviewComment, opts: { mine: boolean; threadId: string | null; aiReviewer?: string | null; sectionId?: string | null }) {
   return {
     id: c.id,
     inReplyTo: c.in_reply_to_id ?? null,
@@ -28,11 +32,34 @@ function viewerComment(c: GhReviewComment, opts: { mine: boolean; threadId: stri
     outdated: c.line === null,
     mine: opts.mine,
     threadId: opts.threadId,
+    // Posted by an AI code reviewer (src/lib/ai-reviewers): its name, and the guide section of the line.
+    aiReviewer: opts.aiReviewer ?? null,
+    sectionId: opts.sectionId ?? null,
     // The lines a suggestion replaces, from the hunk GitHub sends with the comment.
     commentedLines: hasSuggestion(c.body)
       ? commentedLines(c.diff_hunk, { side: c.side ?? "RIGHT", line: c.original_line, startLine: c.original_start_line })
       : null,
   };
+}
+
+/** AI reviewers' comments on lines of the diff, mapped to the guide section that covers each line. */
+async function aiCommentInfo(guide: Guide, list: GhReviewComment[]) {
+  const reviewers = await workspaceAiReviewers(guide.workspaceId);
+  const names = new Map<number, string>();
+  for (const c of list) {
+    const r = reviewerForLogin(reviewers, c.user?.login);
+    if (r) names.set(c.id, r.name);
+  }
+  const sectionOf = new Map<number, string>();
+  if (names.size > 0) {
+    const [{ files }, sections] = await Promise.all([loadParsedFiles(guide), getSections(guide.id)]);
+    for (const c of list) {
+      if (!names.has(c.id) || c.line === null) continue;
+      const s = sectionForLine(sections, files, c.path, c.line, toDiffSide(c.side));
+      if (s) sectionOf.set(c.id, s.id);
+    }
+  }
+  return { names, sectionOf };
 }
 
 function viewerThreads(threads: ReviewThread[]) {
@@ -64,6 +91,10 @@ export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comm
       principal ? getGitHubAccount(principal.user.id) : null,
       threadList(fresh),
     ]);
+    const ai = await aiCommentInfo(guide, list).catch((err) => {
+      console.warn("[comments] AI reviewer labels unavailable:", err instanceof Error ? err.message : err);
+      return { names: new Map<number, string>(), sectionOf: new Map<number, string>() };
+    });
     let threads = cached;
     let index = threadIndex(threads ?? []);
     // A conversation started after the threads were cached (a minute ago at most): read them again.
@@ -79,6 +110,8 @@ export async function GET(req: Request, ctx: RouteContext<"/api/guides/[id]/comm
             mine: mine.has(c.id) || (account !== null && c.user?.login === account.login),
             // A thread lists its first 100 comments; later replies belong to their root's thread.
             threadId: (index.get(c.id) ?? (c.in_reply_to_id ? index.get(c.in_reply_to_id) : undefined))?.id ?? null,
+            aiReviewer: ai.names.get(c.id) ?? null,
+            sectionId: ai.sectionOf.get(c.id) ?? null,
           }),
         ),
         threads: threads ? viewerThreads(threads) : null,

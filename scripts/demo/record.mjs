@@ -410,12 +410,14 @@ await d.sleep(1500);
 
 // 9. All files view
 await mark("all files");
-await d.click(page.getByRole("button", { name: "All files" }));
+await d.click(page.locator('summary[aria-label="View options"]'));
+await d.click(page.getByRole("menuitemcheckbox", { name: "All files" }));
 await d.caption("All files", "The full diff without the guide, loaded file by file.");
 await d.sleep(2500);
 await d.scroll(1600, { container: ".bg-wash.overflow-y-auto", duration: 2600 });
 await d.sleep(1200);
-await d.click(page.getByRole("button", { name: "All files" }));
+await d.click(page.locator('summary[aria-label="View options"]'));
+await d.click(page.getByRole("menuitemcheckbox", { name: "All files" }));
 await d.sleep(800);
 
 // 10. Finish review

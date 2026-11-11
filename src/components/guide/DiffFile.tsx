@@ -218,8 +218,8 @@ export function DiffFile({ view, refs, mode, threads, focus, blobUrl, wrap, onCo
   }
 
   return (
-    <div ref={containerRef} className="diff-file border border-black/15 bg-white" data-path={view.path}>
-      <header className="sticky top-0 z-[5] flex items-center gap-2 border-b border-dashed border-line bg-paper px-3 py-2">
+    <div ref={containerRef} className="diff-file scroll-mt-[var(--sticky-top,0px)] border border-black/15 bg-white" data-path={view.path}>
+      <header className="sticky top-[var(--sticky-top,0px)] z-[5] flex items-center gap-2 border-b border-dashed border-line bg-paper px-3 py-2">
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}

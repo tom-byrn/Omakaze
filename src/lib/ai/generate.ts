@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AI_FINDINGS_INSTRUCTIONS, formatFindingsForPrompt, type AiFinding } from "@/lib/ai-reviewers/signals";
 import { fileHeaderText, renderFileText, renderHunkText } from "@/lib/diff/render-text";
 import type { DiffHunk, ParsedFile } from "@/lib/diff/types";
 import { getRepoContext } from "@/lib/github/connections";
@@ -62,10 +63,11 @@ function prContext(pull: { title: string; body: string | null; headRef: string; 
     .join("\n");
 }
 
-export function systemPrompt(cfg: AiConfig, template: ResolvedTemplate | null): string {
+export function systemPrompt(cfg: AiConfig, template: ResolvedTemplate | null, opts: { findings?: boolean } = {}): string {
   return [
     "You write guided pull request walkthroughs for code reviewers.",
     GUIDE_GUIDELINES,
+    opts.findings ? AI_FINDINGS_INSTRUCTIONS : "",
     "Diff format used in this conversation: each hunk starts with '#<n> @@ ... @@'. Lines show '+<new line number> |' for additions, '-o<old line number> |' for removals and ' <new line number> |' for context. Use these numbers for line-range refs and diff: links.",
     "Output JSON only, matching the schema you are given.",
     // Guides started before templates existed carry none; their instructions come from the config.
@@ -227,13 +229,32 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: nu
   return results;
 }
 
-/** Generate a guide with the configured model. The guide must be in `generating` state. */
-export async function generateGuideWithAi(guide: Guide, cfg: AiConfig): Promise<void> {
+/** Whether refs select the line an inline finding is on. */
+function refsCoverFinding(files: ParsedFile[], refs: SectionRef[], f: AiFinding): boolean {
+  const file = files.find((x) => x.path === f.path);
+  if (!file || f.line === null) return false;
+  for (const h of file.hunks) {
+    const i = h.lines.findIndex((l) => (f.side === "LEFT" ? l.oldNumber : l.newNumber) === f.line);
+    if (i !== -1) return refs.some((r) => r.path === file.path && refSelectsLine(r, file, h, i));
+  }
+  return false;
+}
+
+/**
+ * Generate a guide with the configured model. The guide must be in `generating` state.
+ * `findings` from AI code reviewers (src/lib/ai-reviewers) are given to the model with the diff.
+ */
+export async function generateGuideWithAi(guide: Guide, cfg: AiConfig, opts: { findings?: AiFinding[] } = {}): Promise<void> {
   const { files } = await loadParsedFiles(guide);
   const pull = await getCachedPull(guide.repositoryId, guide.prNumber);
   await getRepoContext(guide.repositoryId); // fail early if the connection is broken
   const template = guide.template;
-  const system = systemPrompt(cfg, template);
+  const findings = opts.findings ?? [];
+  const system = systemPrompt(cfg, template, { findings: findings.length > 0 });
+  const findingsText = (list: AiFinding[]) => {
+    const text = formatFindingsForPrompt(list);
+    return text ? `\n\n${text}` : "";
+  };
   const context = prContext(pull, files);
   const budget = budgetFor(cfg);
   // Asks once more when required template sections are missing; a guide never fails for it.
@@ -253,7 +274,7 @@ export async function generateGuideWithAi(guide: Guide, cfg: AiConfig): Promise<
     await appendGuideEvent(guide.id, "Writing sections");
     const result = await generateJson(cfg, {
       system,
-      user: `${context}\n\nDiff:\n${fullDiff}\n\nWrite the guided walkthrough for this pull request.`,
+      user: `${context}\n\nDiff:\n${fullDiff}${findingsText(findings)}\n\nWrite the guided walkthrough for this pull request.`,
       schema: guideSchema,
       jsonSchema: GUIDE_JSON_SCHEMA,
       schemaName: "guided_pr",
@@ -314,7 +335,7 @@ export async function generateGuideWithAi(guide: Guide, cfg: AiConfig): Promise<
   await appendGuideEvent(guide.id, "Planning sections");
   const plan = await generateJson(cfg, {
     system,
-    user: `${context}\n\nChanged files and hunk summaries:\n${outline}\n\nPlan the guided walkthrough: the title, the markdown summary, and the ordered sections with the refs each one covers.`,
+    user: `${context}\n\nChanged files and hunk summaries:\n${outline}${findingsText(findings)}\n\nPlan the guided walkthrough: the title, the markdown summary, and the ordered sections with the refs each one covers.`,
     schema: planSchema,
     jsonSchema: PLAN_JSON_SCHEMA,
     schemaName: "guide_plan",
@@ -329,9 +350,10 @@ export async function generateGuideWithAi(guide: Guide, cfg: AiConfig): Promise<
     await appendGuideEvent(guide.id, `Writing section ${i + 1}/${plan.sections.length}: ${s.title}`);
     const { refs } = cleanRefs(s.refs, files);
     const code = renderRefs(files, refs, sectionBudget);
+    const sectionFindings = findings.filter((f) => f.kind === "inline" && refsCoverFinding(files, refs, f));
     const res = await generateJson(cfg, {
       system,
-      user: `${context}\n\nGuide summary:\n${plan.summary}\n\nSection ${i + 1} of ${plan.sections.length}: ${s.title}\nIntent: ${s.intent}\nRefs: ${refs.map(formatRef).join(", ")}\n\nCode in this section:\n${code}\n\nWrite the markdown body for this section.`,
+      user: `${context}\n\nGuide summary:\n${plan.summary}\n\nSection ${i + 1} of ${plan.sections.length}: ${s.title}\nIntent: ${s.intent}\nRefs: ${refs.map(formatRef).join(", ")}\n\nCode in this section:\n${code}${findingsText(sectionFindings)}\n\nWrite the markdown body for this section.`,
       schema: bodySchema,
       jsonSchema: BODY_JSON_SCHEMA,
       schemaName: "section_body",

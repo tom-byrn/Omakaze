@@ -5,7 +5,7 @@ import { request as playwrightRequest, type APIRequestContext, type Browser, typ
 import { DEMO_SHARE } from "../scripts/demo-data/share-links";
 import { guideId, sql } from "./db";
 import { DEMO_OVERLAY } from "./demo-overlay";
-import { DEMO_PRS, DEMO_USERS, demoPaths, E2E, expect, mockGitHub, test } from "./fixtures";
+import { DEMO_PRS, DEMO_USERS, demoPaths, E2E, expect, mockGitHub, test, viewOption } from "./fixtures";
 import { caption, pause, saveVideo, shot } from "./media";
 
 const PROMO = "src/lib/promo.ts";
@@ -182,7 +182,8 @@ test.describe("Share links", () => {
     await expect(sam.getByRole("button", { name: "Resolve conversation" })).toHaveCount(0);
     await expect(sam.getByRole("link", { name: /Commit/ })).toHaveCount(0);
     await expect(promo.getByRole("button", { name: "Comment on this line" })).toHaveCount(0);
-    await expect(viewer.getByRole("button", { name: /Show resolved/ })).toHaveCount(0);
+    await expect(await viewOption(viewer, "Show resolved")).toHaveCount(0);
+    await viewer.keyboard.press("Escape");
     await caption(viewer, "Review comments from GitHub, read-only, when the link includes them", "Shared view");
     await shot(viewer, "shared-guide-section-comments");
     await pause(viewer, 1500);
@@ -196,7 +197,7 @@ test.describe("Share links", () => {
     await caption(viewer, "Moved blocks and every changed file are there too", "Shared view");
     await shot(viewer, "shared-guide-moved-code");
     await pause(viewer, 1200);
-    await viewer.getByRole("button", { name: "All files" }).click();
+    await (await viewOption(viewer, "All files")).click();
     await expect(viewer.getByRole("heading", { name: "Every change in the pull request." })).toBeVisible();
     await pause(viewer, 1200);
 
