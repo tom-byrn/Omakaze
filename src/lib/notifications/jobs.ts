@@ -8,6 +8,7 @@
  *   queued for when the first one has waited the recipient's grouping delay, so a burst of events
  *   becomes one email. Preferences and mutes are checked again when it is sent.
  * - `post_notification_webhook`: one message to a Slack or JSON webhook.
+ * - `send_push`: one push notification to a member's phones (push.ts), queued with their email.
  */
 import { and, asc, eq, inArray, isNotNull, lt, ne, or } from "drizzle-orm";
 import { db } from "@/db";
@@ -48,6 +49,7 @@ import {
   unsubscribeToken,
 } from "./prefs";
 import { commentRecipients, guideRecipients, reviewedChanges, wantsEmail, type EarlierReviewer, type EarlierVersion, type Recipient } from "./recipients";
+import { pushEnabled, pushMessage, sendPush, usersWithDevices, wantsPush, type PushMessage } from "./push";
 import { slackMessage, webhookPayload } from "./slack";
 import type { ChannelEventData, NotificationData } from "./types";
 
@@ -64,6 +66,9 @@ export async function runNotificationJob(job: Job): Promise<void> {
       return sendNotificationEmail(String(job.payload.userId));
     case "post_notification_webhook":
       return postNotificationWebhook(String(job.payload.channelId), job.payload.event as ChannelEventData);
+    case "send_push":
+      if (pushEnabled()) await sendPush(String(job.payload.userId), job.payload.message as PushMessage);
+      return;
   }
 }
 
@@ -133,13 +138,23 @@ async function notifyMembers(input: {
   actorName: string | null;
   recipients: (Recipient & { data: NotificationData })[];
 }): Promise<void> {
-  if (input.recipients.length === 0 || !mailEnabled()) return;
+  if (input.recipients.length === 0) return;
   const ids = input.recipients.map((r) => r.userId);
   const [prefs, muted, people] = await Promise.all([
     preferencesFor(ids),
     mutedIn(input.c.ws.id, ids),
     db.select({ id: users.id, email: users.email, verifiedAt: users.emailVerifiedAt }).from(users).where(inArray(users.id, ids)),
   ]);
+  // Push to the mobile app right away (no grouping); same kinds and workspace mutes as email.
+  if (pushEnabled()) {
+    const withDevices = await usersWithDevices(ids);
+    for (const r of input.recipients) {
+      if (!withDevices.has(r.userId) || muted.has(r.userId) || !wantsPush(prefs.get(r.userId)!, r.type)) continue;
+      const message = pushMessage({ type: r.type, workspaceId: input.c.ws.id, prNumber: input.prNumber, actorName: input.actorName, data: r.data });
+      await enqueueJob("send_push", { userId: r.userId, message }, { dedupeKey: `push:${input.key}:${r.userId}`, oncePerKey: true, maxAttempts: 3 });
+    }
+  }
+  if (!mailEnabled()) return;
   // Only confirmed addresses get email.
   const reachable = new Set(people.filter((p) => p.email && p.verifiedAt).map((p) => p.id));
   const rows = input.recipients.filter((r) => reachable.has(r.userId) && !muted.has(r.userId) && wantsEmail(prefs.get(r.userId)!, r.type));

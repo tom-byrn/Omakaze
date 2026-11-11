@@ -67,6 +67,8 @@ See [github-app.md](github-app.md) for how these fit together.
 | --- | --- | --- |
 | `NOTIFICATIONS_ENABLED` | `true` | Email notifications, Slack and JSON webhooks for the whole instance. When false, nothing is sent and the settings pages say so. |
 | `NOTIFICATIONS_GROUP_SECONDS` | `300` | How long the first email notification waits for others, for members who get email "within a few minutes". Notifications that arrive in that time are sent as one email. A whole number from 0 to 3600. |
+| `PUSH_NOTIFICATIONS_ENABLED` | `true` | Push notifications to the [mobile app](mobile.md), sent through Expo's push service (`exp.host`) to devices members registered by signing in. The same notifications as email, sent right away, following each member's notification kinds, push switch and workspace mutes. Needs `NOTIFICATIONS_ENABLED`. |
+| `EXPO_ACCESS_TOKEN` | none | Expo access token, needed only when **Enhanced push security** is on for the Expo project the app was built with. |
 | `WEBHOOKS_ALLOW_PRIVATE_NETWORK` | `false` | Let Slack and JSON webhooks reach loopback and private network addresses, for example a Mattermost server on your network. By default, like downloads for `upload_asset`, only public addresses are allowed, so workspace admins can't use webhooks to probe your network. |
 | `ASSETS_ALLOW_PRIVATE_NETWORK` | `false` | Let `upload_asset` with a `url` download from loopback and private network addresses, for example screenshots served from your own machine. By default only public addresses are allowed. Anyone who can call `upload_asset` can then make the server request internal addresses, so use it only on local or single-user instances. Separate from `WEBHOOKS_ALLOW_PRIVATE_NETWORK`, which covers only Slack and JSON webhooks. |
 

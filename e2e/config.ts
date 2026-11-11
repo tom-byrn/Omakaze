@@ -84,6 +84,8 @@ export function appEnv(): Record<string, string> {
     NOTIFICATIONS_GROUP_SECONDS: "30",
     // The fake Slack webhook listens on 127.0.0.1.
     WEBHOOKS_ALLOW_PRIVATE_NETWORK: "true",
+    // Push notifications go to the fake webhook receiver instead of Expo's push service.
+    EXPO_PUSH_URL: `http://127.0.0.1:${E2E.notifyPort}/expo/push`,
     STORAGE_DRIVER: "database",
     LANDING_ONLY: "false",
     RUN_MIGRATIONS_ON_START: "true",

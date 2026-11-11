@@ -123,6 +123,7 @@ export async function runJob(job: Job): Promise<void> {
     case "notify_event":
     case "send_notification_email":
     case "post_notification_webhook":
+    case "send_push":
       return runNotificationJob(job);
     default:
       throw new PermanentJobError(`Unknown job type ${job.type}`);
