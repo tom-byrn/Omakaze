@@ -4,6 +4,12 @@ All notable changes to Omakaze are recorded in this file. The format is based on
 
 ## Unreleased
 
+### Added
+
+- Mobile app for iOS and Android in `mobile/` (Expo SDK 58, Expo Router). It signs in to an instance through its OAuth server (dynamic client registration and PKCE in the system browser, one workspace per sign-in, several workspaces and servers side by side) and has the pull request list with **Needs my review**, **Mine**, **Assigned** and **All**, state and repository filters and search; the guide overview with banners for drafts, outdated guides, new versions since your last visit and missing template sections; a section reader with markdown, syntax-highlighted diffs with expandable context, `diff:` links, review marks and next/previous; all files; conversations with replies, resolving and deleting; line and multi-line comments with suggested changes; reviews (comment, approve, request changes, conversation comment); generating and regenerating with AI with live progress; versions; share links; Markdown export; activity; insights; notification settings; members; and a light, dark or system theme. It uses the web app's design throughout (its colors, type, borders, dashed rules, icons and components) with its own header, navigation, menus, dialogs and sheets instead of the system's. See [docs/mobile.md](docs/mobile.md).
+- Push notifications: the same notifications as email, pushed right away through Expo's push service to devices registered with `POST /api/mobile/push-devices`, following each member's notification kinds and workspace mutes and a new **push** switch (`notification_preferences.push`). Tapping one opens the guide, at the section the notification is about. `PUSH_NOTIFICATIONS_ENABLED` turns push off; `EXPO_ACCESS_TOKEN` is for Expo projects with enhanced push security. Devices Expo reports as unregistered are removed.
+- `/api/mobile` routes for the app, authenticated like the REST API with a token bound to one workspace: `me`, `pulls` (with filter counts and an optional GitHub refresh), `pull` (a pull request and a guide version with everything the viewer shows, recording a visit and carrying review marks forward like the web viewer), `share-links`, `activity`, `insights`, `notifications`, `push-devices` and `members`.
+
 ## 0.1.0 — 2026-10-23
 
 Initial release.

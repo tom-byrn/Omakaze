@@ -18,6 +18,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   replies: true,
   pullActivity: true,
   digest: "minutes",
+  push: true,
 };
 
 /** The instance switch (NOTIFICATIONS_ENABLED) for email, Slack and JSON webhooks. */
@@ -46,7 +47,8 @@ export async function preferencesFor(userIds: string[]): Promise<Map<string, Pre
   return out;
 }
 
-export async function savePreferences(userId: string, prefs: Preferences): Promise<void> {
+/** Save preferences. `push` is left as it was when omitted (the web form has no push setting). */
+export async function savePreferences(userId: string, prefs: Omit<Preferences, "push"> & { push?: boolean }): Promise<void> {
   await db
     .insert(notificationPreferences)
     .values({ userId, ...prefs })

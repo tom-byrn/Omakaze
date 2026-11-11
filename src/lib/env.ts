@@ -55,6 +55,12 @@ const schema = z.object({
   NOTIFICATIONS_GROUP_SECONDS: z.coerce.number().int().min(0).max(3600).default(300),
   /** Let Slack and JSON webhooks reach loopback and private network addresses (e.g. Mattermost on your network). */
   WEBHOOKS_ALLOW_PRIVATE_NETWORK: bool(false),
+  /** Push notifications to the mobile app, sent through Expo's push service. Needs NOTIFICATIONS_ENABLED. */
+  PUSH_NOTIFICATIONS_ENABLED: bool(true),
+  /** Expo push API endpoint (override to point at a mock in tests). */
+  EXPO_PUSH_URL: z.string().url().default("https://exp.host/--/api/v2/push/send"),
+  /** Optional Expo access token, required only when "Enhanced push security" is on for the Expo project. */
+  EXPO_ACCESS_TOKEN: optionalString,
 
   // Storage
   /** Let upload_asset(url) download from loopback and private network addresses (e.g. screenshots served from your machine). */

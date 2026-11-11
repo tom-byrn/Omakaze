@@ -11,7 +11,8 @@ export type JobType =
   // Notifications (src/lib/notifications/jobs.ts)
   | "notify_event"
   | "send_notification_email"
-  | "post_notification_webhook";
+  | "post_notification_webhook"
+  | "send_push";
 export type Job = typeof jobs.$inferSelect;
 
 export async function enqueueJob(

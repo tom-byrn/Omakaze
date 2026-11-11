@@ -16,6 +16,8 @@ const config = [
       "scripts/demo-data/repo/**",
       "test-results*/**",
       "playwright-report*/**",
+      // The Expo app has its own lint setup (mobile/).
+      "mobile/**",
     ],
   },
   {

@@ -71,6 +71,7 @@ Omakaze is an open-source, self-hostable web app that turns GitHub pull requests
 - **Versions.** Every new guide for a pull request is a new version; older versions stay available. A guide written for an older head commit is marked as outdated.
 - **Read-only share links.** Share one version of a guide, or always the latest version of a pull request, with people outside the workspace. They read the guide and its diffs without signing in; comments from GitHub are included only if you choose. Links expire after 1, 7 or 30 days or never, can be revoked, and are listed in **Settings → Share links**. Workspaces choose who can create them, and an instance can turn them off.
 - **Notifications.** Email when a guide is ready for your review, when a guide you reviewed has a new version (with the sections you reviewed that changed), and about replies and comments on your pull requests, from Omakaze and GitHub. Events close together become one email; each member picks what they get, mutes workspaces and can unsubscribe in one click. Workspaces can post published guides, new versions and completed reviews to Slack or a signed JSON webhook.
+- **Mobile app.** An iOS and Android app (Expo, in `mobile/`) for reviewing on the go: the needs-my-review list, guides with diffs and conversations, review marks, comments with suggestions, reviews, AI generation, share links, activity, insights and push notifications. It signs in to your instance through its OAuth server.
 - **MCP server.** 22 tools and two prompts over Streamable HTTP at `/api/mcp`. Clients authenticate with OAuth 2.1 (dynamic client registration and PKCE) or an API token.
 - **Reviews by agents.** Over MCP, an agent can read the review conversations, reply in them, comment on lines with suggested changes, resolve conversations and submit reviews, as the member whose token it uses. Approvals by agents are off unless an admin allows them.
 - **Optional built-in AI generation.** Anthropic, OpenAI, Google, OpenRouter, local models with Ollama or LM Studio, or any OpenAI-compatible server such as vLLM or LiteLLM. Not needed if you write guides with your own agent over MCP.
@@ -180,6 +181,7 @@ Built-in generation is optional: agents connected over MCP use their own model. 
 | [REST API](docs/api.md) | `/api/v1` endpoints and a GitHub Actions example |
 | [AI generation](docs/ai.md) | Providers, the generation pipeline, automation, cost and privacy |
 | [Architecture](docs/architecture.md) | Components, request flows, data model, security model, background jobs |
+| [Mobile app](docs/mobile.md) | The iOS and Android app: signing in, features, push notifications, building your own copy, its API |
 | [Development](docs/development.md) | Local setup, scripts, project structure, tests, migrations |
 
 ## Development

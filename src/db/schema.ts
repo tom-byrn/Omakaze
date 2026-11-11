@@ -777,8 +777,28 @@ export const notificationPreferences = pgTable("notification_preferences", {
   replies: boolean("replies").default(true).notNull(),
   pullActivity: boolean("pull_activity").default(true).notNull(),
   digest: text("digest").$type<EmailDigest>().default("minutes").notNull(),
+  /** Off: no push notifications to the mobile app. The four kinds above apply to both. */
+  push: boolean("push").default(true).notNull(),
   updatedAt: updatedAt(),
 });
+
+/** Phones the mobile app registered for push notifications (Expo push tokens). */
+export const pushDevices = pgTable(
+  "push_devices",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** `ExponentPushToken[...]`. One row per device; a token moves to whoever signed in last. */
+    token: text("token").notNull(),
+    platform: text("platform").$type<"ios" | "android">().notNull(),
+    deviceName: text("device_name"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("push_devices_token_unique").on(t.token), index("push_devices_user_idx").on(t.userId)],
+);
 
 /** Workspaces a user gets no email notifications from. */
 export const notificationMutes = pgTable(
